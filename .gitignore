@@ -1,0 +1,21 @@
+# OS files
+Thumbs.db
+.DS_Store
+
+# Node / build artifacts
+node_modules/
+dist/
+
+# Composer
+vendor/
+
+# PHPStorm / VSCode
+.idea/
+.vscode/
+
+# WordPress
+.DS_Store
+wp-content/uploads/
+
+# Logs
+*.log

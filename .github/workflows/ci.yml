@@ -16,12 +16,19 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
-      - name: Install dependencies
+      - name: Install composer
         run: |
-          composer --version || php -r "copy('https://getcomposer.org/installer', 'composer-setup.php'); include 'composer-setup.php'; unlink('composer-setup.php');"
-      - name: PHP lint
+          EXPECTED_SIGNATURE=$(wget -q -O - https://composer.github.io/installer.sig)
+          php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+          php composer-setup.php --quiet
+          php -r "unlink('composer-setup.php');"
+          php composer.phar --version
+      - name: Install PHP dev deps
         run: |
-          find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 -P4 php -l || true
+          php composer.phar install --no-interaction --prefer-dist
+      - name: Run phpcs
+        run: |
+          ./vendor/bin/phpcs --standard=phpcs.xml.dist || true
 
   build-release:
     if: startsWith(github.ref, 'refs/tags/v')

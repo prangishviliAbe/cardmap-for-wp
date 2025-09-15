@@ -1,0 +1,10 @@
+{
+  "name": "prangishviliabe/cardmap-for-wp",
+  "description": "Card Map Builder Pro - WordPress plugin",
+  "require-dev": {
+    "squizlabs/php_codesniffer": "^3.7"
+  },
+  "scripts": {
+    "cs": "phpcs --standard=phpcs.xml.dist"
+  }
+}

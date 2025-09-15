@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+      - name: Install dependencies
+        run: |
+          composer --version || php -r "copy('https://getcomposer.org/installer', 'composer-setup.php'); include 'composer-setup.php'; unlink('composer-setup.php');"
+      - name: PHP lint
+        run: |
+          find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 -P4 php -l || true
+
+  build-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: php-lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release ZIP
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          ZIP=cardmap-${TAG}.zip
+          zip -r ${ZIP} . -x .git/* .github/* node_modules/* vendor/*
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cardmap-release
+          path: cardmap-*.zip

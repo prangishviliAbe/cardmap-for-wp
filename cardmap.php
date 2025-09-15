@@ -4,6 +4,7 @@ Plugin Name: Card Map Builder Pro
 Description: Draggable card maps with images, captions, links, connections, admin editor + settings, and frontend shortcode with zoom/pan/fullscreen.
 Version: 4.9
 Author: Abe
+Text Domain: cardmap-for-wp
 */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -131,7 +132,10 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 
 function cardmap_editor_callback( $post ) {
     $raw = get_post_meta( $post->ID, '_cardmap_data', true );
-    $json = $raw ? $raw : json_encode( [ 'nodes' => [], 'connections' => [] ] );
+    $decoded_raw = $raw ? ( is_string( $raw ) ? json_decode( wp_unslash( $raw ), true ) : $raw ) : [ 'nodes' => [], 'connections' => [] ];
+    if ( ! is_array( $decoded_raw ) ) {
+        $decoded_raw = [ 'nodes' => [], 'connections' => [] ];
+    }
 
     $admin_drag = get_option( 'cardmap_enable_drag', 1 ) ? 1 : 0;
     $line_color = esc_js( get_option( 'cardmap_line_color', '#A61832' ) );
@@ -156,6 +160,8 @@ function cardmap_editor_callback( $post ) {
     </div>
 
     <input type="hidden" id="cardmap_post_id" value="<?php echo esc_attr( $post->ID ); ?>">
+    <?php echo wp_nonce_field( 'save_cardmap_' . $post->ID, 'cardmap_nonce', true, false ); ?>
+    <input type="hidden" id="cardmap_nonce" value="<?php echo esc_attr( wp_create_nonce( 'save_cardmap_' . $post->ID ) ); ?>">
     <p>Shortcode: <input type="text" value="<?php echo esc_attr('[cardmap id="' . $post->ID . '"]'); ?>" readonly style="width:100%;"></p>
 
     <style>
@@ -243,8 +249,7 @@ function cardmap_editor_callback( $post ) {
         const lineThickness = <?php echo $line_thickness; ?>;
         const enableAlignButton = <?php echo json_encode( (bool) $enable_align_button); ?>;
 
-        let mapData = <?php echo is_string($json) ? $json : json_encode($json); ?>;
-        try { if (typeof mapData === 'string') mapData = JSON.parse(mapData); } catch(e){ mapData = { nodes: [], connections: [] }; }
+    let mapData = <?php echo wp_json_encode( $decoded_raw ); ?>;
         if (!mapData || !Array.isArray(mapData.nodes)) mapData = { nodes: [], connections: [] };
 
         const instance = jsPlumb.getInstance({ Container: editor, ContinuousRepaint: true });
@@ -432,6 +437,7 @@ function cardmap_editor_callback( $post ) {
                 body: new URLSearchParams({
                     action: 'save_cardmap',
                     post_id: postId,
+                    nonce: document.getElementById('cardmap_nonce') ? document.getElementById('cardmap_nonce').value : '',
                     data: JSON.stringify({ nodes, connections })
                 })
             }).then(r => r.json()).then(res => {
@@ -587,17 +593,47 @@ function cardmap_editor_callback( $post ) {
  * -------------------------
  */
 add_action( 'wp_ajax_save_cardmap', function(){
-    if ( ! current_user_can( 'edit_posts' ) ) {
+    $post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
+    if ( ! $post_id ) {
+        wp_send_json_error( 'Missing post_id', 400 );
+    }
+
+    // Capability check for the specific post
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
         wp_send_json_error( 'Unauthorized', 403 );
     }
-    $post_id = isset($_POST['post_id']) ? intval( $_POST['post_id'] ) : 0;
-    $data = isset($_POST['data']) ? wp_unslash( $_POST['data'] ) : '';
-    if ( $post_id && $data ) {
-        update_post_meta( $post_id, '_cardmap_data', $data );
-        wp_send_json_success();
-    } else {
-        wp_send_json_error( 'Missing data' );
+
+    // Verify nonce
+    $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+    if ( ! wp_verify_nonce( $nonce, 'save_cardmap_' . $post_id ) ) {
+        wp_send_json_error( 'Invalid nonce', 403 );
     }
+
+    $data_raw = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : '';
+    if ( ! $data_raw ) {
+        wp_send_json_error( 'Missing data', 400 );
+    }
+
+    // Decode and validate JSON structure
+    $decoded = json_decode( $data_raw, true );
+    if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $decoded ) ) {
+        wp_send_json_error( 'Invalid JSON', 400 );
+    }
+
+    $decoded = wp_unslash( $decoded );
+
+    // Basic structure validation
+    if ( ! isset( $decoded['nodes'] ) || ! is_array( $decoded['nodes'] ) ) {
+        $decoded['nodes'] = [];
+    }
+    if ( ! isset( $decoded['connections'] ) || ! is_array( $decoded['connections'] ) ) {
+        $decoded['connections'] = [];
+    }
+
+    // Optionally sanitize nodes/connections further here (e.g., validate IDs, positions, URLs)
+
+    update_post_meta( $post_id, '_cardmap_data', wp_json_encode( $decoded ) );
+    wp_send_json_success();
 });
 
 /**
@@ -612,7 +648,12 @@ add_shortcode( 'cardmap', function( $atts ) {
 
     $raw = get_post_meta( $post_id, '_cardmap_data', true );
     if ( ! $raw ) return 'No map data found.';
-    $data_json = is_string( $raw ) ? $raw : json_encode( $raw );
+    // Ensure we have safe JSON for embedding in JS
+    $data_decoded = is_string( $raw ) ? json_decode( wp_unslash( $raw ), true ) : $raw;
+    if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $data_decoded ) ) {
+        $data_decoded = [ 'nodes' => [], 'connections' => [] ];
+    }
+    $data_json = wp_json_encode( $data_decoded );
 
     $enable_drag = get_option( 'cardmap_enable_drag', 1 ) ? 'true' : 'false';
     $line_color = esc_js( get_option( 'cardmap_line_color', '#A61832' ) );
@@ -666,15 +707,15 @@ add_shortcode( 'cardmap', function( $atts ) {
         const wrapper = document.querySelector('.cardmap-frontend-wrapper');
         const container = document.getElementById('cardmap-frontend-<?php echo esc_js($post_id); ?>');
         const zoomDisplay = document.getElementById('cardmap-zoom-display');
-        const lineStyle = '<?php echo $line_style; ?>';
-        const lineColor = "<?php echo $line_color; ?>";
-        const lineThickness = <?php echo $line_thickness; ?>;
+    const lineStyle = '<?php echo esc_js( $line_style ); ?>';
+    const lineColor = "<?php echo esc_js( $line_color ); ?>";
+    const lineThickness = <?php echo intval( $line_thickness ); ?>;
         
         const CARD_WIDTH = 240;
         const CARD_HEIGHT = 220;
         const PADDING = 40;
 
-        let mapData = <?php echo $data_json; ?>;
+    let mapData = <?php echo $data_json; ?>;
         if (typeof mapData === 'string') {
             try {
                 mapData = JSON.parse(mapData);

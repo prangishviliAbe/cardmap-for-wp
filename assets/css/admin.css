@@ -1,0 +1,17 @@
+/* Admin editor styles for Card Map Builder Pro */
+#cardmap-editor { transition: transform 0.4s ease-out; }
+.cardmap-node { position: absolute; width: 240px; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; cursor: move; user-select: none; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; border: 1px solid #E0E0E0; }
+.cardmap-node:hover { transform: translateY(-2px); transition: transform 0.12s; }
+.node-image-wrapper { position: relative; }
+.node-image { width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; background: #f0f0f0; color: #888; }
+.node-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-caption { position: absolute; bottom: 0; left: 0; width: 100%; font-size: 14px; color: white; background-color: rgba(40, 40, 40, 0.7); padding: 8px 12px; text-align: left; box-sizing: border-box; }
+.card-title { font-size: 16px; font-weight: 600; padding: 12px; color: #222; text-align: left; background: #fff; }
+.node-tools { padding: 12px; display: block; background: #f9f9f9; border-top: 1px solid #eee; }
+.node-tools .card-link-input, .node-tools select { width: 100%; box-sizing: border-box; padding: 6px; border-radius: 6px; border: 1px solid #ddd; }
+.node-tools select { margin-top: 8px; }
+
+#cardmap-editor-wrapper:-webkit-full-screen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+#cardmap-editor-wrapper:-moz-full-screen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+#cardmap-editor-wrapper:-ms-fullscreen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+#cardmap-editor-wrapper:fullscreen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }

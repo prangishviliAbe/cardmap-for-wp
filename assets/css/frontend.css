@@ -1,0 +1,9 @@
+/* Frontend styles for Card Map Builder Pro */
+.cardmap-zoom-btn { background:#A61832; color:#ffffff; border:none; border-radius:8px; width:48px; height:48px; font-size:18px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(0,0,0,0.12); }
+.cardmap-zoom-btn:hover { transform:scale(1.06); }
+.cardmap-frontend-wrapper .cardmap-node { position:absolute; width:240px; background:#fff; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.1); overflow:hidden; cursor:grab; user-select:none; transition: transform .12s; border: 1px solid #E0E0E0; }
+.cardmap-frontend-wrapper .cardmap-node:hover { transform: translateY(-2px); }
+.cardmap-frontend-wrapper .node-image-wrapper { position: relative; }
+.cardmap-frontend-wrapper .node-image img { width:100%; height:160px; object-fit:cover; display:block; }
+.cardmap-frontend-wrapper .card-caption { position: absolute; bottom: 0; left: 0; width: 100%; font-size:14px; color: white; background-color: rgba(40, 40, 40, 0.7); padding: 8px 12px; text-align:left; box-sizing: border-box; }
+.cardmap-frontend-wrapper .card-title { font-size:16px; font-weight:600; padding:12px; color:#222; text-align:left; }

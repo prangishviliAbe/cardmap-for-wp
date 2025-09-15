@@ -126,6 +126,22 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
         if ( $screen && $screen->post_type === 'cardmap' ) {
             wp_enqueue_media();
             wp_enqueue_script( 'jsplumb-cdn', 'https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js', [], null, true );
+            wp_enqueue_script( 'cardmap-admin', plugin_dir_url( __FILE__ ) . 'assets/js/admin.js', [ 'jsplumb-cdn' ], filemtime( plugin_dir_path( __FILE__ ) . 'assets/js/admin.js' ), true );
+            wp_enqueue_style( 'cardmap-admin-css', plugin_dir_url( __FILE__ ) . 'assets/css/admin.css', [], filemtime( plugin_dir_path( __FILE__ ) . 'assets/css/admin.css' ) );
+            // Localize admin data for per-post use
+            $raw = get_post_meta( get_the_ID(), '_cardmap_data', true );
+            $decoded_raw = $raw ? ( is_string( $raw ) ? json_decode( wp_unslash( $raw ), true ) : $raw ) : [ 'nodes' => [], 'connections' => [] ];
+            if ( ! is_array( $decoded_raw ) ) $decoded_raw = [ 'nodes' => [], 'connections' => [] ];
+            wp_localize_script( 'cardmap-admin', 'cardmapAdminData', [
+                'postId' => get_the_ID(),
+                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'lineStyle' => get_option( 'cardmap_line_style', 'bezier' ),
+                'lineColor' => get_option( 'cardmap_line_color', '#A61832' ),
+                'lineThickness' => intval( get_option( 'cardmap_line_thickness', 2) ),
+                'enableAlignButton' => (bool) get_option('cardmap_enable_align_button', 0),
+                'mapData' => $decoded_raw,
+                'nonce' => wp_create_nonce( 'save_cardmap_' . get_the_ID() ),
+            ] );
         }
     }
 });
@@ -160,244 +176,32 @@ function cardmap_editor_callback( $post ) {
     </div>
 
     <input type="hidden" id="cardmap_post_id" value="<?php echo esc_attr( $post->ID ); ?>">
-    <?php echo wp_nonce_field( 'save_cardmap_' . $post->ID, 'cardmap_nonce', true, false ); ?>
-    <input type="hidden" id="cardmap_nonce" value="<?php echo esc_attr( wp_create_nonce( 'save_cardmap_' . $post->ID ) ); ?>">
-    <p>Shortcode: <input type="text" value="<?php echo esc_attr('[cardmap id="' . $post->ID . '"]'); ?>" readonly style="width:100%;"></p>
+    // Enqueue frontend assets and localize the data
+    wp_enqueue_style( 'cardmap-frontend-css', plugin_dir_url( __FILE__ ) . 'assets/css/frontend.css', [], filemtime( plugin_dir_path( __FILE__ ) . 'assets/css/frontend.css' ) );
+    wp_enqueue_script( 'jsplumb-cdn-frontend', 'https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js', [], null, true );
+    wp_enqueue_script( 'cardmap-frontend', plugin_dir_url( __FILE__ ) . 'assets/js/frontend.js', [ 'jsplumb-cdn-frontend' ], filemtime( plugin_dir_path( __FILE__ ) . 'assets/js/frontend.js' ), true );
+    wp_localize_script( 'cardmap-frontend', 'cardmapFrontendData', [
+        'containerId' => 'cardmap-frontend-' . esc_attr( $post_id ),
+        'mapData' => json_decode( $data_json, true ),
+        'lineStyle' => $line_style,
+        'lineColor' => $line_color,
+        'lineThickness' => $line_thickness,
+        'enableDrag' => ( get_option( 'cardmap_enable_drag', 1 ) ? true : false ),
+    ] );
 
-    <style>
-    /* Corrected Admin Editor Styles */
-    #cardmap-editor {
-        position: relative;
-        width: 1200px;
-        height: 1000px;
-        transition: transform 0.4s ease-out; /* Smooth transform for pan/zoom */
-    }
-    .cardmap-node {
-        position: absolute;
-        width: 240px;
-        background: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        overflow: hidden;
-        cursor: move;
-        user-select: none;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-        border: 1px solid #E0E0E0;
-    }
-    .cardmap-node:hover { transform: translateY(-2px); transition: transform 0.12s; }
-    .node-image-wrapper { position: relative; }
-    .node-image {
-        width: 100%;
-        height: 160px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f0f0f0;
-        color: #888;
-    }
-    .node-image img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-    }
-    .card-caption {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        font-size: 14px;
-        color: white;
-        background-color: rgba(40, 40, 40, 0.7);
-        padding: 8px 12px;
-        text-align: left;
-        box-sizing: border-box;
-    }
-    .card-title {
-        font-size: 16px;
-        font-weight: 600;
-        padding: 12px;
-        color: #222;
-        text-align: left;
-        background: #fff;
-    }
-    .node-tools { padding: 12px; display: block; background: #f9f9f9; border-top: 1px solid #eee; }
-    .node-tools .card-link-input, .node-tools select {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 6px;
-        border-radius: 6px;
-        border: 1px solid #ddd;
-    }
-    .node-tools select { margin-top: 8px; }
-
-    /* Fullscreen specific styles */
-    #cardmap-editor-wrapper:-webkit-full-screen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
-    #cardmap-editor-wrapper:-moz-full-screen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
-    #cardmap-editor-wrapper:-ms-fullscreen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
-    #cardmap-editor-wrapper:fullscreen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
-    </style>
-
-    <script>
-    document.addEventListener('DOMContentLoaded', function(){
-        const editor = document.getElementById('cardmap-editor');
-        const editorWrapper = document.getElementById('cardmap-editor-wrapper');
-        const postId = document.getElementById('cardmap_post_id').value;
-        const ajaxUrl = '<?php echo esc_url_raw( $ajax_url ); ?>';
-        const lineStyle = '<?php echo $line_style; ?>';
-        const lineColor = "<?php echo $line_color; ?>";
-        const lineThickness = <?php echo $line_thickness; ?>;
-        const enableAlignButton = <?php echo json_encode( (bool) $enable_align_button); ?>;
-
-    let mapData = <?php echo wp_json_encode( $decoded_raw ); ?>;
-        if (!mapData || !Array.isArray(mapData.nodes)) mapData = { nodes: [], connections: [] };
-
-        const instance = jsPlumb.getInstance({ Container: editor, ContinuousRepaint: true });
-
-        function getConnectorConfig(style) {
-            const baseConfig = { stroke: lineColor, strokeWidth: lineThickness };
-            const overlays = [["Arrow",{ width:10, length:10, location:1 }]];
-            const dashedOverlay = { stroke: lineColor, strokeWidth: lineThickness, dashstyle: "4 2" };
-            const dottedOverlay = { stroke: lineColor, strokeWidth: lineThickness, dashstyle: "1 1" };
-
-            switch (style) {
-                case 'bezier':
-                case 'rounded-bezier':
-                    return { connector: ["Bezier", {curviness: 50}], paintStyle: baseConfig };
-                case 'straight':
-                    return { connector: ["Straight"], paintStyle: baseConfig };
-                case 'flowchart':
-                    return { connector: ["Flowchart"], paintStyle: baseConfig };
-                case 'state-machine':
-                    return { connector: ["StateMachine", { curviness: 20, margin: 5, proximity: 10 }], paintStyle: baseConfig };
-                case 'straight-with-arrows':
-                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: overlays };
-                case 'flowchart-with-arrows':
-                    return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: overlays };
-                case 'diagonal':
-                    return { connector: ["Straight"], paintStyle: baseConfig, anchors: ["TopLeft", "BottomRight"] };
-                case 'dashed':
-                    return { connector: ["Straight"], paintStyle: dashedOverlay };
-                case 'dotted':
-                    return { connector: ["Straight"], paintStyle: dottedOverlay };
-                default:
-                    return { connector: ["Bezier", {curviness:50}], paintStyle: baseConfig };
-            }
-        }
-        
-        const connectorConfig = getConnectorConfig(lineStyle);
-
-        instance.importDefaults({
-            Connector: connectorConfig.connector,
-            PaintStyle: connectorConfig.paintStyle,
-            HoverPaintStyle: connectorConfig.paintStyle,
-            EndpointStyle: { radius:5 },
-            Anchors: ["Bottom", "Top"],
-            ReattachConnections: true,
-            MaxConnections: -1
-        });
-        
-        let connectMode = false;
-        let deleteMode = false;
-        let firstNode = null;
-
-        function renderNode(n){
-            if (!n || !n.id) return;
-            if (document.getElementById(n.id)) return;
-
-            const node = document.createElement('div');
-            node.className = 'cardmap-node';
-            node.id = n.id;
-            node.style.left = (n.x || 20) + 'px';
-            node.style.top = (n.y || 20) + 'px';
-            node.dataset.image = n.image || '';
-            node.dataset.link = n.link || '';
-            node.dataset.target = n.target || '_self';
-            
-            node.innerHTML = `
-                <div class="node-image-wrapper">
-                    <div class="node-image">${ n.image ? `<img src="${n.image}">` : 'Select an image' }</div>
-                    <div class="card-caption" contenteditable="true">${ n.caption || 'Caption' }</div>
-                </div>
-                <div class="card-title" contenteditable="true">${ n.text || 'New Card Title' }</div>
-                <div class="node-tools">
-                    <button class="button edit-image" type="button">Select Image</button>
-                    <input class="card-link-input" placeholder="Card link (https://...)" value="${ n.link || '' }" />
-                    <select class="card-link-target">
-                        <option value="_self" ${ !n.target || n.target === '_self' ? 'selected' : '' }>Same window</option>
-                        <option value="_blank" ${ n.target === '_blank' ? 'selected' : '' }>New window</option>
-                    </select>
-                </div>
-            `;
-
-            editor.appendChild(node);
-
-            instance.draggable(node, {
-                drag: function(){ instance.repaintEverything(); },
-                stop: function(params){
-                    // Update mapData with new position after drag
-                    const draggedNode = mapData.nodes.find(n => n.id === params.el.id);
-                    if (draggedNode) {
-                        draggedNode.x = params.pos[0];
-                        draggedNode.y = params.pos[1];
-                    }
-                    instance.repaintEverything();
-                }
-            });
-
-            node.querySelector('.edit-image').addEventListener('click', function(e){
-                e.stopPropagation();
-                e.preventDefault();
-                const frame = wp.media({
-                    title: 'Select Card Image',
-                    multiple: false,
-                    library: { type: 'image' },
-                    button: { text: 'Use this image' }
-                });
-                frame.on('select', function(){
-                    const sel = frame.state().get('selection').first().toJSON();
-                    if (sel && sel.url) {
-                        node.dataset.image = sel.url;
-                        const imgWrap = node.querySelector('.node-image');
-                        imgWrap.innerHTML = `<img src="${sel.url}">`;
-                    }
-                });
-                frame.open();
-            });
-
-            node.querySelector('.card-link-input').addEventListener('input', function(){ node.dataset.link = this.value.trim(); });
-            node.querySelector('.card-link-target').addEventListener('change', function(){ node.dataset.target = this.value; });
-            node.querySelectorAll('[contenteditable]').forEach(el => {
-                el.addEventListener('mousedown', e => e.stopPropagation());
-                el.addEventListener('blur', () => {
-                    const changedNode = mapData.nodes.find(n => n.id === node.id);
-                    if (changedNode) {
-                        if (el.classList.contains('card-title')) changedNode.text = el.innerText;
-                        if (el.classList.contains('card-caption')) changedNode.caption = el.innerText;
-                    }
-                });
-            });
-
-            node.addEventListener('click', function(e){
-                if ( e.target.closest('.node-tools') || e.target.closest('[contenteditable]') ) return;
-                if (connectMode) {
-                    if (!firstNode) {
-                        firstNode = node;
-                        node.style.boxShadow = '0 0 0 3px rgba(166,24,50,0.5)';
-                    } else if (firstNode !== node) {
-                        instance.connect({
-                            source: firstNode.id, target: node.id,
-                            anchors: ["Bottom","Top"],
-                            endpoint: ["Dot",{ radius: 5 }],
-                            ...getConnectorConfig(lineStyle)
-                        });
-                        firstNode.style.boxShadow = '';
-                        firstNode = null;
-                    }
-                } else if (deleteMode) {
-                    instance.remove(node);
-                    mapData.nodes = mapData.nodes.filter(n => n.id !== node.id);
-                }
+    ob_start();
+    ?>
+    <div class="cardmap-frontend-wrapper" style="position:relative; width:100%; height:600px; border:1px solid #ddd; overflow:hidden; background-color:#f8f9fa; background-image:url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMGgwNHY0MEgwWiIgZmlsbD0iI2U5ZmVmZSIvPjxwYXRoIGQ9Ik00MCAwSDQwdi00MEgwWiIgZmlsbD0iI2YyZjVmNiIvPjwvc3ZnPg=='); cursor: grab;">
+        <div class="cardmap-controls" style="position:absolute;bottom:18px;left:18px;z-index:1200; display:flex;flex-direction:column;gap:10px;">
+            <button class="cardmap-zoom-btn" data-zoom="in" aria-label="Zoom in">+</button>
+            <button class="cardmap-zoom-btn" data-zoom="out" aria-label="Zoom out">−</button>
+            <button class="cardmap-zoom-btn" data-zoom="fullscreen" title="Fullscreen" aria-label="Fullscreen">⛶</button>
+            <div id="cardmap-zoom-display" style="color:#A61832;font-weight:700;font-size:18px;padding-top:5px;"></div>
+        </div>
+        <div id="cardmap-frontend-<?php echo esc_attr($post_id); ?>" style="position:relative; transform-origin:0 0; transition: transform 0.3s ease-out; width:1200px; height:1000px;"></div>
+    </div>
+    <?php
+    return ob_get_clean();
             });
         }
 

@@ -28,6 +28,7 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_node_styles', [ 'type' => 'string', 'default' => json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ] ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ] ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_align_button', [ 'type' => 'boolean', 'default' => true ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
 });
 
 function cardmap_settings_page() {
@@ -87,6 +88,12 @@ function cardmap_settings_page() {
                     <td>
                         <textarea name="cardmap_node_styles" rows="3" style="width:100%;box-sizing:border-box;"><?php echo esc_textarea( get_option('cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ] ) ) ); ?></textarea>
                         <p class="description">Provide a JSON object of style-key:label pairs, e.g. <code>{"default":"Default","highlight":"Highlight"}</code></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Enable Connection Animation</th>
+                    <td>
+                        <label><input type="checkbox" name="cardmap_enable_connection_animation" value="1" <?php checked(1, get_option('cardmap_enable_connection_animation', 0) ); ?>> Animate connections when the map loads on the frontend</label>
                     </td>
                 </tr>
                  <tr>

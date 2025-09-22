@@ -24,6 +24,7 @@ add_shortcode( 'cardmap', function( $atts ) {
         'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
         'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
         'enable_drag' => (bool) get_option( 'cardmap_enable_drag', 1 ),
+        'enable_animation' => (bool) get_option( 'cardmap_enable_connection_animation', 0 ),
     ];
     cardmap_add_to_localized_data($data_to_localize, $post_id);
 

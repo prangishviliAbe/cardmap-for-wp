@@ -110,11 +110,15 @@
     height: 40px;
     cursor: pointer;
     font-size: 20px;
-    color: #555;
+    color: #A61832;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background-color 0.2s;
+}
+
+.cardmap-fullscreen-btn svg {
+    stroke: #A61832;
 }
 
 .zoom-controls button:hover, .cardmap-fullscreen-btn:hover {
@@ -142,7 +146,7 @@
     line-height: 40px;
     text-align: center;
     font-size: 14px;
-    color: #333;
+    color: #A61832;
     background-color: #fafafa;
     border-left: 1px solid #eee;
     border-right: 1px solid #eee;
@@ -163,6 +167,18 @@ svg .jtk-connector {
 .jtk-connector path,
 .cardmap-connector path {
     fill: none !important;
+    animation: cardmap-draw-line 1s ease-out forwards;
+}
+
+@keyframes cardmap-draw-line {
+    from {
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+    }
+    to {
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 0;
+    }
 }
 
 /* Per-node style variations */

@@ -56,20 +56,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
         instance.batch(() => {
             if (mapData.connections) {
-                mapData.connections.forEach(c => {
+                mapData.connections.forEach((c, index) => {
                     const sourceEl = panZoomContainer.querySelector('#' + c.source);
                     const targetEl = panZoomContainer.querySelector('#' + c.target);
                     if (sourceEl && targetEl) {
                         const connStyle = c.style || 'straight-with-arrows';
                         const config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness);
                         
-                        instance.connect({
+                        const connection = instance.connect({
                             source: sourceEl,
                             target: targetEl,
                             anchors: c.anchors || "Continuous",
                             ...config,
                             endpoint: "Blank"
                         });
+
+                        if (mapConfig.enable_animation) {
+                            const delay = index * 100; // 100ms delay between each connection
+                            connection.getConnector().canvas.style.animationDelay = `${delay}ms`;
+                        }
                     }
                 });
             }

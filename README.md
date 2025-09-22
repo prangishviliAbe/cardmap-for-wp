@@ -25,10 +25,10 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 1.  After activating the plugin, a new **CardMaps** menu will appear in your WordPress admin sidebar.
 2.  Click **CardMaps > Add New** to create a new map.
 3.  Give your map a title and use the visual editor on the page to build your map:
-    *   **Add Node:** Creates a new card on the canvas.
-    *   **Add Rail:** Adds a horizontal or vertical rail for alignment.
-    *   **Connect Mode:** Click this, then click two nodes to draw a connection between them.
-    *   **Delete Mode:** Click this, then click a node to delete it.
+    - **Add Node:** Creates a new card on the canvas.
+    - **Add Rail:** Adds a horizontal or vertical rail for alignment.
+    - **Connect Mode:** Click this, then click two nodes to draw a connection between them.
+    - **Delete Mode:** Click this, then click a node to delete it.
 4.  Double-click any node to edit its content (title, caption, image, link).
 5.  Click the **Save Map** button in the editor toolbar to save your progress.
 6.  Once you are finished, click the main **Publish** or **Update** button for the post.

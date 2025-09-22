@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function(){
         HoverPaintStyle: connectorConfig.paintStyle,
         EndpointStyle: { radius:5 },
         Anchors: ["Continuous", "Continuous"],
-        ReattachConnections: true,
+        ReattachConnections: false,
         MaxConnections: -1
     });
 
@@ -443,7 +443,7 @@ document.addEventListener('DOMContentLoaded', function(){
             if (connectMode) {
                 if (!firstNode) {
                     firstNode = node;
-                    firstAnchor = determineAnchorFromEvent(e, node);
+                    firstAnchor = getPreciseAnchorFromEvent(e, node);
                     node.style.boxShadow = '0 0 0 3px rgba(166,24,50,0.5)';
                 } else if (firstNode !== node) {
                     const a = firstNode.id;
@@ -462,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function(){
                         return;
                     }
 
-                    const secondAnchor = determineAnchorFromEvent(e, node);
+                    const secondAnchor = getPreciseAnchorFromEvent(e, node);
                     const autoAnchors = getDirectionalAnchors(firstNode, node);
                     const anchorA = firstAnchor || autoAnchors[0];
                     const anchorB = secondAnchor || autoAnchors[1];
@@ -570,7 +570,7 @@ document.addEventListener('DOMContentLoaded', function(){
             if (connectMode) {
                 if (!firstNode) {
                     firstNode = rail;
-                    firstAnchor = determineAnchorFromEvent(e, rail);
+                    firstAnchor = getPreciseAnchorFromEvent(e, rail);
                     rail.style.boxShadow = '0 0 0 3px rgba(166,24,50,0.12)';
                 } else if (firstNode !== rail) {
                     const a = firstNode.id;
@@ -584,7 +584,7 @@ document.addEventListener('DOMContentLoaded', function(){
                         firstNode = null; firstAnchor = null;
                         return;
                     }
-                    const secondAnchor = determineAnchorFromEvent(e, rail);
+                    const secondAnchor = getPreciseAnchorFromEvent(e, rail);
                     const autoAnchors = getDirectionalAnchors(firstNode, rail);
                     const anchorA = firstAnchor || autoAnchors[0];
                     const anchorB = secondAnchor || autoAnchors[1];
@@ -656,6 +656,36 @@ document.addEventListener('DOMContentLoaded', function(){
         } else {
             return dy > 0 ? ["Bottom", "Top"] : ["Top", "Bottom"];
         }
+    }
+
+    function getPreciseAnchorFromEvent(e, el) {
+        const rect = el.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+
+        if (el.classList.contains('cardmap-rail')) {
+            if (el.dataset.orientation === 'vertical') {
+                // For a vertical rail, anchor is on left/right edge (x=0 or x=1)
+                // y position is where user clicked. dx/dy defines orientation.
+                return [x > 0.5 ? 1 : 0, y, x > 0.5 ? 1 : -1, 0];
+            } else {
+                // For a horizontal rail, anchor is on top/bottom edge (y=0 or y=1)
+                // x position is where user clicked.
+                return [x, y > 0.5 ? 1 : 0, 0, y > 0.5 ? 1 : -1];
+            }
+        }
+
+        // For regular nodes, find the closest edge
+        const topDist = y;
+        const bottomDist = 1 - y;
+        const leftDist = x;
+        const rightDist = 1 - x;
+
+        const min = Math.min(topDist, bottomDist, leftDist, rightDist);
+        if (min === topDist) return "Top";
+        if (min === bottomDist) return "Bottom";
+        if (min === leftDist) return "Left";
+        return "Right";
     }
 
     function determineAnchorFromEvent(e, el) {
@@ -763,28 +793,41 @@ document.addEventListener('DOMContentLoaded', function(){
     if (enableAlignButton) {
         document.getElementById('align-nodes').addEventListener('click', function(){
             const nodes = mapData.nodes || [];
-            if (nodes.length < 2) return;
-            const margin = 20;
-            let x = margin;
-            let y = margin;
-            let rowHeight = 0;
-            nodes.forEach(n => {
-                const el = document.getElementById(n.id);
-                if (!el) return;
-                const w = el.offsetWidth;
-                const h = el.offsetHeight;
-                if (x + w > editor.clientWidth) {
-                    x = margin;
-                    y += rowHeight + margin;
-                    rowHeight = 0;
-                }
-                n.x = x;
-                n.y = y;
+            if (nodes.length === 0) return;
+
+            const margin = 40;
+            const nodeElements = nodes.map(n => document.getElementById(n.id)).filter(el => el);
+            
+            if (nodeElements.length === 0) return;
+
+            const avgWidth = nodeElements.reduce((sum, el) => sum + el.offsetWidth, 0) / nodeElements.length;
+            const containerWidth = editorWrapper.clientWidth / scale;
+            
+            const numColumns = Math.max(1, Math.floor(containerWidth / (avgWidth + margin)));
+            
+            let colHeights = new Array(numColumns).fill(0);
+            let colWidths = new Array(numColumns).fill(0);
+
+            nodeElements.forEach((el, index) => {
+                const nodeData = nodes.find(n => n.id === el.id);
+                if (!nodeData) return;
+
+                // Find the column with the minimum height to place the next node
+                const minHeight = Math.min(...colHeights);
+                const targetColumn = colHeights.indexOf(minHeight);
+
+                const x = targetColumn * (avgWidth + margin) + margin;
+                const y = minHeight + margin;
+
+                nodeData.x = x;
+                nodeData.y = y;
                 el.style.left = x + 'px';
                 el.style.top = y + 'px';
-                x += w + margin;
-                rowHeight = Math.max(rowHeight, h);
+
+                colHeights[targetColumn] += el.offsetHeight + margin;
+                colWidths[targetColumn] = Math.max(colWidths[targetColumn], el.offsetWidth);
             });
+
             instance.repaintEverything();
         });
     }

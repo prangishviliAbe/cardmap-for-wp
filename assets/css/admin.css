@@ -1,0 +1,114 @@
+/* Corrected Admin Editor Styles */
+#cardmap-editor {
+    position: relative;
+    width: 1200px;
+    height: 1000px;
+    transition: transform 0.4s ease-out; /* Smooth transform for pan/zoom */
+}
+.cardmap-node {
+    position: absolute;
+    width: 240px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    overflow: hidden;
+    cursor: move;
+    user-select: none;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    border: 1px solid #E0E0E0;
+}
+.cardmap-node:hover { transform: translateY(-2px); transition: transform 0.12s; }
+.node-image-wrapper { position: relative; }
+.node-image {
+    width: 100%;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    color: #888;
+}
+.node-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.card-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    font-size: 14px;
+    color: white;
+    background-color: rgba(40, 40, 40, 0.7);
+    padding: 8px 12px;
+    text-align: left;
+    box-sizing: border-box;
+}
+.card-title {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 12px;
+    color: #222;
+    text-align: left;
+    background: #fff;
+}
+.node-tools { padding: 12px; display: block; background: #f9f9f9; border-top: 1px solid #eee; }
+.node-tools .card-link-input, .node-tools select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
+.node-tools select { margin-top: 8px; }
+
+/* Rail (hanging line) visuals */
+.cardmap-rail {
+    position: absolute;
+    height: 8px;
+    background: #A61832;
+    border-radius: 6px;
+    cursor: move;
+    z-index: 1800;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.cardmap-rail .rail-handle {
+    position: absolute; width: 12px; height: 12px; background: rgba(255,255,255,0.8); border:1px solid rgba(0,0,0,0.06); border-radius:50%; right:6px; top:50%; transform:translateY(-50%); cursor:grab;
+}
+.cardmap-rail.rail-highlight { box-shadow: 0 0 0 6px rgba(166,24,50,0.08), 0 4px 18px rgba(166,24,50,0.12); outline: 2px dashed rgba(166,24,50,0.14); }
+.cardmap-rail .rail-snap-preview { position:absolute; left:0; right:0; top:-6px; height:2px; background:rgba(166,24,50,0.9); display:none; }
+.cardmap-rail.rail-highlight .rail-snap-preview { display:block; }
+
+/* Fullscreen specific styles */
+#cardmap-editor-wrapper:-webkit-full-screen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+#cardmap-editor-wrapper:-moz-full-screen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+#cardmap-editor-wrapper:-ms-fullscreen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+#cardmap-editor-wrapper:fullscreen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
+
+/* Connector visuals should be above nodes but not block pointer events */
+.cardmap-connector path, .cardmap-connector .jtk-connector {
+    pointer-events: none !important;
+}
+.cardmap-connector { z-index: 2500 !important; }
+/* Ensure visible connector stroke (admin) - cover multiple possible jsPlumb DOM shapes */
+.cardmap-connector path,
+.jtk-connector path,
+.jtk-connector,
+svg .jtk-connector,
+svg .jtk-connector path {
+    stroke: #A61832 !important;
+    stroke-width: 2px !important;
+    fill: none !important;
+}
+/* Ensure jsPlumb's SVG sits above nodes on frontend as well */
+.cardmap-frontend-wrapper svg, .cardmap-frontend-wrapper .jtk-svg, .cardmap-frontend-wrapper .jtk-connector { position: absolute; z-index: 3000 !important; pointer-events: none !important; }
+/* Ensure the jsPlumb SVG container sits above nodes so strokes are visible */
+#cardmap-editor svg, #cardmap-editor .jtk-svg, #cardmap-editor .jtk-connector { position: absolute; z-index: 3000 !important; pointer-events: none !important; }
+
+/* Node style examples: these intentionally don't change core layout, just subtle colors */
+.cardmap-node.style-default { border-color: #E0E0E0; }
+.cardmap-node.style-highlight { box-shadow: 0 6px 22px rgba(166,24,50,0.12); border-color: #A61832; }
+.cardmap-node.style-muted { opacity: 0.88; filter: grayscale(10%); }
+.node-delete-btn { background: rgba(200,40,40,0.95); color:white; border:none; padding:6px 8px; border-radius:6px; cursor:pointer; }

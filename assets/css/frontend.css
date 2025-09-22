@@ -1,0 +1,259 @@
+.cardmap-frontend-wrapper {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    border: 1px solid #ddd;
+    overflow: hidden;
+    background-color: #f8f9fa;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMGgwNHY0MEgwWiIgZmlsbD0iI2U5ZmVmZSIvPjxwYXRoIGQ9Ik00MCAwSDQwdi00MEgwWiIgZmlsbD0iI2YyZjVmNiIvPjwvc3ZnPg==');
+    cursor: grab;
+    transition: all 0.3s ease-in-out;
+}
+
+.cardmap-viewport {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.cardmap-pan-zoom-container {
+    position: relative;
+    width: 1200px;
+    height: 1000px;
+    transform-origin: 0 0;
+    transition: transform 0.3s ease-out;
+}
+
+.cardmap-node {
+    position: absolute;
+    width: 240px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    cursor: grab;
+    user-select: none;
+    transition: transform .12s, box-shadow .12s;
+    border: 1px solid #E0E0E0;
+}
+
+.cardmap-node a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.cardmap-node:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.cardmap-node.jsplumb-drag-selected {
+    box-shadow: 0 0 0 3px #A61832, 0 8px 25px rgba(0, 0, 0, 0.2);
+    border-color: #A61832;
+}
+
+.node-image-wrapper {
+    position: relative;
+}
+
+.node-image img {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    display: block;
+}
+
+.card-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    font-size: 14px;
+    color: white;
+    background-color: rgba(40, 40, 40, 0.7);
+    padding: 8px 12px;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 12px;
+    color: #222;
+    text-align: left;
+}
+
+/* Connector/jsPlumb Styles */
+.jtk-svg,
+.jtk-connector,
+svg.jtk-svg,
+svg .jtk-connector {
+    z-index: 100 !important;
+    position: absolute !important;
+    pointer-events: none !important;
+    display: block !important;
+}
+
+.jtk-svg path,
+.jtk-connector path,
+.cardmap-connector path {
+    fill: none !important;
+}
+
+/* Per-node style variations */
+.cardmap-node.style-default {
+    border-color: #E0E0E0;
+}
+
+.cardmap-node.style-highlight {
+    box-shadow: 0 6px 22px rgba(166, 24, 50, 0.12);
+    border-color: #A61832;
+}
+
+.cardmap-node.style-muted {
+    opacity: 0.88;
+    filter: grayscale(10%);
+}
+
+/* Rail styles */
+.cardmap-rail {
+    position: absolute;
+    background: #A61832;
+    border-radius: 6px;
+    z-index: 1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.cardmap-rail:not(.vertical) {
+    height: 8px;
+}
+
+.cardmap-rail.vertical {
+    width: 8px;
+}
+
+/* Fullscreen */
+.cardmap-frontend-wrapper:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+}
+
+.cardmap-controls {
+    position: absolute;
+    bottom: 18px;
+    left: 18px;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.cardmap-controls .zoom-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+    background-color: #fff;
+    border-radius: 30px;
+    padding: 8px 5px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.cardmap-controls button {
+    background: #A61832;
+    color: #ffffff;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.cardmap-controls .cardmap-fullscreen-btn {
+    width: 48px;
+    height: 48px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.cardmap-controls button:hover {
+    transform: scale(1.1);
+    background-color: #bf2d4b;
+}
+
+.cardmap-controls button:active {
+    transform: scale(0.95);
+}
+
+#cardmap-zoom-display {
+    color: #A61832;
+    font-weight: 700;
+    font-size: 16px;
+    padding-top: 5px;
+    text-align: center;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.cardmap-fullscreen-btn {
+    position: absolute;
+    bottom: 18px;
+    right: 18px;
+    z-index: 1201;
+}
+
+.cardmap-fullscreen .cardmap-fullscreen-btn {
+    position: fixed;
+}
+
+.cardmap-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000;
+    background-color: transparent;
+}
+
+.rail {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(230, 230, 230, 0.8);
+    border-radius: 6px;
+}
+
+.rail-top {
+    top: 0;
+    height: 10px;
+}
+
+.rail-bottom {
+    bottom: 0;
+    height: 10px;
+}
+
+.rail-left {
+    left: 0;
+    width: 10px;
+}
+
+.rail-right {
+    right: 0;
+    width: 10px;
+}

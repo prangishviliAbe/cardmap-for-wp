@@ -19,6 +19,17 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!Array.isArray(mapData.rails)) mapData.rails = mapData.rails || [];
 
     const pendingDeletes = new Set();
+    const selectedNodes = new Set();
+
+    function updateAlignmentToolbar() {
+        const toolbar = document.getElementById('cardmap-alignment-toolbar');
+        if (!toolbar) return;
+        if (selectedNodes.size > 1) {
+            toolbar.style.display = 'flex';
+        } else {
+            toolbar.style.display = 'none';
+        }
+    }
 
     function hideConnectionVisual(conn) {
         if (!conn) return;
@@ -126,6 +137,27 @@ document.addEventListener('DOMContentLoaded', function(){
         Anchors: ["Continuous", "Continuous"],
         ReattachConnections: false,
         MaxConnections: -1
+    });
+
+    // Intercept connection creation to prevent automatic re-connections
+    instance.bind("beforeDrop", function(info) {
+        // Only allow connections that we have explicitly flagged as "user-driven".
+        // This prevents jsPlumb from automatically creating connections when dragging nodes.
+        if (info.connection.getParameter("user-driven")) {
+            return true; // Allow the connection
+        }
+        return false; // Block automatic connections
+    });
+
+    // When a connection is successfully made, save the data.
+    // If it's a new connection made by the user, flag it as "user-driven".
+    instance.bind("connection", function(info, originalEvent) {
+        if (originalEvent) {
+            // This was a brand new connection created by the user dragging it.
+            info.connection.setParameter("user-driven", true);
+        }
+        // For any allowed connection (new or existing), save the map state.
+        saveMapData();
     });
 
     const RAIL_HEIGHT = 8;
@@ -440,6 +472,31 @@ document.addEventListener('DOMContentLoaded', function(){
 
         node.addEventListener('click', function(e){
             if ( e.target.closest('.node-tools') || e.target.closest('[contenteditable]') ) return;
+
+            if (!connectMode && !deleteMode) {
+                if (!e.shiftKey) {
+                    // Clear previous selection unless shift is held
+                    document.querySelectorAll('.cardmap-node-selected').forEach(el => {
+                        if (el.id !== node.id) el.classList.remove('cardmap-node-selected');
+                    });
+                    selectedNodes.forEach(id => {
+                        if (id !== node.id) selectedNodes.delete(id);
+                    });
+                }
+
+                // Toggle selection for the current node
+                if (selectedNodes.has(node.id)) {
+                    if (e.shiftKey) { // Only deselect with shift key
+                        selectedNodes.delete(node.id);
+                        node.classList.remove('cardmap-node-selected');
+                    }
+                } else {
+                    selectedNodes.add(node.id);
+                    node.classList.add('cardmap-node-selected');
+                }
+                updateAlignmentToolbar();
+            }
+
             if (connectMode) {
                 if (!firstNode) {
                     firstNode = node;
@@ -659,9 +716,27 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     function getPreciseAnchorFromEvent(e, el) {
-        const rect = el.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width;
-        const y = (e.clientY - rect.top) / rect.height;
+        const wrapperRect = editorWrapper.getBoundingClientRect();
+
+        // Mouse position relative to the viewport (the wrapper)
+        const mouseX = e.clientX - wrapperRect.left;
+        const mouseY = e.clientY - wrapperRect.top;
+
+        // Translate viewport coordinates to the panned/zoomed editor's coordinate system ("world" coordinates)
+        const worldX = (mouseX - offsetX) / scale;
+        const worldY = (mouseY - offsetY) / scale;
+
+        // The element's position is in "world" coordinates
+        const elX = parseFloat(el.style.left) || 0;
+        const elY = parseFloat(el.style.top) || 0;
+
+        // The click position relative to the element's top-left corner
+        const x_in_el = worldX - elX;
+        const y_in_el = worldY - elY;
+
+        // The relative position (0 to 1) within the element
+        const x = x_in_el / el.offsetWidth;
+        const y = y_in_el / el.offsetHeight;
 
         if (el.classList.contains('cardmap-rail')) {
             if (el.dataset.orientation === 'vertical') {
@@ -796,37 +871,45 @@ document.addEventListener('DOMContentLoaded', function(){
             if (nodes.length === 0) return;
 
             const margin = 40;
-            const nodeElements = nodes.map(n => document.getElementById(n.id)).filter(el => el);
+            let x = margin;
+            let y = margin;
+            let rowHeight = 0;
             
-            if (nodeElements.length === 0) return;
+            // Use the visible wrapper's width for layout calculation
+            const containerWidth = editorWrapper.clientWidth;
 
-            const avgWidth = nodeElements.reduce((sum, el) => sum + el.offsetWidth, 0) / nodeElements.length;
-            const containerWidth = editorWrapper.clientWidth / scale;
-            
-            const numColumns = Math.max(1, Math.floor(containerWidth / (avgWidth + margin)));
-            
-            let colHeights = new Array(numColumns).fill(0);
-            let colWidths = new Array(numColumns).fill(0);
+            nodes.forEach(nodeData => {
+                const el = document.getElementById(nodeData.id);
+                if (!el) return;
 
-            nodeElements.forEach((el, index) => {
-                const nodeData = nodes.find(n => n.id === el.id);
-                if (!nodeData) return;
+                const elWidth = el.offsetWidth;
+                const elHeight = el.offsetHeight;
 
-                // Find the column with the minimum height to place the next node
-                const minHeight = Math.min(...colHeights);
-                const targetColumn = colHeights.indexOf(minHeight);
+                // If the next node doesn't fit on the current row, start a new row
+                if (x + elWidth + margin > containerWidth) {
+                    x = margin;
+                    y += rowHeight + margin;
+                    rowHeight = 0;
+                }
 
-                const x = targetColumn * (avgWidth + margin) + margin;
-                const y = minHeight + margin;
-
+                // Update node data and element position
                 nodeData.x = x;
                 nodeData.y = y;
                 el.style.left = x + 'px';
                 el.style.top = y + 'px';
 
-                colHeights[targetColumn] += el.offsetHeight + margin;
-                colWidths[targetColumn] = Math.max(colWidths[targetColumn], el.offsetWidth);
+                // Advance x position for the next node
+                x += elWidth + margin;
+                
+                // Keep track of the tallest node in the current row
+                rowHeight = Math.max(rowHeight, elHeight);
             });
+
+            // Reset pan and zoom to center the newly aligned nodes
+            scale = 1;
+            offsetX = 0;
+            offsetY = 0;
+            editor.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
 
             instance.repaintEverything();
         });
@@ -838,6 +921,136 @@ document.addEventListener('DOMContentLoaded', function(){
         } else {
             editorWrapper.requestFullscreen();
         }
+    });
+
+    editorWrapper.addEventListener('click', function(e) {
+        if (e.target === editorWrapper || e.target === editor) {
+            document.querySelectorAll('.cardmap-node-selected').forEach(el => el.classList.remove('cardmap-node-selected'));
+            selectedNodes.clear();
+            updateAlignmentToolbar();
+        }
+    });
+
+    function getSelectedNodesWithElements() {
+        const nodes = [];
+        for (const id of selectedNodes) {
+            const el = document.getElementById(id);
+            const data = mapData.nodes.find(n => n.id === id);
+            if (el && data) {
+                nodes.push({ id, el, data });
+            }
+        }
+        return nodes;
+    }
+
+    document.getElementById('align-left').addEventListener('click', function() {
+        const selected = getSelectedNodesWithElements();
+        if (selected.length < 2) return;
+        const minX = Math.min(...selected.map(n => n.data.x));
+        selected.forEach(n => {
+            n.data.x = minX;
+            n.el.style.left = minX + 'px';
+        });
+        instance.repaintEverything();
+    });
+
+    document.getElementById('align-center').addEventListener('click', function() {
+        const selected = getSelectedNodesWithElements();
+        if (selected.length < 2) return;
+        const totalWidth = selected.reduce((sum, n) => sum + n.el.offsetWidth, 0);
+        const avgX = selected.reduce((sum, n) => sum + n.data.x, 0) / selected.length;
+        const centerX = avgX + (totalWidth / selected.length / 2);
+        selected.forEach(n => {
+            const newX = centerX - (n.el.offsetWidth / 2);
+            n.data.x = newX;
+            n.el.style.left = newX + 'px';
+        });
+        instance.repaintEverything();
+    });
+
+    document.getElementById('align-right').addEventListener('click', function() {
+        const selected = getSelectedNodesWithElements();
+        if (selected.length < 2) return;
+        const maxX = Math.max(...selected.map(n => n.data.x + n.el.offsetWidth));
+        selected.forEach(n => {
+            const newX = maxX - n.el.offsetWidth;
+            n.data.x = newX;
+            n.el.style.left = newX + 'px';
+        });
+        instance.repaintEverything();
+    });
+
+    document.getElementById('align-top').addEventListener('click', function() {
+        const selected = getSelectedNodesWithElements();
+        if (selected.length < 2) return;
+        const minY = Math.min(...selected.map(n => n.data.y));
+        selected.forEach(n => {
+            n.data.y = minY;
+            n.el.style.top = minY + 'px';
+        });
+        instance.repaintEverything();
+    });
+
+    document.getElementById('align-middle').addEventListener('click', function() {
+        const selected = getSelectedNodesWithElements();
+        if (selected.length < 2) return;
+        const avgY = selected.reduce((sum, n) => sum + n.data.y, 0) / selected.length;
+        const totalHeight = selected.reduce((sum, n) => sum + n.el.offsetHeight, 0);
+        const centerY = avgY + (totalHeight / selected.length / 2);
+        selected.forEach(n => {
+            const newY = centerY - (n.el.offsetHeight / 2);
+            n.data.y = newY;
+            n.el.style.top = newY + 'px';
+        });
+        instance.repaintEverything();
+    });
+
+    document.getElementById('align-bottom').addEventListener('click', function() {
+        const selected = getSelectedNodesWithElements();
+        if (selected.length < 2) return;
+        const maxY = Math.max(...selected.map(n => n.data.y + n.el.offsetHeight));
+        selected.forEach(n => {
+            const newY = maxY - n.el.offsetHeight;
+            n.data.y = newY;
+            n.el.style.top = newY + 'px';
+        });
+        instance.repaintEverything();
+    });
+
+    document.getElementById('distribute-horizontal').addEventListener('click', function() {
+        const selected = getSelectedNodesWithElements();
+        if (selected.length < 2) return;
+        selected.sort((a, b) => a.data.x - b.data.x);
+        const minX = selected[0].data.x;
+        const maxX = selected[selected.length - 1].data.x;
+        const totalWidth = selected.reduce((sum, n) => sum + n.el.offsetWidth, 0);
+        const totalGap = (maxX - minX) - (totalWidth - selected[0].el.offsetWidth - selected[selected.length - 1].el.offsetWidth);
+        const gap = totalGap / (selected.length - 1);
+        let currentX = minX;
+        selected.forEach((n, i) => {
+            n.data.x = currentX;
+            n.el.style.left = currentX + 'px';
+            currentX += n.el.offsetWidth + gap;
+        });
+        instance.repaintEverything();
+    });
+
+    document.getElementById('distribute-vertical').addEventListener('click', function() {
+        const selected = getSelectedNodesWithElements();
+        if (selected.length < 2) return;
+        selected.sort((a, b) => a.data.y - b.data.y);
+        const minY = selected[0].data.y;
+        const maxY = selected[selected.length - 1].data.y;
+        const totalHeight = selected.reduce((sum, n) => sum + n.el.offsetHeight, 0);
+        const totalGap = (maxY - minY) - (totalHeight - selected[0].el.offsetHeight - selected[selected.length - 1].el.offsetHeight);
+        const gap = totalGap / (selected.length - 1);
+        let currentY = minY;
+        selected.forEach((n, i) => {
+            n.data.y = currentY;
+            n.el.style.top = currentY + 'px';
+            currentY += n.el.offsetHeight + gap;
+        });
+        instance.repaintEverything();
     });
 
     function saveMap() {

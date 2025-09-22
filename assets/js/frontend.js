@@ -18,6 +18,37 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        function getConnectorConfig(style, color, thickness) {
+            const baseConfig = { stroke: color, strokeWidth: thickness };
+            const overlays = [["Arrow",{ width:10, length:10, location:1 }]];
+            const dashedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "4 2" };
+            const dottedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "1 1" };
+
+            switch (style) {
+                case 'bezier':
+                case 'rounded-bezier':
+                    return { connector: ["Bezier", {curviness: 50}], paintStyle: baseConfig, overlays: [] };
+                case 'straight':
+                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: [] };
+                case 'flowchart':
+                    return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: [] };
+                case 'state-machine':
+                    return { connector: ["StateMachine", { curviness: 20, margin: 5, proximity: 10 }], paintStyle: baseConfig, overlays: [] };
+                case 'straight-with-arrows':
+                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: overlays };
+                case 'flowchart-with-arrows':
+                    return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: overlays };
+                case 'diagonal':
+                    return { connector: ["Straight"], paintStyle: baseConfig, anchors: ["TopLeft", "BottomRight"], overlays: [] };
+                case 'dashed':
+                    return { connector: ["Straight"], paintStyle: dashedOverlay, overlays: [] };
+                case 'dotted':
+                    return { connector: ["Straight"], paintStyle: dottedOverlay, overlays: [] };
+                default:
+                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: overlays };
+            }
+        }
+
         const instance = jsPlumb.getInstance({
             Container: panZoomContainer,
             ConnectionsDetachable: false
@@ -29,12 +60,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     const sourceEl = panZoomContainer.querySelector('#' + c.source);
                     const targetEl = panZoomContainer.querySelector('#' + c.target);
                     if (sourceEl && targetEl) {
+                        const connStyle = c.style || 'straight-with-arrows';
+                        const config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness);
+                        
                         instance.connect({
                             source: sourceEl,
                             target: targetEl,
                             anchors: c.anchors || "Continuous",
-                            connector: ["Flowchart", { cornerRadius: 5 }],
-                            paintStyle: { stroke: mapConfig.line_color, strokeWidth: mapConfig.line_thickness },
+                            ...config,
                             endpoint: "Blank"
                         });
                     }

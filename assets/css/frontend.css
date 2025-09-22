@@ -86,6 +86,68 @@
     text-align: left;
 }
 
+.cardmap-controls {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.zoom-controls {
+    display: flex;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.zoom-controls button, .cardmap-fullscreen-btn {
+    background-color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 20px;
+    color: #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.zoom-controls button:hover, .cardmap-fullscreen-btn:hover {
+    background-color: #f4f4f4;
+}
+
+.zoom-controls button:focus, .cardmap-fullscreen-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 125, 255, 0.5);
+}
+
+.zoom-controls button:active, .cardmap-fullscreen-btn:active {
+    background-color: #e9e9e9;
+    transform: translateY(1px);
+}
+
+.cardmap-fullscreen-btn {
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.cardmap-zoom-display {
+    width: 50px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-size: 14px;
+    color: #333;
+    background-color: #fafafa;
+    border-left: 1px solid #eee;
+    border-right: 1px solid #eee;
+}
+
 /* Connector/jsPlumb Styles */
 .jtk-svg,
 .jtk-connector,
@@ -113,6 +175,11 @@ svg .jtk-connector {
     border-color: #A61832;
 }
 
+.cardmap-node.style-highlighted {
+    border-color: #ffc107;
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.6);
+}
+
 .cardmap-node.style-muted {
     opacity: 0.88;
     filter: grayscale(10%);
@@ -121,10 +188,8 @@ svg .jtk-connector {
 /* Rail styles */
 .cardmap-rail {
     position: absolute;
-    background: #A61832;
-    border-radius: 6px;
-    z-index: 1;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    background-color: #A61832;
+    border-radius: 4px;
 }
 
 .cardmap-rail:not(.vertical) {
@@ -136,124 +201,12 @@ svg .jtk-connector {
 }
 
 /* Fullscreen */
-.cardmap-frontend-wrapper:fullscreen {
+.cardmap-frontend-wrapper:fullscreen, 
+.cardmap-frontend-wrapper.fullscreen {
     width: 100vw;
     height: 100vh;
     position: fixed;
     top: 0;
     left: 0;
     z-index: 9999;
-}
-
-.cardmap-controls {
-    position: absolute;
-    bottom: 18px;
-    left: 18px;
-    z-index: 1200;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-}
-
-.cardmap-controls .zoom-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    align-items: center;
-    background-color: #fff;
-    border-radius: 30px;
-    padding: 8px 5px;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-}
-
-.cardmap-controls button {
-    background: #A61832;
-    color: #ffffff;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    font-size: 22px;
-    font-weight: 700;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: none;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.cardmap-controls .cardmap-fullscreen-btn {
-    width: 48px;
-    height: 48px;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-}
-
-.cardmap-controls button:hover {
-    transform: scale(1.1);
-    background-color: #bf2d4b;
-}
-
-.cardmap-controls button:active {
-    transform: scale(0.95);
-}
-
-#cardmap-zoom-display {
-    color: #A61832;
-    font-weight: 700;
-    font-size: 16px;
-    padding-top: 5px;
-    text-align: center;
-    user-select: none;
-    transition: all 0.2s ease;
-}
-
-.cardmap-fullscreen-btn {
-    position: absolute;
-    bottom: 18px;
-    right: 18px;
-    z-index: 1201;
-}
-
-.cardmap-fullscreen .cardmap-fullscreen-btn {
-    position: fixed;
-}
-
-.cardmap-fullscreen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 1000;
-    background-color: transparent;
-}
-
-.rail {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(230, 230, 230, 0.8);
-    border-radius: 6px;
-}
-
-.rail-top {
-    top: 0;
-    height: 10px;
-}
-
-.rail-bottom {
-    bottom: 0;
-    height: 10px;
-}
-
-.rail-left {
-    left: 0;
-    width: 10px;
-}
-
-.rail-right {
-    right: 0;
-    width: 10px;
 }

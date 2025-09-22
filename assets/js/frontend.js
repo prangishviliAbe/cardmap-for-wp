@@ -120,9 +120,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.addEventListener('fullscreenchange', () => {
             if (document.fullscreenElement === wrapper) {
-                wrapper.classList.add('cardmap-fullscreen');
+                wrapper.classList.add('fullscreen');
             } else {
-                wrapper.classList.remove('cardmap-fullscreen');
+                wrapper.classList.remove('fullscreen');
             }
             instance.revalidate(panZoomContainer);
         });

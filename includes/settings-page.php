@@ -24,9 +24,8 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_enable_drag', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_line_color', [ 'type' => 'string', 'default' => '#A61832' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_line_thickness', [ 'type' => 'integer', 'default' => 2 ] );
-    register_setting( 'cardmap_settings_group', 'cardmap_line_style', [ 'type' => 'string', 'default' => 'straight-with-arrows' ] );
-    register_setting( 'cardmap_settings_group', 'cardmap_node_styles', [ 'type' => 'string', 'default' => json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ] ) ] );
-    register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ] ) ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_node_styles', [ 'type' => 'string', 'default' => json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ], JSON_PRETTY_PRINT ) ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ], JSON_PRETTY_PRINT ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_align_button', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
 });
@@ -36,73 +35,96 @@ function cardmap_settings_page() {
         return;
     }
     ?>
-    <div class="wrap">
+    <div class="wrap cardmap-settings-wrap">
         <h1>Card Map Builder Pro — Settings</h1>
+        
+        <?php settings_errors(); ?>
+
         <form method="post" action="options.php">
-            <?php settings_fields( 'cardmap_settings_group' ); do_settings_sections( 'cardmap_settings_group' ); ?>
-            <table class="form-table">
-                <tr>
-                    <th scope="row">Enable dragging on frontend</th>
-                    <td>
-                        <label><input type="checkbox" name="cardmap_enable_drag" value="1" <?php checked(1, get_option('cardmap_enable_drag', 1) ); ?>> Allow visitors to drag cards on the frontend</label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Per-connection styles (JSON map)</th>
-                    <td>
-                        <textarea name="cardmap_line_styles" rows="3" style="width:100%;box-sizing:border-box;"><?php echo esc_textarea( get_option('cardmap_line_styles', json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ] ) ) ); ?></textarea>
-                        <p class="description">Provide a JSON object of style-key:label pairs for connection styles, e.g. <code>{"straight":"Straight","dashed":"Dashed"}</code></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Connection line color</th>
-                    <td>
-                        <input type="color" name="cardmap_line_color" value="<?php echo esc_attr( get_option('cardmap_line_color', '#A61832') ); ?>">
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Connection line thickness (px)</th>
-                    <td>
-                        <input type="number" name="cardmap_line_thickness" min="1" max="20" value="<?php echo esc_attr( get_option('cardmap_line_thickness', 2) ); ?>">
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Connection line style</th>
-                    <td>
-                        <select name="cardmap_line_style">
-                            <option value="bezier" <?php selected( get_option('cardmap_line_style'), 'bezier' ); ?>>Bezier (curved)</option>
-                            <option value="straight" <?php selected( get_option('cardmap_line_style'), 'straight' ); ?>>Straight</option>
-                            <option value="flowchart" <?php selected( get_option('cardmap_line_style'), 'flowchart' ); ?>>Flowchart (90-degree angles)</option>
-                            <option value="state-machine" <?php selected( get_option('cardmap_line_style'), 'state-machine' ); ?>>State Machine (curved with rounded corners)</option>
-                            <option value="straight-with-arrows" <?php selected( get_option('cardmap_line_style'), 'straight-with-arrows' ); ?>>Straight with Arrows</option>
-                            <option value="flowchart-with-arrows" <?php selected( get_option('cardmap_line_style'), 'flowchart-with-arrows' ); ?>>Flowchart with Arrows</option>
-                            <option value="diagonal" <?php selected( get_option('cardmap_line_style'), 'diagonal' ); ?>>Diagonal</option>
-                            <option value="rounded-bezier" <?php selected( get_option('cardmap_line_style'), 'rounded-bezier' ); ?>>Bezier with Rounded Ends</option>
-                            <option value="dashed" <?php selected( get_option('cardmap_line_style'), 'dashed' ); ?>>Dashed Line</option>
-                            <option value="dotted" <?php selected( get_option('cardmap_line_style'), 'dotted' ); ?>>Dotted Line</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Node styles (JSON map)</th>
-                    <td>
-                        <textarea name="cardmap_node_styles" rows="3" style="width:100%;box-sizing:border-box;"><?php echo esc_textarea( get_option('cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ] ) ) ); ?></textarea>
-                        <p class="description">Provide a JSON object of style-key:label pairs, e.g. <code>{"default":"Default","highlight":"Highlight"}</code></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Enable Connection Animation</th>
-                    <td>
-                        <label><input type="checkbox" name="cardmap_enable_connection_animation" value="1" <?php checked(1, get_option('cardmap_enable_connection_animation', 0) ); ?>> Animate connections when the map loads on the frontend</label>
-                    </td>
-                </tr>
-                 <tr>
-                    <th scope="row">Enable Card Alignment Button</th>
-                    <td>
-                        <label><input type="checkbox" name="cardmap_enable_align_button" value="1" <?php checked(1, get_option('cardmap_enable_align_button', 1) ); ?>> Show the 'Align Cards' button in the editor toolbar</label>
-                    </td>
-                </tr>
-            </table>
+            <?php settings_fields( 'cardmap_settings_group' ); ?>
+
+            <div class="cardmap-settings-grid">
+
+                <!-- General Settings Card -->
+                <div class="settings-card">
+                    <h2><span class="dashicons dashicons-admin-generic"></span> General Settings</h2>
+                    <div class="card-content">
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <label for="cardmap_enable_drag" class="setting-title">Enable dragging on frontend</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_enable_drag" name="cardmap_enable_drag" value="1" <?php checked(1, get_option('cardmap_enable_drag', 1) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Allow visitors to drag cards on the frontend map.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connection Settings Card -->
+                <div class="settings-card">
+                    <h2><span class="dashicons dashicons-admin-links"></span> Connection Settings</h2>
+                    <div class="card-content">
+                        <div class="setting-item">
+                             <div class="setting-header">
+                                <label for="cardmap_enable_connection_animation" class="setting-title">Enable Connection Animation</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_enable_connection_animation" name="cardmap_enable_connection_animation" value="1" <?php checked(1, get_option('cardmap_enable_connection_animation', 0) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Animate connections when the map first loads on the frontend.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_line_color" class="setting-title">Connection Line Color</label>
+                            <input type="color" id="cardmap_line_color" name="cardmap_line_color" value="<?php echo esc_attr( get_option('cardmap_line_color', '#A61832') ); ?>">
+                            <p class="description">Default color for the lines connecting the cards.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_line_thickness" class="setting-title">Connection Line Thickness (px)</label>
+                            <input type="number" id="cardmap_line_thickness" name="cardmap_line_thickness" min="1" max="20" value="<?php echo esc_attr( get_option('cardmap_line_thickness', 2) ); ?>">
+                            <p class="description">Default thickness for the connection lines.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Editor Settings Card -->
+                <div class="settings-card">
+                    <h2><span class="dashicons dashicons-edit"></span> Editor Settings</h2>
+                    <div class="card-content">
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <label for="cardmap_enable_align_button" class="setting-title">Enable Card Alignment Button</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_enable_align_button" name="cardmap_enable_align_button" value="1" <?php checked(1, get_option('cardmap_enable_align_button', 1) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Show the alignment tools button in the map editor.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Settings Card -->
+                <div class="settings-card">
+                    <h2><span class="dashicons dashicons-admin-settings"></span> Advanced Configuration</h2>
+                    <div class="card-content">
+                        <div class="setting-item">
+                            <label for="cardmap_node_styles" class="setting-title">Node Styles (JSON)</label>
+                            <textarea id="cardmap_node_styles" name="cardmap_node_styles" rows="4"><?php echo esc_textarea( get_option('cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ], JSON_PRETTY_PRINT ) ) ); ?></textarea>
+                            <p class="description">JSON object of <code>style-key:label</code> pairs for node (card) styles in the editor, e.g., <code>{"default":"Default","highlight":"Highlight"}</code>.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_line_styles" class="setting-title">Per-Connection Styles (JSON)</label>
+                            <textarea id="cardmap_line_styles" name="cardmap_line_styles" rows="4"><?php echo esc_textarea( get_option('cardmap_line_styles', json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ], JSON_PRETTY_PRINT ) ) ); ?></textarea>
+                            <p class="description">JSON object of <code>style-key:label</code> pairs for connection styles in the editor, e.g., <code>{"straight":"Straight","dashed":"Dashed"}</code>.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
             <?php submit_button(); ?>
         </form>
     </div>

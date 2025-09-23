@@ -4,8 +4,8 @@
     height: 500px;
     border: 1px solid #ddd;
     overflow: hidden;
-    background-color: #f8f9fa;
-    background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMGgwNHY0MEgwWiIgZmlsbD0iI2U5ZmVmZSIvPjxwYXRoIGQ9Ik00MCAwSDQwdi00MEgwWiIgZmlsbD0iI2YyZjVmNiIvPjwvc3ZnPg==');
+    background-color: #ebf1ff;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUiIGhlaWdodD0iMjUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiM4ODllY2MiLz48L3N2Zz4=');
     cursor: grab;
     transition: all 0.3s ease-in-out;
 }
@@ -217,8 +217,7 @@ svg .jtk-connector {
 }
 
 /* Fullscreen */
-.cardmap-frontend-wrapper:fullscreen, 
-.cardmap-frontend-wrapper.fullscreen {
+.cardmap-frontend-wrapper:fullscreen {
     width: 100vw;
     height: 100vh;
     position: fixed;

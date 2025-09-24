@@ -11,12 +11,44 @@
     background: #ffffff;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    overflow: hidden;
+    /* overflow: hidden; */ /* Allow settings icon to be outside */
     cursor: move;
     user-select: none;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
     border: 1px solid #E0E0E0;
+    display: flex;
+    flex-direction: column;
 }
+
+.cardmap-node-visible-area {
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+.card-settings-toggle {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.8) !important;
+    border-radius: 50% !important;
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+    min-width: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ccc !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.card-settings-toggle .dashicons {
+    font-size: 16px;
+    line-height: 1;
+    color: #555;
+}
+
 .cardmap-node:hover { transform: translateY(-2px); transition: transform 0.12s; }
 .node-image-wrapper { position: relative; }
 .node-image {
@@ -54,7 +86,17 @@
     text-align: left;
     background: #fff;
 }
-.node-tools { padding: 12px; display: block; background: #f9f9f9; border-top: 1px solid #eee; }
+.node-tools { 
+    padding: 12px; 
+    background: #f9f9f9; 
+    border-top: 1px solid #eee; 
+    display: none; /* Hidden by default */
+}
+
+.cardmap-node.settings-visible .node-tools {
+    display: block;
+}
+
 .node-tools .card-link-input, .node-tools select {
     width: 100%;
     box-sizing: border-box;

@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     const pendingDeletes = new Set();
     const selectedNodes = new Set();
+    let anchorIndicator = null;
 
     function updateAlignmentToolbar() {
         const toolbar = document.getElementById('cardmap-alignment-toolbar');
@@ -235,11 +236,14 @@ document.addEventListener('DOMContentLoaded', function(){
         const styleOptions = Object.keys(nodeStyles).map(k => `<option value="${k}" ${ k === (n.style || 'default') ? 'selected' : '' }>${nodeStyles[k]}</option>`).join('');
 
         node.innerHTML = `
-            <div class="node-image-wrapper">
-                <div class="node-image">${ n.image ? `<img src="${n.image}">` : 'Select an image' }</div>
-                <div class="card-caption" contenteditable="true">${ n.caption || 'Caption' }</div>
+            <div class="cardmap-node-visible-area">
+                <div class="node-image-wrapper">
+                    <div class="node-image">${ n.image ? `<img src="${n.image}">` : 'Select an image' }</div>
+                    <div class="card-caption" contenteditable="true">${ n.caption || 'Caption' }</div>
+                </div>
+                <div class="card-title" contenteditable="true">${ n.text || 'New Card Title' }</div>
             </div>
-            <div class="card-title" contenteditable="true">${ n.text || 'New Card Title' }</div>
+            <button type="button" class="card-settings-toggle button icon"><span class="dashicons dashicons-admin-generic"></span></button>
             <div class="node-tools">
                 <button class="button edit-image" type="button">Select Image</button>
                 <input class="card-link-input" placeholder="Card link (https://...)" value="${ n.link || '' }" />
@@ -254,9 +258,38 @@ document.addEventListener('DOMContentLoaded', function(){
 
         editor.appendChild(node);
 
+        const settingsToggle = node.querySelector('.card-settings-toggle');
+        const nodeTools = node.querySelector('.node-tools');
+
+        settingsToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            node.classList.toggle('settings-visible');
+        });
+
         instance.draggable(node, {
-            start: function(){ window._cardmap_draggingNode = node.id; },
+            start: function(params){ 
+                window._cardmap_draggingNode = node.id; 
+                const connections = instance.getConnections({ source: params.el.id }).concat(instance.getConnections({ target: params.el.id }));
+                connections.forEach(conn => {
+                    const sourceNode = mapData.nodes.find(n => n.id === conn.sourceId);
+                    const targetNode = mapData.nodes.find(n => n.id === conn.targetId);
+                    const sourceRail = sourceNode && sourceNode.attachedRail ? mapData.rails.find(r => r.id === sourceNode.attachedRail) : null;
+                    const targetRail = targetNode && targetNode.attachedRail ? mapData.rails.find(r => r.id === targetNode.attachedRail) : null;
+
+                    if (sourceRail || targetRail) {
+                        conn._originalAnchors = conn.getAnchors();
+                        const rail = sourceRail || targetRail;
+                        if (rail.orientation === 'vertical') {
+                            conn.setAnchors(["Right", "Left"]);
+                        } else {
+                            conn.setAnchors(["Top", "Bottom"]);
+                        }
+                    }
+                });
+            },
             drag: function(params){
+                instance.repaintEverything();
+
                 try{
                     const rails = mapData.rails || [];
                     let nearest = null; let bestDist = Infinity;
@@ -282,7 +315,6 @@ document.addEventListener('DOMContentLoaded', function(){
                         }
                     }
                 }catch(e){}
-                try{ instance.repaintEverything(); } catch(e){}
             },
             stop: function(params){
                 const draggedNode = mapData.nodes.find(n => n.id === params.el.id);
@@ -313,6 +345,15 @@ document.addEventListener('DOMContentLoaded', function(){
                     }
                     (mapData.rails || []).forEach(rr => { const d = document.getElementById(rr.id); if (d) { d.classList.remove('rail-highlight'); const p = d.querySelector('.rail-snap-preview'); if (p) p.style.display = 'none'; } });
                 }
+
+                const connections = instance.getConnections({ source: params.el.id }).concat(instance.getConnections({ target: params.el.id }));
+                connections.forEach(conn => {
+                    if (conn._originalAnchors) {
+                        conn.setAnchors(conn._originalAnchors);
+                        delete conn._originalAnchors;
+                    }
+                });
+
                 instance.repaintEverything();
             }
         });
@@ -734,15 +775,23 @@ document.addEventListener('DOMContentLoaded', function(){
         const x_in_el = worldX - elX;
         const y_in_el = worldY - elY;
 
+        // Calculate the visible height of the card (excluding admin tools)
+        let visibleHeight = el.offsetHeight;
+        if (el.classList.contains('cardmap-node')) {
+            const imageWrapper = el.querySelector('.node-image-wrapper');
+            const title = el.querySelector('.card-title');
+            visibleHeight = (imageWrapper ? imageWrapper.offsetHeight : 0) + (title ? title.offsetHeight : 0);
+        }
+
         // The relative position (0 to 1) within the element
         const x = x_in_el / el.offsetWidth;
-        const y = y_in_el / el.offsetHeight;
+        const y = y_in_el / visibleHeight;
 
         if (el.classList.contains('cardmap-rail')) {
             if (el.dataset.orientation === 'vertical') {
                 // For a vertical rail, anchor is on left/right edge (x=0 or x=1)
                 // y position is where user clicked. dx/dy defines orientation.
-                return [x > 0.5 ? 1 : 0, y, x > 0.5 ? 1 : -1, 0];
+                return [x > 0.5 ? 1 : 0, y_in_el / el.offsetHeight, x > 0.5 ? 1 : -1, 0];
             } else {
                 // For a horizontal rail, anchor is on top/bottom edge (y=0 or y=1)
                 // x position is where user clicked.
@@ -750,7 +799,12 @@ document.addEventListener('DOMContentLoaded', function(){
             }
         }
 
-        // For regular nodes, find the closest edge
+        // For regular nodes, find the closest edge, but only within the visible area
+        if (y < 0 || y > 1) {
+            // Click was outside the visible area, don't create an anchor
+            return "Continuous"; 
+        }
+
         const topDist = y;
         const bottomDist = 1 - y;
         const leftDist = x;

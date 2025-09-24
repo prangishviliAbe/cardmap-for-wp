@@ -44,7 +44,7 @@ function cardmap_settings_page() {
             <?php settings_fields( 'cardmap_settings_group' ); ?>
 
             <div class="cardmap-settings-grid">
-
+  
                 <!-- General Settings Card -->
                 <div class="settings-card">
                     <h2><span class="dashicons dashicons-admin-generic"></span> General Settings</h2>

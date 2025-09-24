@@ -5,6 +5,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 add_shortcode( 'cardmap', function( $atts ) {
+    // Check the global setting first. If disabled, return nothing.
+    if ( ! get_option( 'cardmap_enable_frontend_view', 1 ) ) {
+        return '<!-- Cardmap display is disabled globally in settings. -->';
+    }
+
     $atts = shortcode_atts( [ 'id' => 0 ], $atts, 'cardmap' );
     $post_id = intval( $atts['id'] );
     if ( ! $post_id ) {

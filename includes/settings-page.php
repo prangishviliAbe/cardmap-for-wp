@@ -28,6 +28,7 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ], JSON_PRETTY_PRINT ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_align_button', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_enable_frontend_view', [ 'type' => 'boolean', 'default' => true ] );
 });
 
 function cardmap_settings_page() {
@@ -58,6 +59,16 @@ function cardmap_settings_page() {
                                 </label>
                             </div>
                             <p class="description">Allow visitors to drag cards on the frontend map.</p>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <label for="cardmap_enable_frontend_view" class="setting-title">Enable Frontend Map Display</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_enable_frontend_view" name="cardmap_enable_frontend_view" value="1" <?php checked(1, get_option('cardmap_enable_frontend_view', 1) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Globally enable or disable the display of all card maps on the frontend.</p>
                         </div>
                     </div>
                 </div>

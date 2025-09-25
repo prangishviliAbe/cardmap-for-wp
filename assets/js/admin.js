@@ -130,6 +130,11 @@
                 }
             });
 
+            const generateBtn = document.getElementById('generate-post-map');
+            if (generateBtn) {
+                generateBtn.addEventListener('click', this.generatePostHierarchyMap.bind(this));
+            }
+
             window.addEventListener('mousemove', this.handleRailResize.bind(this));
             window.addEventListener('mouseup', () => { if (this.railResizeState) this.railResizeState = null; });
 
@@ -141,6 +146,56 @@
             document.getElementById('align-bottom').addEventListener('click', () => this.alignSelectedNodes('bottom'));
             document.getElementById('distribute-horizontal').addEventListener('click', () => this.distributeSelectedNodes('horizontal'));
             document.getElementById('distribute-vertical').addEventListener('click', () => this.distributeSelectedNodes('vertical'));
+        }
+
+        /**
+         * Fetches post hierarchy data and generates a map.
+         */
+        generatePostHierarchyMap() {
+            const postType = document.getElementById('cardmap-source-post-type').value;
+            if (!postType) {
+                this.showToast('Please select a post type first.');
+                return;
+            }
+
+            if (!confirm('This will clear the current map and generate a new one. Are you sure?')) {
+                return;
+            }
+
+            const generateBtn = document.getElementById('generate-post-map');
+            generateBtn.textContent = 'Generating...';
+            generateBtn.disabled = true;
+
+            fetch(this.ajaxUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                body: new URLSearchParams({
+                    action: 'generate_post_hierarchy_map',
+                    nonce: this.nonce,
+                    post_type: postType
+                })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    this.instance.reset();
+                    this.mapData = res.data;
+                    if (!this.mapData.rails) this.mapData.rails = [];
+                    this.loadInitialData();
+                    this.saveMapData(); // Save the newly generated map
+                    this.showToast('Map generated successfully!');
+                } else {
+                    this.showToast(`Error: ${res.data || 'Could not generate map.'}`);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                this.showToast('An error occurred. See console for details.');
+            })
+            .finally(() => {
+                generateBtn.textContent = 'Generate Map';
+                generateBtn.disabled = false;
+            });
         }
 
         /**

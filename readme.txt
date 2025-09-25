@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,10 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 4.  Use the shortcode `[cardmap id="your_map_id"]` to display your map.
 
 == Changelog ==
+
+= 1.3.0 =
+*   Feature: Added automatic map generation from post hierarchies (e.g., parent/child pages).
+*   Feature: Added a "Map Configuration" panel to switch between manual and generated maps.
 
 = 1.2.0 =
 *   Feature: Added full compatibility with the Polylang plugin for multi-language sites.

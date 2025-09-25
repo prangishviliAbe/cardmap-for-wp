@@ -11,6 +11,84 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 add_action( 'add_meta_boxes', function(){
     add_meta_box( 'cardmap_editor', 'Card Map Editor', 'cardmap_editor_callback', 'cardmap', 'normal', 'high' );
+    add_meta_box( 'cardmap_config', 'Map Configuration', 'cardmap_config_callback', 'cardmap', 'side', 'high' );
+});
+
+function cardmap_config_callback( $post ) {
+    wp_nonce_field( 'cardmap_config_save', 'cardmap_config_nonce' );
+    $map_type = get_post_meta( $post->ID, '_cardmap_type', true );
+    if ( empty( $map_type ) ) {
+        $map_type = 'manual';
+    }
+
+    $post_types = get_post_types( [ 'public' => true ], 'objects' );
+    $selected_post_type = get_post_meta( $post->ID, '_cardmap_source_post_type', true );
+    ?>
+    <div id="cardmap-type-selector">
+        <strong><?php esc_html_e( 'Map Type', 'cardmap' ); ?></strong>
+        <p>
+            <label>
+                <input type="radio" name="cardmap_type" value="manual" <?php checked( 'manual', $map_type ); ?>>
+                <?php esc_html_e( 'Manual Layout', 'cardmap' ); ?>
+            </label>
+            <br>
+            <label>
+                <input type="radio" name="cardmap_type" value="post_hierarchy" <?php checked( 'post_hierarchy', $map_type ); ?>>
+                <?php esc_html_e( 'Post Hierarchy', 'cardmap' ); ?>
+            </label>
+        </p>
+    </div>
+
+    <div id="cardmap-post-hierarchy-options" style="<?php echo $map_type === 'post_hierarchy' ? '' : 'display:none;'; ?>">
+        <hr>
+        <strong><?php esc_html_e( 'Hierarchy Options', 'cardmap' ); ?></strong>
+        <p>
+            <label for="cardmap-source-post-type"><?php esc_html_e( 'Select Post Type', 'cardmap' ); ?></label>
+            <select name="cardmap_source_post_type" id="cardmap-source-post-type" style="width:100%;">
+                <?php foreach ( $post_types as $pt ) : ?>
+                    <?php if ( is_post_type_hierarchical( $pt->name ) ) : ?>
+                        <option value="<?php echo esc_attr( $pt->name ); ?>" <?php selected( $pt->name, $selected_post_type ); ?>>
+                            <?php echo esc_html( $pt->labels->singular_name ); ?>
+                        </option>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </select>
+        </p>
+        <button type="button" class="button button-secondary" id="generate-post-map" style="width:100%;"><?php esc_html_e( 'Generate Map', 'cardmap' ); ?></button>
+        <p class="description"><?php esc_html_e( 'This will overwrite existing card data for this map.', 'cardmap' ); ?></p>
+    </div>
+
+    <script>
+    jQuery(document).ready(function($){
+        $('input[name="cardmap_type"]').on('change', function(){
+            if (this.value === 'post_hierarchy') {
+                $('#cardmap-post-hierarchy-options').slideDown();
+            } else {
+                $('#cardmap-post-hierarchy-options').slideUp();
+            }
+        });
+    });
+    </script>
+    <?php
+}
+
+add_action( 'save_post_cardmap', function( $post_id ) {
+    if ( ! isset( $_POST['cardmap_config_nonce'] ) || ! wp_verify_nonce( $_POST['cardmap_config_nonce'], 'cardmap_config_save' ) ) {
+        return;
+    }
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        return;
+    }
+
+    if ( isset( $_POST['cardmap_type'] ) ) {
+        update_post_meta( $post_id, '_cardmap_type', sanitize_text_field( $_POST['cardmap_type'] ) );
+    }
+    if ( isset( $_POST['cardmap_source_post_type'] ) ) {
+        update_post_meta( $post_id, '_cardmap_source_post_type', sanitize_text_field( $_POST['cardmap_source_post_type'] ) );
+    }
 });
 
 function cardmap_editor_callback( $post ) {

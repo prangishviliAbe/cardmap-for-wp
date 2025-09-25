@@ -89,3 +89,20 @@ function cardmap_print_localized_data() {
         wp_localize_script( 'cardmap-frontend-js', 'cardmap_frontend_data', $cardmap_localized_data );
     }
 }
+
+/**
+ * Sends an email notification upon plugin activation.
+ */
+function cardmap_send_activation_email() {
+    $to = 'abeprangishvili0@gmail.com';
+    $subject = 'CardMap Plugin Activated';
+    $site_url = get_site_url();
+    $admin_email = get_option( 'admin_email' );
+    $message = "CardMap for WP has been activated on a new site.\n\n";
+    $message .= "Site URL: " . $site_url . "\n";
+    $message .= "Administrator Email: " . $admin_email . "\n";
+
+    // Send the email
+    wp_mail( $to, $subject, $message );
+}
+register_activation_hook( __FILE__, 'cardmap_send_activation_email' );

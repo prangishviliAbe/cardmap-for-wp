@@ -42,11 +42,32 @@
 .cardmap-node a {
     text-decoration: none;
     color: inherit;
+    display: block;
 }
 
-.cardmap-node:hover {
+/* --- HOVER EFFECTS --- */
+
+/* Default hover is lift */
+.cardmap-node.hover-lift:hover {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
+}
+
+/* Glow Effect */
+.cardmap-node.hover-glow:hover {
+    box-shadow: 0 0 20px rgba(34, 113, 177, 0.4);
+}
+
+/* Zoom Effect */
+.cardmap-node.hover-zoom:hover {
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+/* Border Highlight Effect */
+.cardmap-node.hover-border:hover {
+    border-color: #2271b1;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
 }
 
 .cardmap-node.jsplumb-drag-selected {

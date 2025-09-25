@@ -30,6 +30,7 @@ add_shortcode( 'cardmap', function( $atts ) {
         'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
         'enable_drag' => (bool) get_option( 'cardmap_enable_drag', 1 ),
         'enable_animation' => (bool) get_option( 'cardmap_enable_connection_animation', 0 ),
+        'hover_effect' => get_option( 'cardmap_hover_effect', 'lift' ),
     ];
     cardmap_add_to_localized_data($data_to_localize, $post_id);
 
@@ -39,8 +40,9 @@ add_shortcode( 'cardmap', function( $atts ) {
         <div class="cardmap-viewport" style="width:100%;height:100%;position:absolute;top:0;left:0;">
             <div class="cardmap-pan-zoom-container" style="position:relative;width:1200px;height:1000px;">
                 <?php if (isset($map_data['nodes'])) : ?>
+                    <?php $hover_effect = get_option('cardmap_hover_effect', 'lift'); ?>
                     <?php foreach ( $map_data['nodes'] as $node ) : ?>
-                        <div id="<?php echo esc_attr( $node['id'] ); ?>" class="cardmap-node <?php echo isset($node['style']) ? 'style-'.esc_attr($node['style']) : 'style-default'; ?>" style="left:<?php echo esc_attr( $node['x'] ); ?>px;top:<?php echo esc_attr( $node['y'] ); ?>px;">
+                        <div id="<?php echo esc_attr( $node['id'] ); ?>" class="cardmap-node hover-<?php echo esc_attr($hover_effect); ?> <?php echo isset($node['style']) ? 'style-'.esc_attr($node['style']) : 'style-default'; ?>" style="left:<?php echo esc_attr( $node['x'] ); ?>px;top:<?php echo esc_attr( $node['y'] ); ?>px;">
                             <?php if ( ! empty( $node['link'] ) ) : ?>
                                 <a href="<?php echo esc_url( $node['link'] ); ?>" target="<?php echo esc_attr( $node['target'] ?? '_self' ); ?>">
                             <?php endif; ?>

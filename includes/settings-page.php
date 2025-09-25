@@ -29,6 +29,7 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_enable_align_button', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_frontend_view', [ 'type' => 'boolean', 'default' => true ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_hover_effect', [ 'type' => 'string', 'default' => 'lift' ] );
 });
 
 function cardmap_settings_page() {
@@ -69,6 +70,25 @@ function cardmap_settings_page() {
                                 </label>
                             </div>
                             <p class="description">Globally enable or disable the display of all card maps on the frontend.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appearance Settings Card -->
+                <div class="settings-card">
+                    <h2><span class="dashicons dashicons-admin-appearance"></span> Appearance</h2>
+                    <div class="card-content">
+                        <div class="setting-item">
+                            <label for="cardmap_hover_effect" class="setting-title">Card Hover Effect</label>
+                            <select id="cardmap_hover_effect" name="cardmap_hover_effect">
+                                <?php $current_effect = get_option('cardmap_hover_effect', 'lift'); ?>
+                                <option value="none" <?php selected($current_effect, 'none'); ?>>None</option>
+                                <option value="lift" <?php selected($current_effect, 'lift'); ?>>Lift</option>
+                                <option value="glow" <?php selected($current_effect, 'glow'); ?>>Glow</option>
+                                <option value="zoom" <?php selected($current_effect, 'zoom'); ?>>Zoom</option>
+                                <option value="border" <?php selected($current_effect, 'border'); ?>>Border Highlight</option>
+                            </select>
+                            <p class="description">Select the visual effect when a user hovers over a card on the frontend.</p>
                         </div>
                     </div>
                 </div>

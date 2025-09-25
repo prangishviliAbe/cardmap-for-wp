@@ -134,8 +134,8 @@ document.addEventListener('DOMContentLoaded', function(){
         Connector: connectorConfig.connector,
         PaintStyle: connectorConfig.paintStyle,
         HoverPaintStyle: connectorConfig.paintStyle,
-        EndpointStyle: { radius:5 },
-        Anchors: ["Continuous", "Continuous"],
+        EndpointStyle: { radius: 3, fill: '#456' },
+        Anchors: [ "TopCenter", "BottomCenter", "LeftMiddle", "RightMiddle" ],
         ReattachConnections: false,
         MaxConnections: -1
     });

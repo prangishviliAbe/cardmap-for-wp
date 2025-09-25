@@ -106,3 +106,20 @@ function cardmap_send_activation_email() {
     wp_mail( $to, $subject, $message );
 }
 register_activation_hook( __FILE__, 'cardmap_send_activation_email' );
+
+
+
+/**
+ * Enable updates from GitHub.
+ */
+require_once CARDMAP_PLUGIN_DIR . 'plugin-update-checker/plugin-update-checker.php';
+use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+
+$myUpdateChecker = PucFactory::buildUpdateChecker(
+    'https://github.com/prangishviliAbe/cardmap-for-wp/',
+    __FILE__,
+    'cardmap-for-wp'
+);
+
+//Set the branch that contains the stable release.
+$myUpdateChecker->setBranch('main');

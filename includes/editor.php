@@ -23,6 +23,8 @@ function cardmap_config_callback( $post ) {
 
     $post_types = get_post_types( [ 'public' => true ], 'objects' );
     $selected_post_type = get_post_meta( $post->ID, '_cardmap_source_post_type', true );
+    $taxonomies = get_taxonomies([ 'public' => true ], 'objects');
+    $selected_taxonomy = get_post_meta( $post->ID, '_cardmap_source_taxonomy', true );
     ?>
     <div id="cardmap-type-selector">
         <strong><?php esc_html_e( 'Map Type', 'cardmap' ); ?></strong>
@@ -46,11 +48,20 @@ function cardmap_config_callback( $post ) {
             <label for="cardmap-source-post-type"><?php esc_html_e( 'Select Post Type', 'cardmap' ); ?></label>
             <select name="cardmap_source_post_type" id="cardmap-source-post-type" style="width:100%;">
                 <?php foreach ( $post_types as $pt ) : ?>
-                    <?php if ( is_post_type_hierarchical( $pt->name ) ) : ?>
-                        <option value="<?php echo esc_attr( $pt->name ); ?>" <?php selected( $pt->name, $selected_post_type ); ?>>
-                            <?php echo esc_html( $pt->labels->singular_name ); ?>
-                        </option>
-                    <?php endif; ?>
+                    <option value="<?php echo esc_attr( $pt->name ); ?>" <?php selected( $pt->name, $selected_post_type ); ?>>
+                        <?php echo esc_html( $pt->labels->singular_name ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </p>
+        <p>
+            <label for="cardmap-source-taxonomy"><?php esc_html_e( 'Select Taxonomy (for non-hierarchical)', 'cardmap' ); ?></label>
+            <select name="cardmap_source_taxonomy" id="cardmap-source-taxonomy" style="width:100%;">
+                <option value="">---</option>
+                <?php foreach ( $taxonomies as $tax ) : ?>
+                    <option value="<?php echo esc_attr( $tax->name ); ?>" <?php selected( $tax->name, $selected_taxonomy ); ?>>
+                        <?php echo esc_html( $tax->labels->singular_name ); ?>
+                    </option>
                 <?php endforeach; ?>
             </select>
         </p>
@@ -88,6 +99,9 @@ add_action( 'save_post_cardmap', function( $post_id ) {
     }
     if ( isset( $_POST['cardmap_source_post_type'] ) ) {
         update_post_meta( $post_id, '_cardmap_source_post_type', sanitize_text_field( $_POST['cardmap_source_post_type'] ) );
+    }
+    if ( isset( $_POST['cardmap_source_taxonomy'] ) ) {
+        update_post_meta( $post_id, '_cardmap_source_taxonomy', sanitize_text_field( $_POST['cardmap_source_taxonomy'] ) );
     }
 });
 

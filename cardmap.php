@@ -2,7 +2,7 @@
 /*
 Plugin Name: Card Map Builder Pro
 Description: Draggable card maps with images, captions, links, connections, admin editor + settings, and frontend shortcode with zoom/pan/fullscreen.
-Version: 1.1
+Version: 1.1.1
 Author: Abe Prangishvili
 */
 
@@ -118,8 +118,11 @@ use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 $myUpdateChecker = PucFactory::buildUpdateChecker(
     'https://github.com/prangishviliAbe/cardmap-for-wp/',
     __FILE__,
-    'cardmap-for-wp'
+    'cardmap'
 );
+
+//Tell the update checker to look for a readme.txt file for details.
+$myUpdateChecker->getVcsApi()->enableReleaseAssets();
 
 //Set the branch that contains the stable release.
 $myUpdateChecker->setBranch('main');

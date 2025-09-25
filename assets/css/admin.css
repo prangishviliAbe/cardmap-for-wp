@@ -166,5 +166,14 @@ svg .jtk-connector path {
 
 #cardmap-toast {
     position: fixed;
-    right: 18px;
+    bottom: 25px;
+    right: 25px;
+    background-color: #2c3338;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 6px;
+    z-index: 100000;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    font-size: 14px;
+    font-weight: 500;
 }

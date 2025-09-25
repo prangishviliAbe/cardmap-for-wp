@@ -112,7 +112,7 @@ register_activation_hook( __FILE__, 'cardmap_send_activation_email' );
 /**
  * Enable updates from GitHub.
  */
-require_once CARDMAP_PLUGIN_DIR . 'plugin-update-checker/plugin-update-checker.php';
+require_once CARDMAP_PLUGIN_DIR . 'plugin-update-checker-master/plugin-update-checker.php';
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 $myUpdateChecker = PucFactory::buildUpdateChecker(

@@ -57,7 +57,7 @@ function cardmap_admin_assets( $hook ) {
             'available_line_styles' => json_decode( get_option( 'cardmap_line_styles', '{}' ), true ),
             'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
             'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
-            //'enable_align_button' => get_option( 'cardmap_enable_align_button', 1 ),
+            'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
             'node_styles' => json_decode( get_option( 'cardmap_node_styles', '{}' ), true ),
         ] );
     }

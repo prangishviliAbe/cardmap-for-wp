@@ -20,7 +20,7 @@
                 availableLineStyles: this.parseJson(cardmap_admin_data.available_line_styles, {}),
                 lineColor: cardmap_admin_data.line_color,
                 lineThickness: cardmap_admin_data.line_thickness,
-                enableAlignButton: cardmap_admin_data.enable_align_button,
+                showRailThickness: !!cardmap_admin_data.show_rail_thickness,
                 nodeStyles: this.parseJson(cardmap_admin_data.node_styles, {})
             };
 
@@ -888,6 +888,11 @@
                 preview.className = 'rail-snap-preview';
                 railEl.appendChild(preview);
 
+                // The visible bar that represents rail thickness — can be hidden
+                const railBar = document.createElement('div');
+                railBar.className = 'rail-bar';
+                railEl.appendChild(railBar);
+
                 const resizer = document.createElement('div');
                 resizer.className = 'rail-resizer';
                 railEl.appendChild(resizer);
@@ -993,24 +998,43 @@
                 railEl.appendChild(previewDot);
             }
 
-            // apply positioning and thickness based on orientation + size
+            // apply positioning based on orientation + size
             railEl.style.left = `${r.x}px`;
             railEl.style.top = `${r.y}px`;
-            railEl.style.backgroundColor = this.config.lineColor;
             railEl.classList.toggle('vertical', r.orientation === 'vertical');
 
+            // set bar appearance
+            const railBarEl = railEl.querySelector('.rail-bar');
+            if (railBarEl) {
+                railBarEl.style.backgroundColor = this.config.lineColor;
+            }
+
             // thickness is stored in r.size; update width/height depending on orientation
+
             const size = r.size || 8;
+            // Position and size the inner bar rather than the container so we can hide it
             if (r.orientation === 'vertical') {
                 railEl.style.width = `${size}px`;
                 railEl.style.height = `${r.height || 300}px`;
+                if (railBarEl) {
+                    railBarEl.style.width = `${size}px`;
+                    railBarEl.style.height = `${r.height || 300}px`;
+                }
             } else if (r.orientation === 'diagonal') {
                 railEl.style.width = `${r.width || 200}px`;
                 railEl.style.height = `${size}px`;
                 if (r.angle) railEl.style.transform = `rotate(${r.angle}deg)`;
+                if (railBarEl) {
+                    railBarEl.style.width = `${r.width || 200}px`;
+                    railBarEl.style.height = `${size}px`;
+                }
             } else {
                 railEl.style.width = `${r.width || 300}px`;
                 railEl.style.height = `${size}px`;
+                if (railBarEl) {
+                    railBarEl.style.width = `${r.width || 300}px`;
+                    railBarEl.style.height = `${size}px`;
+                }
             }
 
             // keep CSS custom property for legacy styles
@@ -1019,6 +1043,13 @@
             // mark selection state
             if (this.selectedRail === r.id) railEl.classList.add('cardmap-rail-selected');
             else railEl.classList.remove('cardmap-rail-selected');
+
+            // Show or hide the visible thickness according to config
+            if (!this.config.showRailThickness) {
+                railEl.classList.add('rail-thickness-hidden');
+            } else {
+                railEl.classList.remove('rail-thickness-hidden');
+            }
         }
 
         /** Select a rail by id and update controls */

@@ -31,6 +31,7 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
     register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_type', [ 'type' => 'string', 'default' => 'draw' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_duration', [ 'type' => 'integer', 'default' => 800 ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_show_rail_thickness', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_frontend_view', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_hover_effect', [ 'type' => 'string', 'default' => 'lift' ] );
 });
@@ -92,6 +93,16 @@ function cardmap_settings_page() {
                                 <option value="border" <?php selected($current_effect, 'border'); ?>>Border Highlight</option>
                             </select>
                             <p class="description">Select the visual effect when a user hovers over a card on the frontend.</p>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <label for="cardmap_show_rail_thickness" class="setting-title">Show Rail Thickness</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_show_rail_thickness" name="cardmap_show_rail_thickness" value="1" <?php checked(1, get_option('cardmap_show_rail_thickness', 1) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Toggle whether the rail thickness (the visible bar) is shown on rails in the editor and frontend.</p>
                         </div>
                     </div>
                 </div>

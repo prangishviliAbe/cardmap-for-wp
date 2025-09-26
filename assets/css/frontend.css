@@ -269,7 +269,7 @@ svg .jtk-connector {
 /* Rail styles */
 .cardmap-rail {
     position: absolute;
-    background-color: #A61832;
+    /* container; the visible bar sits inside */
     border-radius: 4px;
 }
 
@@ -279,6 +279,20 @@ svg .jtk-connector {
 
 .cardmap-rail.vertical {
     width: 8px;
+}
+
+/* The inner visible bar that represents the rail thickness */
+.cardmap-rail .rail-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    background-color: #A61832;
+    border-radius: 4px;
+}
+
+/* When hidden, make the bar transparent (we keep the rail element for hit tests) */
+.cardmap-rail.rail-thickness-hidden .rail-bar {
+    background-color: transparent !important;
 }
 
 /* Fullscreen */

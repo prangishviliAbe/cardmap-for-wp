@@ -609,17 +609,30 @@
             rail.querySelector('.left').addEventListener('mousedown', (e) => {
                 e.stopPropagation();
                 const side = (r.orientation === 'vertical') ? 'top' : 'left';
-                this.railResizeState = { railId: r.id, side: side, startX: e.clientX, startLeft: parseFloat(rail.style.left), startWidth: parseFloat(rail.style.width) };
+                this.railResizeState = { 
+                    railId: r.id, 
+                    side: side, 
+                    startX: e.clientX, 
+                    startY: e.clientY,
+                    startLeft: parseFloat(rail.style.left), 
+                    startTop: parseFloat(rail.style.top),
+                    startWidth: parseFloat(rail.style.width),
+                    startHeight: parseFloat(rail.style.height)
+                };
             });
             rail.querySelector('.right').addEventListener('mousedown', (e) => {
                 e.stopPropagation();
                 const side = (r.orientation === 'vertical') ? 'bottom' : 'right';
-                this.railResizeState = { railId: r.id, side: side, startX: e.clientX, startLeft: parseFloat(rail.style.left), startWidth: parseFloat(rail.style.width) };
-            });
-
-            rail.addEventListener('dblclick', (e) => {
-                e.stopPropagation();
-                this.deleteRail(r.id);
+                this.railResizeState = { 
+                    railId: r.id, 
+                    side: side, 
+                    startX: e.clientX, 
+                    startY: e.clientY,
+                    startLeft: parseFloat(rail.style.left), 
+                    startTop: parseFloat(rail.style.top),
+                    startWidth: parseFloat(rail.style.width),
+                    startHeight: parseFloat(rail.style.height)
+                };
             });
 
             rail.style.zIndex = 1600;

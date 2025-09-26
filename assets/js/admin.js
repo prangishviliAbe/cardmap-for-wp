@@ -660,6 +660,7 @@
             
             const rect = this.editor.getBoundingClientRect();
             const mapX = (e.clientX - rect.left - this.offsetX) / this.scale;
+            const mapY = (e.clientY - rect.top - this.offsetY) / this.scale;
             const rs = this.mapData.rails.find(r => r.id === this.railResizeState.railId);
             const dom = document.getElementById(this.railResizeState.railId);
             if (!rs || !dom) return;
@@ -677,11 +678,11 @@
                 }
             } else { // vertical
                  if (this.railResizeState.side === 'bottom') {
-                    rs.height = Math.max(40, mapX - rs.y);
+                    rs.height = Math.max(40, mapY - rs.y);
                     dom.style.height = `${rs.height}px`;
                 } else { // top
-                    const newHeight = Math.max(40, (rs.y + rs.height) - mapX);
-                    rs.y = mapX;
+                    const newHeight = Math.max(40, (rs.y + rs.height) - mapY);
+                    rs.y = mapY;
                     rs.height = newHeight;
                     dom.style.top = `${rs.y}px`;
                     dom.style.height = `${rs.height}px`;

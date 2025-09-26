@@ -94,16 +94,7 @@ function cardmap_settings_page() {
                             </select>
                             <p class="description">Select the visual effect when a user hovers over a card on the frontend.</p>
                         </div>
-                        <div class="setting-item">
-                            <div class="setting-header">
-                                <label for="cardmap_show_rail_thickness" class="setting-title">Show Rail Thickness</label>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="cardmap_show_rail_thickness" name="cardmap_show_rail_thickness" value="1" <?php checked(1, get_option('cardmap_show_rail_thickness', 1) ); ?>>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <p class="description">Toggle whether the rail thickness (the visible bar) is shown on rails in the editor and frontend.</p>
-                        </div>
+                        <!-- Show Rail Thickness moved to Editor Settings -->
                     </div>
                 </div>
 
@@ -174,7 +165,16 @@ function cardmap_settings_page() {
                 <div class="settings-card">
                     <h2><span class="dashicons dashicons-edit"></span> Editor Settings</h2>
                     <div class="card-content">
-                        <!-- Alignment feature removed -->
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <label for="cardmap_show_rail_thickness" class="setting-title">Show Rail Thickness</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_show_rail_thickness" name="cardmap_show_rail_thickness" value="1" <?php checked(1, get_option('cardmap_show_rail_thickness', 1) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Toggle whether the rail thickness (the visible bar) is shown in the editor and on the frontend.</p>
+                        </div>
                     </div>
                 </div>
 

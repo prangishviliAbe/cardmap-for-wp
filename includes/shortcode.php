@@ -47,6 +47,8 @@ add_shortcode( 'cardmap', function( $atts ) {
         'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
         'enable_drag' => (bool) get_option( 'cardmap_enable_drag', 1 ),
         'enable_animation' => (bool) get_option( 'cardmap_enable_connection_animation', 0 ),
+        'connection_animation_type' => get_option( 'cardmap_connection_animation_type', 'draw' ),
+        'connection_animation_duration' => (int) get_option( 'cardmap_connection_animation_duration', 800 ),
         'hover_effect' => get_option( 'cardmap_hover_effect', 'lift' ),
     ];
     cardmap_add_to_localized_data($data_to_localize, $post_id);

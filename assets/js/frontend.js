@@ -81,7 +81,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         if (mapConfig.enable_animation) {
                             const delay = index * 100; // 100ms delay between each connection
-                            connection.getConnector().canvas.style.animationDelay = `${delay}ms`;
+                            const animType = mapConfig.connection_animation_type || 'draw';
+                            const duration = (mapConfig.connection_animation_duration || 800) + 'ms';
+                            // target the path element inside the connector and add a class
+                            try {
+                                const svg = connection.getConnector().canvas;
+                                if (svg && svg.querySelector) {
+                                    const path = svg.querySelector('path');
+                                    if (path) {
+                                        path.classList.add('cardmap-connection-anim', `conn-anim-${animType}`);
+                                        path.style.animationDelay = `${delay}ms`;
+                                        path.style.animationDuration = duration;
+                                    }
+                                }
+                            } catch (err) {
+                                // ignore if connector DOM not available yet
+                            }
                         }
                     }
                 });

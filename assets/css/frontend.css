@@ -188,6 +188,7 @@ svg .jtk-connector {
 .jtk-connector path,
 .cardmap-connector path {
     fill: none !important;
+    /* Default draw animation; specific animation classes can override */
     animation: cardmap-draw-line 1s ease-out forwards;
 }
 
@@ -201,6 +202,49 @@ svg .jtk-connector {
         stroke-dashoffset: 0;
     }
 }
+
+/* Connection animation helper class - base */
+.cardmap-connection-anim {
+    animation-fill-mode: forwards;
+    animation-timing-function: ease-out;
+}
+
+/* 1) draw (stroke reveal) - same as default */
+.conn-anim-draw { animation-name: cardmap-draw-line; }
+
+/* 2) fade */
+@keyframes cardmap-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.conn-anim-fade { animation-name: cardmap-fade-in; }
+
+/* 3) grow (increase stroke-width) */
+@keyframes cardmap-grow { from { stroke-width: 0; opacity: 0.9; } to { stroke-width: var(--stroke-width, 2); opacity: 1; } }
+.conn-anim-grow { animation-name: cardmap-grow; }
+
+/* 4) dash (dash reveal) */
+@keyframes cardmap-dash { from { stroke-dasharray: 1, 1000; stroke-dashoffset: 1000; } to { stroke-dasharray: 1000, 0; stroke-dashoffset: 0; } }
+.conn-anim-dash { animation-name: cardmap-dash; }
+
+/* 5) wipe-left and 6) wipe-right - simulate a wipe by animating a clip-path via SVG transform on the path's stroke-dashoffset */
+@keyframes cardmap-wipe-left { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+.conn-anim-wipe-left { animation-name: cardmap-wipe-left; }
+@keyframes cardmap-wipe-right { from { stroke-dashoffset: -1000; } to { stroke-dashoffset: 0; } }
+.conn-anim-wipe-right { animation-name: cardmap-wipe-right; }
+
+/* 7) bounce - draw with slight overshoot */
+@keyframes cardmap-bounce { 0% { stroke-dashoffset: 1000; } 80% { stroke-dashoffset: 0; } 90% { stroke-dashoffset: -40; } 100% { stroke-dashoffset: 0; } }
+.conn-anim-bounce { animation-name: cardmap-bounce; animation-timing-function: cubic-bezier(.2,.8,.4,1.4); }
+
+/* 8) pulse - fade and scale via stroke width mimic */
+@keyframes cardmap-pulse { 0% { opacity: 0; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
+.conn-anim-pulse { animation-name: cardmap-pulse; transform-origin: center; }
+
+/* 9) slide-up - translate the SVG path upward while fading in */
+@keyframes cardmap-slide-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.conn-anim-slide-up { animation-name: cardmap-slide-up; transform-origin: center; }
+
+/* 10) scale - scale from near-zero to full size */
+@keyframes cardmap-scale { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+.conn-anim-scale { animation-name: cardmap-scale; transform-origin: center; }
 
 /* Per-node style variations */
 .cardmap-node.style-default {

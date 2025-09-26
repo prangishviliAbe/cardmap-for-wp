@@ -29,6 +29,8 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ], JSON_PRETTY_PRINT ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_align_button', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_type', [ 'type' => 'string', 'default' => 'draw' ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_duration', [ 'type' => 'integer', 'default' => 800 ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_frontend_view', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_hover_effect', [ 'type' => 'string', 'default' => 'lift' ] );
 });
@@ -107,6 +109,29 @@ function cardmap_settings_page() {
                                 </label>
                             </div>
                             <p class="description">Animate connections when the map first loads on the frontend.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_connection_animation_type" class="setting-title">Connection Animation Type</label>
+                            <?php $anim_current = get_option('cardmap_connection_animation_type', 'draw');
+                                $animation_options = [
+                                    'draw' => 'Draw (stroke reveal)',
+                                    'fade' => 'Fade In',
+                                    'grow' => 'Grow (thickness)',
+                                    'dash' => 'Dash Reveal',
+                                    'wipe-left' => 'Wipe Left',
+                                    'wipe-right' => 'Wipe Right',
+                                    'bounce' => 'Bounce',
+                                    'pulse' => 'Pulse',
+                                    'slide-up' => 'Slide Up',
+                                    'scale' => 'Scale'
+                                ];
+                            ?>
+                            <select id="cardmap_connection_animation_type" name="cardmap_connection_animation_type">
+                                <?php foreach ($animation_options as $k => $label) : ?>
+                                    <option value="<?php echo esc_attr($k); ?>" <?php selected($anim_current, $k); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">Choose the animation used for connections when the map loads (when animation is enabled).</p>
                         </div>
                         <div class="setting-item">
                             <label for="cardmap_line_color" class="setting-title">Connection Line Color</label>

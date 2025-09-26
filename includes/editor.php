@@ -113,7 +113,9 @@ function cardmap_editor_callback( $post ) {
     <div id="cardmap-toolbar" style="margin-bottom:10px;">
         <button type="button" class="button" id="add-node">+ Add Card</button>
         <button type="button" class="button" id="add-rail">+ Add Rail</button>
-        <input type="number" id="rail-size" value="10" min="1" max="100" style="width: 60px; margin-left: 6px;" title="Rail Size">
+        <?php if ( get_option( 'cardmap_show_rail_thickness', 1 ) ) : ?>
+            <input type="number" id="rail-size" value="10" min="1" max="100" style="width: 60px; margin-left: 6px;" title="Rail Size">
+        <?php endif; ?>
         <select id="add-rail-orientation" aria-label="Rail orientation" style="margin-left:6px;">
             <option value="horizontal">Horizontal</option>
             <option value="vertical">Vertical</option>

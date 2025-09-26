@@ -112,7 +112,10 @@
         initEventListeners() {
             document.getElementById('add-node').addEventListener('click', this.addNode.bind(this));
             document.getElementById('add-rail').addEventListener('click', this.addRail.bind(this));
-            document.getElementById('rail-size').addEventListener('change', (e) => {
+            // railSize input may be omitted if rail thickness is disabled in settings
+            this.railSizeInput = document.getElementById('rail-size');
+            if (this.railSizeInput) {
+                this.railSizeInput.addEventListener('change', (e) => {
                 const railId = this.selectedRail;
                 if (railId && this.mapData.rails.find(r => r.id === railId)) {
                     const rail = this.mapData.rails.find(r => r.id === railId);
@@ -130,7 +133,8 @@
                         this.saveMapData();
                     }
                 }
-            });
+                });
+            }
             document.getElementById('connect-mode').addEventListener('click', this.toggleConnectMode.bind(this));
             document.getElementById('delete-node').addEventListener('click', this.toggleDeleteMode.bind(this));
             document.getElementById('save-map').addEventListener('click', this.saveMapData.bind(this));
@@ -1060,8 +1064,8 @@
             const el = document.getElementById(railId);
             if (el) el.classList.add('cardmap-rail-selected');
             const railData = this.mapData.rails.find(r => r.id === railId);
-            if (railData) {
-                document.getElementById('rail-size').value = railData.size || 8;
+            if (railData && this.railSizeInput) {
+                this.railSizeInput.value = railData.size || 8;
             }
         }
 
@@ -1070,7 +1074,7 @@
          */
         addRail() {
             const orientation = document.getElementById('add-rail-orientation').value;
-            const size = parseInt(document.getElementById('rail-size').value, 10) || 10;
+            const size = this.railSizeInput ? (parseInt(this.railSizeInput.value, 10) || 10) : 10;
             const rail = {
                 id: `rail_${Date.now()}`,
                 x: this.editor.scrollLeft + 100,

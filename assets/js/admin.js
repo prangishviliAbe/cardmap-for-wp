@@ -31,6 +31,7 @@
             this.pendingDeletes = new Set();
             this.selectedNodes = new Set();
             this.selectedRail = null;
+            this.deleteRailMode = false;
             
             this.connectMode = false;
             this.deleteMode = false;
@@ -134,9 +135,7 @@
             document.getElementById('delete-node').addEventListener('click', this.toggleDeleteMode.bind(this));
             document.getElementById('save-map').addEventListener('click', this.saveMapData.bind(this));
             document.getElementById('fullscreen-editor').addEventListener('click', this.toggleFullscreen.bind(this));
-            if (this.config.enableAlignButton) {
-                document.getElementById('align-nodes').addEventListener('click', this.autoAlignNodes.bind(this));
-            }
+            // Alignment feature removed per request (buttons removed server-side)
 
             this.editorWrapper.addEventListener('mousedown', this.handlePanStart.bind(this));
             this.editorWrapper.addEventListener('mouseup', this.handlePanEnd.bind(this));
@@ -163,14 +162,9 @@
             window.addEventListener('mousemove', this.handleRailResize.bind(this));
             window.addEventListener('mouseup', () => { if (this.railResizeState) this.railResizeState = null; });
 
-            document.getElementById('align-left').addEventListener('click', () => this.alignSelectedNodes('left'));
-            document.getElementById('align-center').addEventListener('click', () => this.alignSelectedNodes('center'));
-            document.getElementById('align-right').addEventListener('click', () => this.alignSelectedNodes('right'));
-            document.getElementById('align-top').addEventListener('click', () => this.alignSelectedNodes('top'));
-            document.getElementById('align-middle').addEventListener('click', () => this.alignSelectedNodes('middle'));
-            document.getElementById('align-bottom').addEventListener('click', () => this.alignSelectedNodes('bottom'));
-            document.getElementById('distribute-horizontal').addEventListener('click', () => this.distributeSelectedNodes('horizontal'));
-            document.getElementById('distribute-vertical').addEventListener('click', () => this.distributeSelectedNodes('vertical'));
+            // Alignment controls removed
+            const deleteRailBtn = document.getElementById('delete-rail');
+            if (deleteRailBtn) deleteRailBtn.addEventListener('click', this.toggleDeleteRailMode.bind(this));
         }
 
         /**
@@ -303,6 +297,10 @@
                     </select>
                     <label style="display:block;margin-top:8px;font-size:12px;color:#666;">Style</label>
                     <select class="card-node-style" style="width:100%;">${styleOptions}</select>
+                    <label style="display:block;margin-top:8px;font-size:12px;color:#666;">Connection Style</label>
+                    <select class="card-connection-style" style="width:100%;">
+                        ${ Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}" ${ (n.connectionStyle || this.config.lineStyle) === k ? 'selected' : '' }>${this.config.availableLineStyles[k]}</option>` ).join('') }
+                    </select>
                 </div>
             `;
 
@@ -364,6 +362,24 @@
                     node.classList.add('style-' + styleSelect.value);
                 });
                 if (nodeData.style) node.classList.add('style-' + nodeData.style);
+            }
+
+            const connStyleSelect = node.querySelector('.card-connection-style');
+            if (connStyleSelect) {
+                // initialize value from data if present
+                if (nodeData.connectionStyle) connStyleSelect.value = nodeData.connectionStyle;
+                connStyleSelect.addEventListener('change', () => {
+                    nodeData.connectionStyle = connStyleSelect.value;
+                    // Update existing connections that originate from this node to use the new style
+                    const conns = this.instance.getConnections({ source: node.id });
+                    conns.forEach(c => {
+                        const config = this.getConnectorConfig(nodeData.connectionStyle || this.config.lineStyle);
+                        try {
+                            c.setPaintStyle && c.setPaintStyle(config.paintStyle);
+                            if (config.connector) c.setConnector && c.setConnector(config.connector);
+                        } catch (err) {}
+                    });
+                });
             }
 
             node.querySelectorAll('[contenteditable]').forEach(el => {
@@ -590,6 +606,13 @@
 
         /** Handle clicks on rails (selection and connect mode) */
         onRailClick(e, railEl, railData) {
+            // If delete-rail mode, remove the rail
+            if (this.deleteRailMode) {
+                e.stopPropagation();
+                this.deleteRail(railEl.id);
+                return;
+            }
+
             // If not in connect mode, select the rail for editing
             if (!this.connectMode) {
                 this.selectRail(railEl.id);
@@ -629,11 +652,15 @@
                 }
                 if (!anchorB) anchorB = this.getRailAnchorFromEvent(e, railEl, railData) || autoAnchors[1];
 
+                // choose connection style: prefer source node's connectionStyle then target's then global
+                const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
+                const targetNodeData = this.mapData.nodes.find(n => n.id === targetId) || {};
+                const connStyle = sourceNodeData.connectionStyle || targetNodeData.connectionStyle || this.config.lineStyle;
                 const conn = this.instance.connect({
                     source: sourceId,
                     target: targetId,
                     anchors: [anchorA, anchorB],
-                    ...this.getConnectorConfig(this.config.lineStyle),
+                    ...this.getConnectorConfig(connStyle),
                     cssClass: 'cardmap-connector'
                 });
                 const newId = `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
@@ -646,7 +673,7 @@
                     anchorA,
                     (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
                 ];
-                this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: this.config.lineStyle, anchors: savedAnchors });
+                this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
 
                 // force an immediate repaint so anchors/paths are calculated correctly
                 try { this.instance.repaintEverything(); } catch (e) {}
@@ -752,7 +779,7 @@
                 this.selectedNodes.add(node.id);
                 node.classList.add('cardmap-node-selected');
             }
-            this.updateAlignmentToolbar();
+            // alignment toolbar removed
         }
 
         /**
@@ -790,11 +817,14 @@
                 }
                 if (!anchorB) anchorB = this.getPreciseAnchorFromEvent(e, node) || autoAnchors[1];
                 
+                const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
+                const targetNodeData = this.mapData.nodes.find(n => n.id === targetId) || {};
+                const connStyle = sourceNodeData.connectionStyle || targetNodeData.connectionStyle || this.config.lineStyle;
                 const conn = this.instance.connect({
                     source: sourceId,
                     target: targetId,
                     anchors: [anchorA, anchorB],
-                    ...this.getConnectorConfig(this.config.lineStyle),
+                    ...this.getConnectorConfig(connStyle),
                     cssClass: 'cardmap-connector'
                 });
 
@@ -807,7 +837,7 @@
                     anchorA,
                     (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
                 ];
-                this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: this.config.lineStyle, anchors: savedAnchors });
+                this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
 
                 // force an immediate repaint so anchors/paths are calculated correctly
                 try { this.instance.repaintEverything(); } catch (e) {}
@@ -997,7 +1027,6 @@
             if (railData) {
                 document.getElementById('rail-size').value = railData.size || 8;
             }
-            this.updateAlignmentToolbar();
         }
 
         /**
@@ -1032,8 +1061,23 @@
          */
         deleteRail(railId) {
             const railEl = document.getElementById(railId);
-            if (railEl) this.instance.remove(railEl);
+            if (railEl) {
+                // remove any jsPlumb connections attached to this element
+                const conns = this.instance.getAllConnections().filter(c => c.sourceId === railId || c.targetId === railId);
+                conns.forEach(c => {
+                    try { this.instance.deleteConnection(c); } catch(e) {}
+                });
+                // remove from DOM
+                try { this.instance.remove(railEl); } catch(e) { railEl.remove(); }
+            }
+
+            // clear attachedRail from nodes
+            this.mapData.nodes.forEach(n => { if (n.attachedRail === railId) delete n.attachedRail; });
+
+            // remove rail data
             this.mapData.rails = (this.mapData.rails || []).filter(x => x.id !== railId);
+            // save map after deletion
+            this.saveMapData();
         }
 
         /**
@@ -1096,6 +1140,7 @@
         toggleConnectMode() {
             this.connectMode = !this.connectMode;
             this.deleteMode = false;
+            this.deleteRailMode = false;
             document.getElementById('connect-mode').classList.toggle('button-primary', this.connectMode);
             document.getElementById('delete-node').classList.remove('button-primary');
             this.editor.style.cursor = this.connectMode ? 'crosshair' : 'grab';
@@ -1112,9 +1157,25 @@
         toggleDeleteMode() {
             this.deleteMode = !this.deleteMode;
             this.connectMode = false;
+            this.deleteRailMode = false;
             document.getElementById('delete-node').classList.toggle('button-primary', this.deleteMode);
             document.getElementById('connect-mode').classList.remove('button-primary');
             this.editor.style.cursor = this.deleteMode ? 'not-allowed' : 'grab';
+        }
+
+        /**
+         * Toggles delete-rail mode which allows clicking rails to delete them.
+         */
+        toggleDeleteRailMode() {
+            this.deleteRailMode = !this.deleteRailMode;
+            this.deleteMode = false;
+            this.connectMode = false;
+            const btn = document.getElementById('delete-rail');
+            if (btn) btn.classList.toggle('button-primary', this.deleteRailMode);
+            // ensure other mode buttons are visually reset
+            const dn = document.getElementById('delete-node'); if (dn) dn.classList.remove('button-primary');
+            const cm = document.getElementById('connect-mode'); if (cm) cm.classList.remove('button-primary');
+            this.editor.style.cursor = this.deleteRailMode ? 'not-allowed' : 'grab';
         }
 
         /**
@@ -1144,6 +1205,9 @@
                     nodeData.style = el.dataset.style || '';
                     nodeData.link = el.dataset.link || '';
                     nodeData.target = el.dataset.target || '_self';
+                    // persist per-node connection style if user set it
+                    const connSel = el.querySelector('.card-connection-style');
+                    if (connSel) nodeData.connectionStyle = connSel.value;
                 }
             });
             
@@ -1238,51 +1302,7 @@
             this.instance.setZoom(this.scale);
         }
 
-        // --- Alignment and Distribution ---
-        
-        /**
-         * Automatically arranges all nodes in a grid-like layout.
-         */
-        autoAlignNodes() {
-            const nodes = this.mapData.nodes || [];
-            if (nodes.length === 0) return;
-
-            const margin = 40;
-            let x = margin;
-            let y = margin;
-            let rowHeight = 0;
-            const containerWidth = this.editorWrapper.clientWidth;
-
-            nodes.forEach(nodeData => {
-                const el = document.getElementById(nodeData.id);
-                if (!el) return;
-
-                const elWidth = el.offsetWidth;
-                const elHeight = el.offsetHeight;
-
-                if (x + elWidth + margin > containerWidth) {
-                    x = margin;
-                    y += rowHeight + margin;
-                    rowHeight = 0;
-                }
-
-                nodeData.x = x;
-                nodeData.y = y;
-                el.style.left = `${x}px`;
-                el.style.top = `${y}px`;
-
-                x += elWidth + margin;
-                rowHeight = Math.max(rowHeight, elHeight);
-            });
-
-            this.scale = 1;
-            this.offsetX = 0;
-            this.offsetY = 0;
-            this.updateTransform();
-            // Ensure connections update anchors after nodes moved
-            const movedIds = nodes.map(n => n.id);
-            this.updateConnectionsAfterMove(movedIds);
-        }
+        // Alignment and distribution features (manual align) removed per user request.
 
         /**
          * Auto-arrange nodes when the map first loads. Tries to keep nodes
@@ -1380,94 +1400,11 @@
             this.updateConnectionsAfterMove(movedIds);
         }
 
-        /**
-         * Aligns selected nodes to a specified edge.
-         * @param {string} edge 'left', 'center', 'right', 'top', 'middle', 'bottom'
-         */
-        alignSelectedNodes(edge) {
-            const selected = this.getSelectedNodesWithElements();
-            if (selected.length < 2) return;
-
-            switch (edge) {
-                case 'left':
-                    const minX = Math.min(...selected.map(n => n.data.x));
-                    selected.forEach(n => { n.data.x = minX; n.el.style.left = `${minX}px`; });
-                    break;
-                case 'center':
-                    const avgX = selected.reduce((sum, n) => sum + n.data.x + n.el.offsetWidth / 2, 0) / selected.length;
-                    selected.forEach(n => { const newX = avgX - n.el.offsetWidth / 2; n.data.x = newX; n.el.style.left = `${newX}px`; });
-                    break;
-                case 'right':
-                    const maxX = Math.max(...selected.map(n => n.data.x + n.el.offsetWidth));
-                    selected.forEach(n => { const newX = maxX - n.el.offsetWidth; n.data.x = newX; n.el.style.left = `${newX}px`; });
-                    break;
-                case 'top':
-                    const minY = Math.min(...selected.map(n => n.data.y));
-                    selected.forEach(n => { n.data.y = minY; n.el.style.top = `${minY}px`; });
-                    break;
-                case 'middle':
-                    const avgY = selected.reduce((sum, n) => sum + n.data.y + n.el.offsetHeight / 2, 0) / selected.length;
-                    selected.forEach(n => { const newY = avgY - n.el.offsetHeight / 2; n.data.y = newY; n.el.style.top = `${newY}px`; });
-                    break;
-                case 'bottom':
-                    const maxY = Math.max(...selected.map(n => n.data.y + n.el.offsetHeight));
-                    selected.forEach(n => { const newY = maxY - n.el.offsetHeight; n.data.y = newY; n.el.style.top = `${newY}px`; });
-                    break;
-            }
-            // Re-anchor connections touching the moved nodes
-            const movedIds = selected.map(n => n.id);
-            this.updateConnectionsAfterMove(movedIds);
-        }
-
-        /**
-         * Distributes selected nodes evenly.
-         * @param {string} direction 'horizontal' or 'vertical'
-         */
-        distributeSelectedNodes(direction) {
-            const selected = this.getSelectedNodesWithElements();
-            if (selected.length < 2) return;
-
-            if (direction === 'horizontal') {
-                selected.sort((a, b) => a.data.x - b.data.x);
-                const minX = selected[0].data.x;
-                const maxX = selected[selected.length - 1].data.x + selected[selected.length - 1].el.offsetWidth;
-                const totalWidth = selected.reduce((sum, n) => sum + n.el.offsetWidth, 0);
-                const gap = (maxX - minX - totalWidth) / (selected.length - 1);
-                let currentX = minX;
-                selected.forEach(n => {
-                    n.data.x = currentX;
-                    n.el.style.left = `${currentX}px`;
-                    currentX += n.el.offsetWidth + gap;
-                });
-            } else { // vertical
-                selected.sort((a, b) => a.data.y - b.data.y);
-                const minY = selected[0].data.y;
-                const maxY = selected[selected.length - 1].data.y + selected[selected.length - 1].el.offsetHeight;
-                const totalHeight = selected.reduce((sum, n) => sum + n.el.offsetHeight, 0);
-                const gap = (maxY - minY - totalHeight) / (selected.length - 1);
-                let currentY = minY;
-                selected.forEach(n => {
-                    n.data.y = currentY;
-                    n.el.style.top = `${currentY}px`;
-                    currentY += n.el.offsetHeight + gap;
-                });
-            }
-            // Re-anchor connections touching the moved nodes
-            const movedIds = selected.map(n => n.id);
-            this.updateConnectionsAfterMove(movedIds);
-        }
+        // Alignment functions removed per user request.
 
         // --- Helper and Utility Methods ---
 
-        /**
-         * Shows or hides the alignment toolbar based on selection count.
-         */
-        updateAlignmentToolbar() {
-            const toolbar = document.getElementById('cardmap-alignment-toolbar');
-            if (toolbar) {
-                toolbar.style.display = this.selectedNodes.size > 1 ? 'flex' : 'none';
-            }
-        }
+        // Alignment toolbar removed
 
         /**
          * Deselects all nodes, optionally ignoring one.
@@ -1483,7 +1420,6 @@
                     this.selectedNodes.delete(id);
                 }
             });
-            this.updateAlignmentToolbar();
         }
 
         /**

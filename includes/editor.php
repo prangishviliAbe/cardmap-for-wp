@@ -121,19 +121,7 @@ function cardmap_editor_callback( $post ) {
         </select>
         <button type="button" class="button" id="connect-mode">🔗 Connect</button>
         <button type="button" class="button" id="delete-node">❌ Delete Node</button>
-        <?php if ($enable_align_button) : ?>
-            <button type="button" class="button button-secondary" id="align-nodes">🧹 Align All Cards</button>
-        <?php endif; ?>
-        <div id="cardmap-alignment-toolbar" style="display:none; border-left:1px solid #ccc; padding-left:8px; margin-left:4px; gap: 4px;">
-            <button class="button" id="align-left" title="Align Left">⯇</button>
-            <button class="button" id="align-center" title="Align Center">⯬</button>
-            <button class="button" id="align-right" title="Align Right">⯈</button>
-            <button class="button" id="align-top" title="Align Top">⯅</button>
-            <button class="button" id="align-middle" title="Align Middle">⯮</button>
-            <button class="button" id="align-bottom" title="Align Bottom">⯆</button>
-            <button class="button" id="distribute-horizontal" title="Distribute Horizontally">⬌</button>
-            <button class="button" id="distribute-vertical" title="Distribute Vertically">⬍</button>
-        </div>
+        <button type="button" class="button" id="delete-rail">🧨 Delete Rail</button>
         <button type="button" class="button button-secondary" id="fullscreen-editor">⛶ Fullscreen</button>
         <button type="button" class="button button-primary" id="save-map">💾 Save</button>
     </div>

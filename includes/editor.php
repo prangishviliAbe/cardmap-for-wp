@@ -109,7 +109,6 @@ function cardmap_editor_callback( $post ) {
     $raw = get_post_meta( $post->ID, '_cardmap_data', true );
     $json = $raw ? $raw : json_encode( [ 'nodes' => [], 'connections' => [] ] );
 
-    $enable_align_button = get_option('cardmap_enable_align_button', 1);
     ?>
     <div id="cardmap-toolbar" style="margin-bottom:10px;">
         <button type="button" class="button" id="add-node">+ Add Card</button>

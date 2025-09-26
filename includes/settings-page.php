@@ -27,7 +27,7 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_line_style', [ 'type' => 'string', 'default' => 'straight-with-arrows' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_node_styles', [ 'type' => 'string', 'default' => json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ], JSON_PRETTY_PRINT ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ], JSON_PRETTY_PRINT ) ] );
-    register_setting( 'cardmap_settings_group', 'cardmap_enable_align_button', [ 'type' => 'boolean', 'default' => true ] );
+    // register_setting( 'cardmap_settings_group', 'cardmap_enable_align_button', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
     register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_type', [ 'type' => 'string', 'default' => 'draw' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_duration', [ 'type' => 'integer', 'default' => 800 ] );
@@ -163,16 +163,7 @@ function cardmap_settings_page() {
                 <div class="settings-card">
                     <h2><span class="dashicons dashicons-edit"></span> Editor Settings</h2>
                     <div class="card-content">
-                        <div class="setting-item">
-                            <div class="setting-header">
-                                <label for="cardmap_enable_align_button" class="setting-title">Enable Card Alignment Button</label>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="cardmap_enable_align_button" name="cardmap_enable_align_button" value="1" <?php checked(1, get_option('cardmap_enable_align_button', 1) ); ?>>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <p class="description">Show the alignment tools button in the map editor.</p>
-                        </div>
+                        <!-- Alignment feature removed -->
                     </div>
                 </div>
 

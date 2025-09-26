@@ -107,6 +107,35 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        // Ensure rails have a visible inner bar (.rail-bar) so we can hide/show thickness
+        try {
+            const rails = panZoomContainer.querySelectorAll('.cardmap-rail');
+            rails.forEach(railEl => {
+                // add rail-bar if missing
+                if (!railEl.querySelector('.rail-bar')) {
+                    const bar = document.createElement('div');
+                    bar.className = 'rail-bar';
+                    // copy inline sizing where present
+                    bar.style.width = railEl.style.width || '';
+                    bar.style.height = railEl.style.height || '';
+                    bar.style.backgroundColor = mapConfig.line_color || '#A61832';
+                    railEl.appendChild(bar);
+                } else {
+                    const bar = railEl.querySelector('.rail-bar');
+                    bar.style.backgroundColor = mapConfig.line_color || '#A61832';
+                }
+
+                // toggle visibility according to setting
+                if (mapConfig.show_rail_thickness === false || mapConfig.show_rail_thickness === 0) {
+                    railEl.classList.add('rail-thickness-hidden');
+                } else {
+                    railEl.classList.remove('rail-thickness-hidden');
+                }
+            });
+        } catch (err) {
+            // ignore DOM errors
+        }
+
         let scale = 1;
         let panX = 0;
         let panY = 0;

@@ -18,7 +18,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        function getConnectorConfig(style, color, thickness) {
+        function getConnectorConfig(style, color, thickness, rail_size) {
+            const railSize = rail_size ? parseInt(rail_size, 10) : 0;
             const baseConfig = { stroke: color, strokeWidth: thickness };
             const overlays = [["Arrow",{ width:10, length:10, location:1 }]];
             const dashedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "4 2" };
@@ -44,6 +45,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     return { connector: ["Straight"], paintStyle: dashedOverlay, overlays: [] };
                 case 'dotted':
                     return { connector: ["Straight"], paintStyle: dottedOverlay, overlays: [] };
+                case 'rail':
+                    return {
+                        connector: ["StateMachine", { curviness: 0, margin: 5, proximity: 10 }],
+                        paintStyle: { stroke: color, strokeWidth: railSize, "stroke-dasharray": "0" },
+                        hoverPaintStyle: { stroke: color, strokeWidth: railSize, "stroke-dasharray": "0" },
+                        overlays: []
+                    };
                 default:
                     return { connector: ["Straight"], paintStyle: baseConfig, overlays: overlays };
             }
@@ -61,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const targetEl = panZoomContainer.querySelector('#' + c.target);
                     if (sourceEl && targetEl) {
                         const connStyle = c.style || 'straight-with-arrows';
-                        const config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness);
+                        const config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness, c.rail_size);
                         
                         const connection = instance.connect({
                             source: sourceEl,

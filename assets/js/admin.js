@@ -30,6 +30,7 @@
 
             this.pendingDeletes = new Set();
             this.selectedNodes = new Set();
+            this.selectedRail = null;
             
             this.connectMode = false;
             this.deleteMode = false;
@@ -110,6 +111,25 @@
         initEventListeners() {
             document.getElementById('add-node').addEventListener('click', this.addNode.bind(this));
             document.getElementById('add-rail').addEventListener('click', this.addRail.bind(this));
+            document.getElementById('rail-size').addEventListener('change', (e) => {
+                const railId = this.selectedRail;
+                if (railId && this.mapData.rails.find(r => r.id === railId)) {
+                    const rail = this.mapData.rails.find(r => r.id === railId);
+                    const newSize = parseInt(e.target.value, 10);
+                    if (!isNaN(newSize) && newSize > 0) {
+                        rail.size = newSize;
+                        // keep length properties intact, but update thickness
+                        if (rail.orientation === 'vertical') {
+                            rail.width = newSize;
+                        } else {
+                            rail.height = newSize;
+                        }
+                        this.renderRail(rail);
+                        this.instance.repaintEverything();
+                        this.saveMapData();
+                    }
+                }
+            });
             document.getElementById('connect-mode').addEventListener('click', this.toggleConnectMode.bind(this));
             document.getElementById('delete-node').addEventListener('click', this.toggleDeleteMode.bind(this));
             document.getElementById('save-map').addEventListener('click', this.saveMapData.bind(this));
@@ -122,11 +142,16 @@
             this.editorWrapper.addEventListener('mouseup', this.handlePanEnd.bind(this));
             this.editorWrapper.addEventListener('mouseleave', this.handlePanEnd.bind(this));
             this.editorWrapper.addEventListener('mousemove', this.handlePanMove.bind(this));
+            this.editorWrapper.addEventListener('mousemove', this.handleConnectMouseMove.bind(this));
             this.editorWrapper.addEventListener('wheel', this.handleZoom.bind(this));
             
             this.editorWrapper.addEventListener('click', (e) => {
                 if (e.target === this.editorWrapper || e.target === this.editor) {
                     this.deselectAllNodes();
+                }
+                const railEl = e.target.closest('.cardmap-rail');
+                if (railEl) {
+                    this.selectRail(railEl.id);
                 }
             });
 
@@ -214,10 +239,20 @@
                     const connStyle = c.style || this.config.lineStyle || 'straight';
                     const config = this.getConnectorConfig(connStyle);
                     
+                    // normalize saved anchors: allow {type:'precise',value:[x,y,ox,oy]} entries
+                    let anchors = null;
+                    if (Array.isArray(c.anchors)) {
+                        anchors = c.anchors.map(a => {
+                            if (a && typeof a === 'object' && a.type === 'precise' && Array.isArray(a.value)) return a.value;
+                            return a;
+                        });
+                    }
+                    if (!anchors) anchors = c.anchors || this.getDirectionalAnchors(sourceEl, targetEl);
+
                     const conn = this.instance.connect({
                         source: c.source,
                         target: c.target,
-                        anchors: c.anchors || this.getDirectionalAnchors(sourceEl, targetEl),
+                        anchors: anchors,
                         ...config,
                         cssClass: 'cardmap-connector'
                     });
@@ -350,16 +385,8 @@
         onNodeDragStart(params) {
             const connections = this.instance.getConnections({ source: params.el.id }).concat(this.instance.getConnections({ target: params.el.id }));
             connections.forEach(conn => {
-                const sourceNode = this.mapData.nodes.find(n => n.id === conn.sourceId);
-                const targetNode = this.mapData.nodes.find(n => n.id === conn.targetId);
-                const sourceRail = sourceNode && sourceNode.attachedRail ? this.mapData.rails.find(r => r.id === sourceNode.attachedRail) : null;
-                const targetRail = targetNode && targetNode.attachedRail ? this.mapData.rails.find(r => r.id === targetNode.attachedRail) : null;
-
-                if (sourceRail || targetRail) {
-                    conn._originalAnchors = conn.getAnchors();
-                    const rail = sourceRail || targetRail;
-                    conn.setAnchors(rail.orientation === 'vertical' ? ["Right", "Left"] : ["Top", "Bottom"]);
-                }
+                // Store original anchors at the start of any drag
+                conn._originalAnchors = conn.getAnchors();
             });
         }
 
@@ -369,18 +396,53 @@
         onNodeDrag(params) {
             this.instance.repaintEverything();
             const node = params.el;
+            const draggedNode = this.mapData.nodes.find(n => n.id === node.id);
+
+            // If the node is on a rail, temporarily simplify anchors for smooth dragging
+            if (draggedNode && draggedNode.attachedRail) {
+                const rail = this.mapData.rails.find(r => r.id === draggedNode.attachedRail);
+                if (rail) {
+                    const connections = this.instance.getConnections({ source: node.id }).concat(this.instance.getConnections({ target: node.id }));
+                    const simpleAnchors = rail.orientation === 'vertical' ? ["LeftMiddle", "RightMiddle"] : ["TopCenter", "BottomCenter"];
+                    connections.forEach(conn => conn.setAnchors(simpleAnchors));
+                }
+            }
+
             const rails = this.mapData.rails || [];
             let nearest = null;
             let bestDist = Infinity;
             const elLeft = parseFloat(node.style.left) || 0;
+            const elTop = parseFloat(node.style.top) || 0;
             const elCenterX = elLeft + (node.offsetWidth || 240) / 2;
+            const elCenterY = elTop + (node.offsetHeight || 150) / 2;
 
             for (const r of rails) {
-                if (elCenterX >= r.x && elCenterX <= (r.x + (r.width || 0))) {
-                    const dy = Math.abs((r.y + this.RAIL_SNAP_OFFSET) - (parseFloat(node.style.top) || 0));
-                    if (dy < bestDist) {
-                        bestDist = dy;
+                const railTop = r.y;
+                const railBottom = r.y + (r.height || 0);
+                if (r.orientation === 'vertical') {
+                    if (elCenterY >= railTop && elCenterY <= railBottom) {
+                        const railCenterX = r.x + ((r.width || r.size || this.RAIL_HEIGHT) / 2);
+                        const dx = Math.abs(railCenterX - elLeft);
+                        if (dx < bestDist) {
+                            bestDist = dx;
+                            nearest = r;
+                        }
+                    }
+                } else if (r.orientation === 'diagonal') {
+                    const dist = this.distanceToLineSegment(elCenterX, elCenterY, r.x, r.y, r.x + r.width, r.y + r.height);
+                    if (dist < this.RAIL_SNAP_THRESHOLD && dist < bestDist) {
+                        bestDist = dist;
                         nearest = r;
+                    }
+                } else { // horizontal
+                    const railLeft = r.x;
+                    const railRight = r.x + (r.width || 0);
+                    if (elCenterX >= railLeft && elCenterX <= railRight) {
+                        const dy = Math.abs((r.y + this.RAIL_SNAP_OFFSET) - elTop);
+                        if (dy < bestDist) {
+                            bestDist = dy;
+                            nearest = r;
+                        }
                     }
                 }
             }
@@ -414,29 +476,77 @@
                 draggedNode.y = params.pos[1];
                 const rails = this.mapData.rails || [];
                 let snapped = null;
+                let bestDist = Infinity;
 
                 for (const r of rails) {
-                    const nodeCenterX = draggedNode.x + (params.el.offsetWidth || 240) / 2;
-                    if (nodeCenterX >= r.x && nodeCenterX <= (r.x + (r.width || 0))) {
-                        const dy = Math.abs(draggedNode.y - (r.y + this.RAIL_SNAP_OFFSET));
-                        if (dy <= this.RAIL_SNAP_THRESHOLD) {
+                    const railTop = r.y;
+                    const railBottom = r.y + r.height;
+                    if (r.orientation === 'vertical') {
+                        const nodeCenterY = draggedNode.y + (params.el.offsetHeight || 150) / 2;
+                        if (nodeCenterY >= railTop && nodeCenterY <= railBottom) {
+                            const railCenterX = r.x + ((r.width || r.size || this.RAIL_HEIGHT) / 2);
+                            const dx = Math.abs(draggedNode.x - railCenterX);
+                             if (dx <= this.RAIL_SNAP_THRESHOLD && dx < bestDist) {
+                                bestDist = dx;
+                                snapped = r;
+                            }
+                        }
+                    } else if (r.orientation === 'diagonal') {
+                        const dist = this.distanceToLineSegment(draggedNode.x, draggedNode.y, r.x, r.y, r.x + r.width, r.y + r.height);
+                        if (dist < this.RAIL_SNAP_THRESHOLD && dist < bestDist) {
+                            bestDist = dist;
                             snapped = r;
-                            break;
+                        }
+                    } else { // horizontal
+                        const nodeCenterX = draggedNode.x + (params.el.offsetWidth || 240) / 2;
+                        const railLeft = r.x;
+                        const railRight = r.x + (r.width || 0);
+                        if (nodeCenterX >= railLeft && nodeCenterX <= railRight) {
+                            const dy = Math.abs(draggedNode.y - (r.y + this.RAIL_SNAP_OFFSET));
+                            if (dy <= this.RAIL_SNAP_THRESHOLD && dy < bestDist) {
+                                bestDist = dy;
+                                snapped = r;
+                            }
                         }
                     }
                 }
 
+                const connections = this.instance.getConnections({ source: params.el.id }).concat(this.instance.getConnections({ target: params.el.id }));
+
                 if (snapped) {
                     draggedNode.attachedRail = snapped.id;
+                    
+                    // Define anchors based on rail orientation
+                    const anchors = snapped.orientation === 'vertical' 
+                        ? ["LeftMiddle", "RightMiddle"] 
+                        : ["TopCenter", "BottomCenter"];
+
                     if (snapped.orientation === 'vertical') {
-                        draggedNode.x = snapped.x + this.RAIL_SNAP_OFFSET_VERTICAL;
+                        draggedNode.x = snapped.x - (params.el.offsetWidth / 2) + (snapped.size / 2);
                         params.el.style.left = `${draggedNode.x}px`;
-                    } else {
-                        draggedNode.y = snapped.y + this.RAIL_SNAP_OFFSET;
+                    } else { // horizontal
+                        draggedNode.y = snapped.y - (params.el.offsetHeight / 2) + (snapped.size / 2);
                         params.el.style.top = `${draggedNode.y}px`;
                     }
+                    
+                    // Set the determined anchors for all connections of the node
+                    connections.forEach(c => c.setAnchors(anchors));
+
                 } else {
                     delete draggedNode.attachedRail;
+                    // Restore original or directional anchors when not on a rail
+                    connections.forEach(conn => {
+                        if (conn._originalAnchors) {
+                            conn.setAnchors(conn._originalAnchors);
+                            delete conn._originalAnchors;
+                        } else {
+                            const sourceEl = document.getElementById(conn.sourceId);
+                            const targetEl = document.getElementById(conn.targetId);
+                            if (sourceEl && targetEl) {
+                                conn.setAnchors(this.getDirectionalAnchors(sourceEl, targetEl));
+                            }
+                        }
+                    });
                 }
 
                 (this.mapData.rails || []).forEach(rr => {
@@ -448,14 +558,6 @@
                     }
                 });
             }
-
-            const connections = this.instance.getConnections({ source: params.el.id }).concat(this.instance.getConnections({ target: params.el.id }));
-            connections.forEach(conn => {
-                if (conn._originalAnchors) {
-                    conn.setAnchors(conn._originalAnchors);
-                    delete conn._originalAnchors;
-                }
-            });
 
             this.instance.repaintEverything();
         }
@@ -473,6 +575,161 @@
             } else {
                 this.handleSelectionClick(e, node);
             }
+        }
+
+        /** Convert screen event to world coordinates inside the editor */
+        getWorldCoordsFromEvent(e) {
+            const wrapperRect = this.editorWrapper.getBoundingClientRect();
+            const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
+            const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
+            return { x: worldX, y: worldY };
+        }
+
+        /** Handle clicks on rails (selection and connect mode) */
+        onRailClick(e, railEl, railData) {
+            // If not in connect mode, select the rail for editing
+            if (!this.connectMode) {
+                this.selectRail(railEl.id);
+                return;
+            }
+
+            // In connect mode: treat a rail click similarly to a node click
+            if (!this.firstNode) {
+                // Use rail element as firstNode
+                this.firstNode = railEl;
+                this.firstAnchor = this.getRailAnchorFromEvent(e, railEl, railData);
+                railEl.style.boxShadow = '0 0 0 3px rgba(166,24,50,0.5)';
+            } else if (this.firstNode !== railEl) {
+                const sourceId = this.firstNode.id;
+                const targetId = railEl.id;
+
+                const exists = (this.mapData.connections || []).some(c =>
+                    !this.pendingDeletes.has(c.id) && ((c.source === sourceId && c.target === targetId) || (c.source === targetId && c.target === sourceId))
+                );
+                if (exists && !e.altKey) {
+                    this.showToast('Connection already exists. Hold Alt to add a parallel connection.');
+                    this.firstNode.style.boxShadow = '';
+                    this.firstNode = null;
+                    return;
+                }
+
+                // prefer exact hover position if available (so connections anchor where cursor was)
+                let anchorA = null;
+                let anchorB = null;
+                const sourceEl = document.getElementById(sourceId);
+                const autoAnchors = this.getDirectionalAnchors(sourceEl || this.firstNode, railEl);
+                anchorA = this.firstAnchor || autoAnchors[0];
+
+                if (this._lastRailHover && this._lastRailHover.railId === railEl.id) {
+                    // use precise relative anchor array for the rail
+                    anchorB = this.getPreciseRailAnchorArray(railEl, this._lastRailHover.clientX, this._lastRailHover.clientY);
+                }
+                if (!anchorB) anchorB = this.getRailAnchorFromEvent(e, railEl, railData) || autoAnchors[1];
+
+                const conn = this.instance.connect({
+                    source: sourceId,
+                    target: targetId,
+                    anchors: [anchorA, anchorB],
+                    ...this.getConnectorConfig(this.config.lineStyle),
+                    cssClass: 'cardmap-connector'
+                });
+                const newId = `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+                if (conn) {
+                    conn._cardmap_id = newId;
+                    try { conn.setParameter && conn.setParameter('user-driven', true); } catch(e) {}
+                }
+                // store anchors; convert precise arrays to a serializable representation
+                const savedAnchors = [
+                    anchorA,
+                    (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
+                ];
+                this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: this.config.lineStyle, anchors: savedAnchors });
+
+                // force an immediate repaint so anchors/paths are calculated correctly
+                try { this.instance.repaintEverything(); } catch (e) {}
+
+                this.firstNode.style.boxShadow = '';
+                this.firstNode = null;
+                this.firstAnchor = null;
+            }
+        }
+
+        /** Choose a reasonable anchor for a rail based on click position and orientation */
+        getRailAnchorFromEvent(e, railEl, railData) {
+            if (!railData || !railEl) return null;
+            const rect = railEl.getBoundingClientRect();
+            const localX = e.clientX - rect.left;
+            const localY = e.clientY - rect.top;
+            if (railData.orientation === 'vertical') {
+                // left or right depending on click side
+                return (localX < rect.width/2) ? 'LeftMiddle' : 'RightMiddle';
+            }
+            // horizontal or diagonal: top or bottom
+            return (localY < rect.height/2) ? 'TopCenter' : 'BottomCenter';
+        }
+
+        /** Return a precise relative anchor array for a rail element given client coords */
+        getPreciseRailAnchorArray(railEl, clientX, clientY) {
+            if (!railEl) return null;
+            const rect = railEl.getBoundingClientRect();
+            // compute relative coordinates inside element (0..1)
+            let relX = (clientX - rect.left) / rect.width;
+            let relY = (clientY - rect.top) / rect.height;
+            relX = Math.max(0, Math.min(1, relX));
+            relY = Math.max(0, Math.min(1, relY));
+            // jsPlumb accepts [x, y, ox, oy] anchor arrays where x,y are relative
+            return [relX, relY, 0, 0];
+        }
+
+        handleConnectMouseMove(e) {
+            if (!this.connectMode) return;
+            // hide all previews first
+            document.querySelectorAll('.rail-anchor-preview').forEach(d => d.style.display = 'none');
+
+            const railEl = e.target.closest && e.target.closest('.cardmap-rail');
+            if (!railEl) {
+                this._lastRailHover = null;
+                return;
+            }
+            const railId = railEl.id;
+            const railData = this.mapData.rails.find(r => r.id === railId);
+            if (!railData) return;
+
+            const rect = railEl.getBoundingClientRect();
+            const localX = e.clientX - rect.left;
+            const localY = e.clientY - rect.top;
+            const preview = railEl.querySelector('.rail-anchor-preview');
+            if (!preview) return;
+            preview.style.display = 'block';
+            preview.style.position = 'absolute';
+            preview.style.width = '10px';
+            preview.style.height = '10px';
+            preview.style.background = '#fff';
+            preview.style.border = '2px solid #A61832';
+            preview.style.borderRadius = '50%';
+            preview.style.pointerEvents = 'none';
+            if (railData.orientation === 'vertical') {
+                preview.style.left = `${(rect.width/2) - 5}px`;
+                preview.style.top = `${localY - 5}px`;
+            } else {
+                preview.style.left = `${localX - 5}px`;
+                preview.style.top = `${(rect.height/2) - 5}px`;
+            }
+
+            // store last hover position for precise anchor use later
+            this._lastRailHover = { railId, clientX: e.clientX, clientY: e.clientY };
+        }
+
+        /** Fallback default anchor for an element (node or rail) */
+        getDefaultAnchorForElement(el) {
+            if (!el) return 'Continuous';
+            if (el.classList.contains('cardmap-rail')) {
+                // approximate based on orientation class
+                if (el.classList.contains('vertical')) return 'LeftMiddle';
+                return 'TopCenter';
+            }
+            // fallback to top/left heuristics
+            return 'Continuous';
         }
 
         /**
@@ -519,10 +776,16 @@
                     return;
                 }
 
-                const secondAnchor = this.getPreciseAnchorFromEvent(e, node);
+                // determine anchors, preferring precise rail hover position if available
+                let anchorA = null;
+                let anchorB = null;
                 const autoAnchors = this.getDirectionalAnchors(this.firstNode, node);
-                const anchorA = this.firstAnchor || autoAnchors[0];
-                const anchorB = secondAnchor || autoAnchors[1];
+                anchorA = this.firstAnchor || autoAnchors[0];
+
+                if (node.classList && node.classList.contains('cardmap-rail') && this._lastRailHover && this._lastRailHover.railId === node.id) {
+                    anchorB = this.getPreciseRailAnchorArray(node, this._lastRailHover.clientX, this._lastRailHover.clientY);
+                }
+                if (!anchorB) anchorB = this.getPreciseAnchorFromEvent(e, node) || autoAnchors[1];
                 
                 const conn = this.instance.connect({
                     source: sourceId,
@@ -533,9 +796,19 @@
                 });
 
                 const newId = `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
-                conn._cardmap_id = newId;
-                this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: this.config.lineStyle, anchors: [anchorA, anchorB] });
-                
+                if (conn) {
+                    conn._cardmap_id = newId;
+                    try { conn.setParameter && conn.setParameter('user-driven', true); } catch(e) {}
+                }
+                const savedAnchors = [
+                    anchorA,
+                    (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
+                ];
+                this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: this.config.lineStyle, anchors: savedAnchors });
+
+                // force an immediate repaint so anchors/paths are calculated correctly
+                try { this.instance.repaintEverything(); } catch (e) {}
+
                 this.firstNode.style.boxShadow = '';
                 this.firstNode = null;
                 this.firstAnchor = null;
@@ -566,94 +839,189 @@
          * @param {object} r The rail data object.
          */
         renderRail(r) {
-            if (!r || !r.id || document.getElementById(r.id)) return;
-            
-            const rail = document.createElement('div');
-            rail.className = `cardmap-rail ${r.orientation === 'vertical' ? 'vertical' : ''}`;
-            rail.id = r.id;
-            rail.dataset.orientation = r.orientation || 'horizontal';
+            let railEl = document.getElementById(r.id);
+            if (!railEl) {
+                railEl = document.createElement('div');
+                railEl.id = r.id;
+                railEl.className = 'cardmap-rail';
+                this.editor.appendChild(railEl);
 
-            if (r.orientation === 'vertical') {
-                rail.style.left = `${r.x || 40}px`;
-                rail.style.top = `${r.y || 40}px`;
-                rail.style.height = `${r.height || 400}px`;
-                rail.style.width = `${this.RAIL_HEIGHT}px`;
-            } else {
-                rail.style.left = `${r.x || 40}px`;
-                rail.style.top = `${r.y || 40}px`;
-                rail.style.width = `${r.width || 400}px`;
-                rail.style.height = `${this.RAIL_HEIGHT}px`;
+                const preview = document.createElement('div');
+                preview.className = 'rail-snap-preview';
+                railEl.appendChild(preview);
+
+                const resizer = document.createElement('div');
+                resizer.className = 'rail-resizer';
+                railEl.appendChild(resizer);
+
+                resizer.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    // record starting map-space coordinates for robust resizing
+                    const rect = this.editor.getBoundingClientRect();
+                    const mapX = (e.clientX - rect.left - this.offsetX) / this.scale;
+                    const mapY = (e.clientY - rect.top - this.offsetY) / this.scale;
+                    this.railResizeState = {
+                        railId: r.id,
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        startLeft: r.x,
+                        startTop: r.y,
+                        startWidth: r.width,
+                        startHeight: r.height,
+                        startMapX: mapX,
+                        startMapY: mapY,
+                        side: null
+                    };
+                    // determine which side the user started dragging (simple heuristic)
+                    const railRect = railEl.getBoundingClientRect();
+                    const localX = e.clientX - railRect.left;
+                    const localY = e.clientY - railRect.top;
+                    if (r.orientation === 'horizontal') this.railResizeState.side = (localX > railRect.width/2) ? 'right' : 'left';
+                    else if (r.orientation === 'vertical') this.railResizeState.side = (localY > railRect.height/2) ? 'bottom' : 'top';
+                });
+
+                // make the rail draggable so it can be moved and attached nodes follow
+                this.instance.draggable(railEl, {
+                    start: (params) => {
+                        // capture starting positions for rail and attached nodes
+                        const railData = this.mapData.rails.find(rr => rr.id === r.id);
+                        if (!railData) return;
+                        this.railDragState = {
+                            railId: railData.id,
+                            startLeft: railData.x,
+                            startTop: railData.y,
+                            nodeStarts: (this.mapData.nodes || []).filter(n => n.attachedRail === railData.id).map(n => ({ id: n.id, x: n.x, y: n.y }))
+                        };
+                    },
+                    drag: (params) => {
+                        const rd = this.railDragState;
+                        if (!rd) return;
+                        const railData = this.mapData.rails.find(rr => rr.id === rd.railId);
+                        if (!railData) return;
+
+                        // params.pos is [left, top]
+                        const newLeft = params.pos[0];
+                        const newTop = params.pos[1];
+                        const dx = newLeft - rd.startLeft;
+                        const dy = newTop - rd.startTop;
+
+                        railData.x = newLeft;
+                        railData.y = newTop;
+                        const dom = document.getElementById(railData.id);
+                        if (dom) {
+                            dom.style.left = `${railData.x}px`;
+                            dom.style.top = `${railData.y}px`;
+                        }
+
+                        // move attached nodes by same delta
+                        rd.nodeStarts.forEach(ns => {
+                            const nodeData = this.mapData.nodes.find(n => n.id === ns.id);
+                            const el = document.getElementById(ns.id);
+                            if (nodeData && el) {
+                                nodeData.x = ns.x + dx;
+                                nodeData.y = ns.y + dy;
+                                el.style.left = `${nodeData.x}px`;
+                                el.style.top = `${nodeData.y}px`;
+                            }
+                        });
+
+                        this.instance.repaintEverything();
+                    },
+                    stop: (params) => {
+                        // finalize positions and save
+                        if (this.railDragState) {
+                            // update mapData rails from DOM
+                            const rd = this.railDragState;
+                            const railData = this.mapData.rails.find(rr => rr.id === rd.railId);
+                            if (railData) {
+                                railData.x = parseInt(document.getElementById(railData.id).style.left, 10) || railData.x;
+                                railData.y = parseInt(document.getElementById(railData.id).style.top, 10) || railData.y;
+                            }
+                            this.railDragState = null;
+                            this.saveMapData();
+                        }
+                    }
+                });
+
+                // clicking a rail should allow selection and also participate in connect mode
+                railEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.onRailClick(e, railEl, r);
+                });
+                // element to show precise anchor preview when hovering in connect mode
+                const previewDot = document.createElement('div');
+                previewDot.className = 'rail-anchor-preview';
+                previewDot.style.display = 'none';
+                railEl.appendChild(previewDot);
             }
 
-            rail.innerHTML = `
-                <div class="rail-handle"></div>
-                <div class="rail-resize-handle left"></div>
-                <div class="rail-resize-handle right"></div>
-                <div class="rail-snap-preview"></div>
-            `;
+            // apply positioning and thickness based on orientation + size
+            railEl.style.left = `${r.x}px`;
+            railEl.style.top = `${r.y}px`;
+            railEl.style.backgroundColor = this.config.lineColor;
+            railEl.classList.toggle('vertical', r.orientation === 'vertical');
 
-            this.editor.appendChild(rail);
+            // thickness is stored in r.size; update width/height depending on orientation
+            const size = r.size || 8;
+            if (r.orientation === 'vertical') {
+                railEl.style.width = `${size}px`;
+                railEl.style.height = `${r.height || 300}px`;
+            } else if (r.orientation === 'diagonal') {
+                railEl.style.width = `${r.width || 200}px`;
+                railEl.style.height = `${size}px`;
+                if (r.angle) railEl.style.transform = `rotate(${r.angle}deg)`;
+            } else {
+                railEl.style.width = `${r.width || 300}px`;
+                railEl.style.height = `${size}px`;
+            }
 
-            this.instance.draggable(rail, {
-                drag: () => this.instance.repaintEverything(),
-                stop: (params) => {
-                    const rr = this.mapData.rails.find(x => x.id === params.el.id);
-                    if (rr) {
-                        rr.x = params.pos[0];
-                        rr.y = params.pos[1];
-                    }
-                    this.instance.repaintEverything();
-                }
-            });
+            // keep CSS custom property for legacy styles
+            railEl.style.setProperty('--rail-size', `${size}px`);
 
-            rail.querySelector('.left').addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                const side = (r.orientation === 'vertical') ? 'top' : 'left';
-                this.railResizeState = { 
-                    railId: r.id, 
-                    side: side, 
-                    startX: e.clientX, 
-                    startY: e.clientY,
-                    startLeft: parseFloat(rail.style.left), 
-                    startTop: parseFloat(rail.style.top),
-                    startWidth: parseFloat(rail.style.width),
-                    startHeight: parseFloat(rail.style.height)
-                };
-            });
-            rail.querySelector('.right').addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                const side = (r.orientation === 'vertical') ? 'bottom' : 'right';
-                this.railResizeState = { 
-                    railId: r.id, 
-                    side: side, 
-                    startX: e.clientX, 
-                    startY: e.clientY,
-                    startLeft: parseFloat(rail.style.left), 
-                    startTop: parseFloat(rail.style.top),
-                    startWidth: parseFloat(rail.style.width),
-                    startHeight: parseFloat(rail.style.height)
-                };
-            });
+            // mark selection state
+            if (this.selectedRail === r.id) railEl.classList.add('cardmap-rail-selected');
+            else railEl.classList.remove('cardmap-rail-selected');
+        }
 
-            rail.style.zIndex = 1600;
+        /** Select a rail by id and update controls */
+        selectRail(railId) {
+            this.deselectAllNodes();
+            this.selectedRail = railId;
+            document.querySelectorAll('.cardmap-rail').forEach(el => el.classList.remove('cardmap-rail-selected'));
+            const el = document.getElementById(railId);
+            if (el) el.classList.add('cardmap-rail-selected');
+            const railData = this.mapData.rails.find(r => r.id === railId);
+            if (railData) {
+                document.getElementById('rail-size').value = railData.size || 8;
+            }
+            this.updateAlignmentToolbar();
         }
 
         /**
          * Creates and renders a new rail.
          */
         addRail() {
-            const id = `rail_${Date.now()}`;
             const orientation = document.getElementById('add-rail-orientation').value;
-            const newRail = { id, x: 150, y: 150, orientation };
+            const size = parseInt(document.getElementById('rail-size').value, 10) || 10;
+            const rail = {
+                id: `rail_${Date.now()}`,
+                x: this.editor.scrollLeft + 100,
+                y: this.editor.scrollTop + 100,
+                width: 300,
+                height: this.RAIL_HEIGHT,
+                orientation: orientation,
+                size: size
+            };
+
             if (orientation === 'vertical') {
-                newRail.height = 400;
-                newRail.width = this.RAIL_HEIGHT;
-            } else {
-                newRail.width = 400;
-                newRail.height = this.RAIL_HEIGHT;
+                // vertical rail thickness is the size
+                rail.width = size;
+                rail.height = 300;
             }
-            this.mapData.rails.push(newRail);
-            this.renderRail(newRail);
+
+            this.mapData.rails.push(rail);
+            this.renderRail(rail);
+            this.saveMapData();
         }
 
         /**
@@ -678,28 +1046,43 @@
             const dom = document.getElementById(this.railResizeState.railId);
             if (!rs || !dom) return;
 
+            const state = this.railResizeState;
+
             if (rs.orientation === 'horizontal') {
-                if (this.railResizeState.side === 'right') {
-                    rs.width = Math.max(40, mapX - rs.x);
-                    dom.style.width = `${rs.width}px`;
+                if (state.side === 'right') {
+                    const newWidth = mapX - state.startLeft;
+                    rs.width = Math.max(40, newWidth);
                 } else { // left
-                    const newWidth = Math.max(40, (rs.x + rs.width) - mapX);
-                    rs.x = mapX;
-                    rs.width = newWidth;
-                    dom.style.left = `${rs.x}px`;
-                    dom.style.width = `${rs.width}px`;
+                    const deltaX = mapX - state.startLeft;
+                    const newWidth = state.startWidth - deltaX;
+                    if (newWidth > 40) {
+                        rs.x = state.startLeft + deltaX;
+                        rs.width = newWidth;
+                    }
                 }
+                dom.style.left = `${rs.x}px`;
+                dom.style.width = `${rs.width}px`;
+            } else if (rs.orientation === 'diagonal') {
+                const deltaX = mapX - rs.x;
+                const deltaY = mapY - rs.y;
+                rs.width = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                rs.angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+                dom.style.width = `${rs.width}px`;
+                dom.style.transform = `rotate(${rs.angle}deg)`;
             } else { // vertical
-                 if (this.railResizeState.side === 'bottom') {
-                    rs.height = Math.max(40, mapY - rs.y);
-                    dom.style.height = `${rs.height}px`;
+                 if (state.side === 'bottom') {
+                    const newHeight = mapY - state.startTop;
+                    rs.height = Math.max(40, newHeight);
                 } else { // top
-                    const newHeight = Math.max(40, (rs.y + rs.height) - mapY);
-                    rs.y = mapY;
-                    rs.height = newHeight;
-                    dom.style.top = `${rs.y}px`;
-                    dom.style.height = `${rs.height}px`;
+                    const deltaY = mapY - state.startTop;
+                    const newHeight = state.startHeight - deltaY;
+                    if (newHeight > 40) {
+                        rs.y = state.startTop + deltaY;
+                        rs.height = newHeight;
+                    }
                 }
+                dom.style.top = `${rs.y}px`;
+                dom.style.height = `${rs.height}px`;
             }
             this.instance.repaintEverything();
         }
@@ -768,6 +1151,8 @@
                     railData.y = parseInt(el.style.top, 10) || 0;
                     railData.width = parseInt(el.style.width, 10) || 0;
                     railData.height = parseInt(el.style.height, 10) || 0;
+                    // preserve logical size property (thickness)
+                    railData.size = railData.size || (railData.orientation === 'vertical' ? railData.width : railData.height || this.RAIL_HEIGHT);
                 }
             });
 
@@ -1052,9 +1437,10 @@
             const t = targetNode.getBoundingClientRect();
             const dx = (t.left + t.right) / 2 - (s.left + s.right) / 2;
             const dy = (t.top + t.bottom) / 2 - (s.top + s.bottom) / 2;
+            // Use explicit anchor names with center/middle to keep consistency
             return Math.abs(dx) > Math.abs(dy)
-                ? (dx > 0 ? ["Right", "Left"] : ["Left", "Right"])
-                : (dy > 0 ? ["Bottom", "Top"] : ["Top", "Bottom"]);
+                ? (dx > 0 ? ["RightMiddle", "LeftMiddle"] : ["LeftMiddle", "RightMiddle"])
+                : (dy > 0 ? ["BottomCenter", "TopCenter"] : ["TopCenter", "BottomCenter"]);
         }
 
         /**
@@ -1084,10 +1470,28 @@
             const topDist = y, bottomDist = 1 - y, leftDist = x, rightDist = 1 - x;
             const min = Math.min(topDist, bottomDist, leftDist, rightDist);
 
-            if (min === topDist) return "Top";
-            if (min === bottomDist) return "Bottom";
-            if (min === leftDist) return "Left";
-            return "Right";
+            if (min === topDist) return "TopCenter";
+            if (min === bottomDist) return "BottomCenter";
+            if (min === leftDist) return "LeftMiddle";
+            return "RightMiddle";
+        }
+
+        // --- Diagonal Rail Helpers ---
+        distanceToLineSegment(px, py, x1, y1, x2, y2) {
+            const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+            if (l2 === 0) return Math.sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1));
+            let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            const projX = x1 + t * (x2 - x1);
+            const projY = y1 + t * (y2 - y1);
+            return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
+        }
+
+        projectPointOnLine(px, py, x1, y1, x2, y2) {
+            const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+            if (l2 === 0) return { x: x1, y: y1 };
+            const t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+            return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
         }
     }
 

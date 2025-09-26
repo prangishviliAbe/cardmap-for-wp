@@ -21,7 +21,24 @@ add_shortcode( 'cardmap', function( $atts ) {
     wp_enqueue_script( 'cardmap-frontend-js' );
 
     $raw = get_post_meta( $post_id, '_cardmap_data', true );
-    $map_data = $raw ? json_decode( $raw, true ) : [ 'nodes' => [], 'connections' => [] ];
+    $map_data = $raw ? json_decode( $raw, true ) : [ 'nodes' => [], 'connections' => [], 'rails' => [] ];
+
+    if (isset($map_data['rails']) && is_array($map_data['rails'])) {
+        foreach ($map_data['rails'] as $rail) {
+            if (isset($rail['id'])) {
+                $map_data['nodes'][] = [
+                    'id' => $rail['id'],
+                    'x' => $rail['x'],
+                    'y' => $rail['y'],
+                    'is_rail' => true,
+                    'width' => $rail['width'] ?? 0,
+                    'height' => $rail['height'] ?? 0,
+                    'orientation' => $rail['orientation'] ?? 'horizontal'
+                ];
+            }
+        }
+    }
+
 
     // Prepare data for localization and add it to the global array.
     $data_to_localize = [
@@ -41,7 +58,12 @@ add_shortcode( 'cardmap', function( $atts ) {
             <div class="cardmap-pan-zoom-container" style="position:relative;width:1200px;height:1000px;">
                 <?php if (isset($map_data['nodes'])) : ?>
                     <?php $hover_effect = get_option('cardmap_hover_effect', 'lift'); ?>
-                    <?php foreach ( $map_data['nodes'] as $node ) : ?>
+                    <?php foreach ( $map_data['nodes'] as $node ) : 
+                        if (isset($node['is_rail']) && $node['is_rail']) {
+                            $orientation_class = isset($node['orientation']) && $node['orientation'] === 'vertical' ? 'vertical' : 'horizontal';
+                            echo '<div id="' . esc_attr( $node['id'] ) . '" class="cardmap-rail ' . $orientation_class . '" style="left:' . esc_attr( $node['x'] ) . 'px;top:' . esc_attr( $node['y'] ) . 'px; width: ' . esc_attr($node['width']) . 'px; height: ' . esc_attr($node['height']) . 'px;"></div>';
+                        } else {
+                    ?>
                         <div id="<?php echo esc_attr( $node['id'] ); ?>" class="cardmap-node hover-<?php echo esc_attr($hover_effect); ?> <?php echo isset($node['style']) ? 'style-'.esc_attr($node['style']) : 'style-default'; ?>" style="left:<?php echo esc_attr( $node['x'] ); ?>px;top:<?php echo esc_attr( $node['y'] ); ?>px;">
                             <?php if ( ! empty( $node['link'] ) ) : ?>
                                 <a href="<?php echo esc_url( $node['link'] ); ?>" target="<?php echo esc_attr( $node['target'] ?? '_self' ); ?>">
@@ -61,13 +83,12 @@ add_shortcode( 'cardmap', function( $atts ) {
                                 </a>
                             <?php endif; ?>
                         </div>
-                    <?php endforeach; ?>
+                    <?php 
+                        }
+                    endforeach; 
+                    ?>
                 <?php endif; ?>
-                 <?php if (isset($map_data['rails'])) : ?>
-                    <?php foreach ( $map_data['rails'] as $rail ) : ?>
-                        <div id="<?php echo esc_attr( $rail['id'] ); ?>" class="cardmap-rail <?php echo isset($rail['orientation']) && $rail['orientation'] === 'vertical' ? 'vertical' : ''; ?>" style="left:<?php echo esc_attr( $rail['x'] ); ?>px;top:<?php echo esc_attr( $rail['y'] ); ?>px; width: <?php echo esc_attr($rail['width'] ?? 0); ?>px; height: <?php echo esc_attr($rail['height'] ?? 0); ?>px;"></div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                 
             </div>
         </div>
         <div class="cardmap-controls">

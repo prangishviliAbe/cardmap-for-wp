@@ -224,9 +224,14 @@
             this.instance.batch(() => {
                 (this.mapData.rails || []).forEach(r => this.renderRail(r));
                 (this.mapData.nodes || []).forEach(n => this.renderNode(n));
-                // Auto-arrange nodes on load to form tidy rows/columns while
-                // preserving relative alignment and keeping distance from rails.
-                this.autoArrangeOnLoad();
+                // Only auto-arrange on load if none of the nodes have saved
+                // numeric positions. This prevents overriding a user's saved
+                // manual layout on page refresh.
+                const nodes = this.mapData.nodes || [];
+                const hasSavedPositions = nodes.some(n => typeof n.x === 'number' && typeof n.y === 'number');
+                if (!hasSavedPositions) {
+                    this.autoArrangeOnLoad();
+                }
                 (this.mapData.connections || []).forEach(c => {
                     if (!c || !c.source || !c.target) return;
                     const sourceEl = document.getElementById(c.source);

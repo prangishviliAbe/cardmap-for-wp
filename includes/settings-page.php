@@ -24,6 +24,7 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_enable_drag', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_line_color', [ 'type' => 'string', 'default' => '#A61832' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_line_thickness', [ 'type' => 'integer', 'default' => 2 ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_line_style', [ 'type' => 'string', 'default' => 'straight-with-arrows' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_node_styles', [ 'type' => 'string', 'default' => json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ], JSON_PRETTY_PRINT ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ], JSON_PRETTY_PRINT ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_align_button', [ 'type' => 'boolean', 'default' => true ] );
@@ -116,6 +117,19 @@ function cardmap_settings_page() {
                             <label for="cardmap_line_thickness" class="setting-title">Connection Line Thickness (px)</label>
                             <input type="number" id="cardmap_line_thickness" name="cardmap_line_thickness" min="1" max="20" value="<?php echo esc_attr( get_option('cardmap_line_thickness', 2) ); ?>">
                             <p class="description">Default thickness for the connection lines.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_line_style" class="setting-title">Default Connection Line Style</label>
+                            <?php
+                                $available = json_decode( get_option('cardmap_line_styles', json_encode( [ 'straight' => 'Straight', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart' ], JSON_PRETTY_PRINT ) ), true );
+                                $current = get_option('cardmap_line_style', 'straight-with-arrows');
+                            ?>
+                            <select id="cardmap_line_style" name="cardmap_line_style">
+                                <?php foreach ($available as $k => $label) : ?>
+                                    <option value="<?php echo esc_attr($k); ?>" <?php selected($current, $k); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">Choose the default visual style for new connections.</p>
                         </div>
                     </div>
                 </div>

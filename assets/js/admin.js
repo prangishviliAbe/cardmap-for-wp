@@ -230,6 +230,9 @@
             this.instance.batch(() => {
                 (this.mapData.rails || []).forEach(r => this.renderRail(r));
                 (this.mapData.nodes || []).forEach(n => this.renderNode(n));
+                // Auto-arrange nodes on load to form tidy rows/columns while
+                // preserving relative alignment and keeping distance from rails.
+                this.autoArrangeOnLoad();
                 (this.mapData.connections || []).forEach(c => {
                     if (!c || !c.source || !c.target) return;
                     const sourceEl = document.getElementById(c.source);
@@ -1276,7 +1279,105 @@
             this.offsetX = 0;
             this.offsetY = 0;
             this.updateTransform();
-            this.instance.repaintEverything();
+            // Ensure connections update anchors after nodes moved
+            const movedIds = nodes.map(n => n.id);
+            this.updateConnectionsAfterMove(movedIds);
+        }
+
+        /**
+         * Auto-arrange nodes when the map first loads. Tries to keep nodes
+         * that share a rail aligned, and lays out the rest in a grid while
+         * keeping a safe margin from rails.
+         */
+        autoArrangeOnLoad() {
+            const nodes = this.mapData.nodes || [];
+            if (!nodes.length) return;
+
+            const margin = 48; // spacing between nodes
+            const railSafeMargin = 24; // minimum gap from a rail
+            const wrapperW = Math.max(800, this.editorWrapper.clientWidth || 800);
+
+            // First, group nodes attached to rails and align them along the rail
+            const rails = this.mapData.rails || [];
+            rails.forEach(rail => {
+                const attached = nodes.filter(n => n.attachedRail === rail.id);
+                if (!attached.length) return;
+
+                // Layout attached nodes along the rail's primary axis
+                if (rail.orientation === 'vertical') {
+                    // Stack vertically along the rail's Y range, centered on rail.x
+                    let y = rail.y + margin;
+                    attached.forEach(n => {
+                        n.x = rail.x - ( (document.getElementById(n.id)?.offsetWidth || 200) / 2 ) + (rail.size || this.RAIL_HEIGHT) / 2;
+                        n.y = y;
+                        const el = document.getElementById(n.id);
+                        if (el) { el.style.left = `${n.x}px`; el.style.top = `${n.y}px`; }
+                        y += (document.getElementById(n.id)?.offsetHeight || 120) + margin;
+                    });
+                } else {
+                    // horizontal or diagonal -> lay out left to right along rail.x..x+width
+                    let x = rail.x + margin;
+                    attached.forEach(n => {
+                        n.x = x;
+                        n.y = rail.y - ( (document.getElementById(n.id)?.offsetHeight || 120) / 2 ) + (rail.size || this.RAIL_HEIGHT) / 2;
+                        const el = document.getElementById(n.id);
+                        if (el) { el.style.left = `${n.x}px`; el.style.top = `${n.y}px`; }
+                        x += (document.getElementById(n.id)?.offsetWidth || 200) + margin;
+                    });
+                }
+            });
+
+            // Now layout unattached nodes into a grid to the right of rails if any,
+            // otherwise start at margin.
+            const unattached = nodes.filter(n => !n.attachedRail);
+            let startX = margin;
+            // try to place grid to the right of the rightmost rail
+            if (rails.length) {
+                const rightmost = Math.max(...rails.map(r => r.x + (r.width || 0)));
+                startX = Math.max(startX, rightmost + railSafeMargin);
+            }
+
+            let x = startX;
+            let y = margin;
+            let rowH = 0;
+            const containerW = wrapperW - margin;
+
+            unattached.forEach(n => {
+                const el = document.getElementById(n.id);
+                const w = el ? el.offsetWidth : 200;
+                const h = el ? el.offsetHeight : 120;
+
+                if (x + w + margin > containerW) {
+                    x = startX;
+                    y += rowH + margin;
+                    rowH = 0;
+                }
+
+                // Ensure it's not too close to any rail: if so, nudge vertically
+                let tooClose = false;
+                for (const r of rails) {
+                    if (r.orientation === 'vertical') {
+                        const dx = Math.abs((r.x + (r.width || r.size || this.RAIL_HEIGHT)/2) - x);
+                        if (dx < railSafeMargin) { tooClose = true; break; }
+                    } else {
+                        const dy = Math.abs(r.y - y);
+                        if (dy < railSafeMargin) { tooClose = true; break; }
+                    }
+                }
+
+                if (tooClose) y += railSafeMargin;
+
+                n.x = x;
+                n.y = y;
+                if (el) { el.style.left = `${n.x}px`; el.style.top = `${n.y}px`; }
+
+                x += w + margin;
+                rowH = Math.max(rowH, h);
+            });
+
+            // After arranging, make sure connections update
+            const movedIds = nodes.map(n => n.id);
+            this.updateConnectionsAfterMove(movedIds);
         }
 
         /**
@@ -1313,7 +1414,9 @@
                     selected.forEach(n => { const newY = maxY - n.el.offsetHeight; n.data.y = newY; n.el.style.top = `${newY}px`; });
                     break;
             }
-            this.instance.repaintEverything();
+            // Re-anchor connections touching the moved nodes
+            const movedIds = selected.map(n => n.id);
+            this.updateConnectionsAfterMove(movedIds);
         }
 
         /**
@@ -1349,7 +1452,9 @@
                     currentY += n.el.offsetHeight + gap;
                 });
             }
-            this.instance.repaintEverything();
+            // Re-anchor connections touching the moved nodes
+            const movedIds = selected.map(n => n.id);
+            this.updateConnectionsAfterMove(movedIds);
         }
 
         // --- Helper and Utility Methods ---
@@ -1394,6 +1499,51 @@
                 }
             }
             return nodes;
+        }
+
+        /**
+         * After moving nodes programmatically, recompute anchors for any connections
+         * attached to those nodes so jsPlumb can repaint them correctly.
+         * @param {string[]} movedIds
+         */
+        updateConnectionsAfterMove(movedIds) {
+            if (!Array.isArray(movedIds) || movedIds.length === 0) return;
+
+            // For each moved node, find connections and recompute anchors
+            movedIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+
+                const connections = this.instance.getConnections({ source: id }).concat(this.instance.getConnections({ target: id }));
+                connections.forEach(conn => {
+                    try {
+                        const sourceEl = document.getElementById(conn.sourceId);
+                        const targetEl = document.getElementById(conn.targetId);
+
+                        // If either end is a rail element, prefer precise anchors if available
+                        const isSourceRail = sourceEl && sourceEl.classList.contains('cardmap-rail');
+                        const isTargetRail = targetEl && targetEl.classList.contains('cardmap-rail');
+
+                        if (isSourceRail || isTargetRail) {
+                            // Try to preserve any precise anchor saved on the connection metadata
+                            if (conn._userAnchor) {
+                                conn.setAnchors(conn._userAnchor);
+                            } else {
+                                // fall back to computing directional anchors based on elements
+                                conn.setAnchors(this.getDirectionalAnchors(sourceEl, targetEl));
+                            }
+                        } else {
+                            // Both are normal nodes: use directional anchors so connectors look symmetric
+                            conn.setAnchors(this.getDirectionalAnchors(sourceEl, targetEl));
+                        }
+                    } catch (err) {
+                        // ignore per-connection errors and continue
+                    }
+                });
+            });
+
+            // Force a repaint after all anchors updated
+            this.instance.repaintEverything();
         }
 
         /**

@@ -259,7 +259,7 @@ final class Elementor_Custom_Animations {
         $element->start_controls_section(
             'custom_animations_section',
             [
-                'label' => __( 'Custom Animations', 'animatrix-for-elementor' ),
+                'label' => __( 'Animatrix Animations', 'animatrix-for-elementor' ),
                 'tab' => \Elementor\Controls_Manager::TAB_ADVANCED,
             ]
         );
@@ -313,7 +313,7 @@ final class Elementor_Custom_Animations {
                     'eca-matrix-shift' => __( 'Matrix Shift', 'animatrix-for-elementor' ),
                     'animatrix-matrix-shift' => __( 'Matrix Shift (Animatrix)', 'animatrix-for-elementor' ),
                 ],
-                'prefix_class' => 'eca-animated ',
+                'prefix_class' => 'eca-animated animatrix-animated ',
                 'selector' => '> .elementor-widget-container, > .elementor-column-wrap, > .elementor-section-wrap',
             ]
         );
@@ -361,7 +361,7 @@ final class Elementor_Custom_Animations {
         $element->start_controls_section(
             'custom_hover_animations_section',
             [
-                'label' => __( 'Custom Hover Animations', 'animatrix-for-elementor' ),
+                'label' => __( 'Animatrix Animations', 'animatrix-for-elementor' ),
                 'tab' => \Elementor\Controls_Manager::TAB_ADVANCED,
             ]
         );
@@ -400,7 +400,7 @@ final class Elementor_Custom_Animations {
                     'eca-hover-glow-intense' => __( 'Glow Intense', 'animatrix-for-elementor' ),
                     'animatrix-hover-glow-intense' => __( 'Glow Intense (Animatrix)', 'animatrix-for-elementor' ),
                 ],
-                'prefix_class' => 'eca-hover-animated ',
+                'prefix_class' => 'eca-hover-animated animatrix-hover-animated ',
             ]
         );
 
@@ -429,7 +429,7 @@ final class Elementor_Custom_Animations {
         $element->start_controls_section(
             'custom_scroll_animations_section',
             [
-                'label' => __( 'Custom Scroll Animations', 'animatrix-for-elementor' ),
+                'label' => __( 'Animatrix Animations', 'animatrix-for-elementor' ),
                 'tab' => \Elementor\Controls_Manager::TAB_ADVANCED,
             ]
         );
@@ -547,7 +547,7 @@ final class Elementor_Custom_Animations {
             $threshold = isset( $settings['custom_scroll_animation_threshold']['size'] ) ? $settings['custom_scroll_animation_threshold']['size'] : $opts['default_scroll_threshold'];
 
             $element->add_render_attribute( '_wrapper', [
-                'class' => 'eca-scroll-animation',
+                'class' => 'eca-scroll-animation animatrix-scroll-animation',
                 'data-eca-scroll-animation' => $settings['custom_scroll_animation'],
                 'data-eca-scroll-duration' => $duration,
                 'data-eca-scroll-delay' => $delay,

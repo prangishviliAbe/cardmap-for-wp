@@ -1,34 +1,44 @@
 # Animatrix for Elementor
 
-![Animatrix for Elementor Cover](assets/cover.png)
+![Plugin Cover](assets/cover.png)
 
-A full-fledged plugin compatible with Elementor to add unique animations to containers, elements, and widgets, with hover and scroll-triggered animations.
+Animatrix for Elementor is a lightweight WordPress plugin that adds a set of entrance, hover and scroll-triggered CSS animations to Elementor widgets. It provides easy-to-use controls in the Elementor editor so you can apply animations per-widget without writing custom code.
 
-## Description
+Key features
 
-Animatrix for Elementor extends the capabilities of the Elementor page builder by providing a rich set of unique, attention-grabbing animations. Unlike Elementor's default animations, Animatrix offers a fresh library of effects that can be applied to any element, container, or widget on your page.
+- Simple entrance and hover animations for Elementor widgets
+- Scroll-triggered animations using the IntersectionObserver API
+- Cleanly separated assets under `assets/` for easy packaging
+- Ready for translation (text domain: `animatrix-for-elementor`)
 
-With intuitive controls integrated directly into Elementor's "Advanced" tab, you can easily add complex animations without writing a single line of code.
+Installation
 
-### Features:
+1. Option A — Install from GitHub (recommended for development):
+   - Clone this repository into your WordPress `wp-content/plugins/` directory and activate from the Plugins screen:
 
-- **Over 30 Unique Animations:** A large selection of high-quality animations powered by Animate.css.
-- **Animation Triggers:**
-  - **On Load:** The animation plays as soon as the element enters the viewport.
-  - **On Hover:** The animation is triggered when a user hovers their mouse over the element.
-  - **On Scroll:** The animation plays when the user scrolls the element into view.
-- **Full Control:** Customize the animation duration, delay, and iteration count to perfectly match your design.
-- **Seamless Integration:** Controls are conveniently located in the "Advanced" tab for any Elementor element under the "Animatrix" section.
+```bash
+git clone https://github.com/prangishviliAbe/cardmap-for-wp.git animatrix-for-elementor
+```
 
-## How to Use
+2. Option B — Upload ZIP:
+   - Compress the plugin folder into a `.zip` and upload via WordPress Admin > Plugins > Add New > Upload Plugin.
 
-1.  **Install the Plugin:** Download the `animatrix-for-elementor.zip` file and upload it to your WordPress site via `Plugins > Add New > Upload Plugin`. Activate it.
-2.  **Edit with Elementor:** Open any page or post with the Elementor editor.
-3.  **Select an Element:** Click on any section, container, column, or widget you wish to animate.
-4.  **Navigate to Advanced Settings:** Go to the **Advanced** tab in the Elementor sidebar.
-5.  **Open the Animatrix Section:** Find and expand the **Animatrix** section.
-6.  **Configure Your Animation:**
-    - **Animation:** Choose your desired animation from the dropdown list.
-    - **Trigger:** Select whether the animation should occur "On Load", "On Hover", or "On Scroll".
-    - **Duration, Delay, Iterations:** Adjust the sliders and controls to fine-tune the animation's behavior.
-7.  **Save and Preview:** Save your changes and preview the page to see your new animation in action!
+Usage
+
+1. Open Elementor and edit any page.
+2. Select a widget, go to the Advanced tab and look for the "Animatrix Animations" section (or similar). Choose entrance, hover or scroll animation and tweak the duration/delay.
+3. For scroll-triggered animations, the plugin uses IntersectionObserver; elements will animate when scrolled into view.
+
+Developer notes
+
+- Assets live in `assets/css/custom-animations.css` and `assets/js/custom-animations.js`.
+- Translations: `load_plugin_textdomain( 'animatrix-for-elementor' )` is used; add `.po/.mo` files under `languages/`.
+- Uninstall: `uninstall.php` is present as a placeholder for cleaning up any plugin options.
+
+Contributing
+
+Please open issues or PRs on GitHub. When submitting PRs, include a short description, the files changed and a test plan.
+
+License
+
+This project is licensed under the GNU General Public License v2 (or later).

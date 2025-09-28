@@ -3,7 +3,7 @@
  * Plugin Name: Animatrix for Elementor
  * Plugin URI: https://github.com/prangishviliAbe/Animatrix-for-Elementor
  * Description: Adds 30+ custom animations to Elementor elements.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Abe Prangishvili
  * Author URI: https://github.com/prangishviliAbe
  */
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Elementor_Custom_Animations {
 
-    const VERSION = '1.0.0';
+    const VERSION = '1.1.0';
     const MINIMUM_ELEMENTOR_VERSION = '3.0.0';
     const MINIMUM_PHP_VERSION = '7.0';
 
@@ -32,6 +32,9 @@ final class Elementor_Custom_Animations {
         add_action( 'plugins_loaded', [ $this, 'load_textdomain' ] );
 
         add_action( 'init', [ $this, 'init' ] );
+        // Admin settings
+        add_action( 'admin_menu', [ $this, 'register_settings_page' ] );
+        add_action( 'admin_init', [ $this, 'register_settings' ] );
     }
 
     public function load_textdomain() {
@@ -133,6 +136,102 @@ final class Elementor_Custom_Animations {
             [],
             self::VERSION
         );
+    }
+
+    /**
+     * Register plugin settings and fields.
+     */
+    public function register_settings() {
+        register_setting( 'animatrix_options_group', 'animatrix_options', [ $this, 'sanitize_options' ] );
+
+        add_settings_section(
+            'animatrix_main_section',
+            __( 'Animatrix Settings', 'animatrix-for-elementor' ),
+            null,
+            'animatrix'
+        );
+
+        add_settings_field(
+            'animatrix_enabled',
+            __( 'Enable Animations', 'animatrix-for-elementor' ),
+            [ $this, 'field_enabled_html' ],
+            'animatrix',
+            'animatrix_main_section'
+        );
+
+        add_settings_field(
+            'animatrix_default_duration',
+            __( 'Default Animation Duration (ms)', 'animatrix-for-elementor' ),
+            [ $this, 'field_default_duration_html' ],
+            'animatrix',
+            'animatrix_main_section'
+        );
+
+        add_settings_field(
+            'animatrix_default_scroll_threshold',
+            __( 'Default Scroll Threshold', 'animatrix-for-elementor' ),
+            [ $this, 'field_default_scroll_threshold_html' ],
+            'animatrix',
+            'animatrix_main_section'
+        );
+    }
+
+    public function sanitize_options( $input ) {
+        $output = [];
+        $output['enabled'] = isset( $input['enabled'] ) && $input['enabled'] ? 1 : 0;
+        $output['default_duration'] = isset( $input['default_duration'] ) ? absint( $input['default_duration'] ) : 1000;
+        $output['default_scroll_threshold'] = isset( $input['default_scroll_threshold'] ) ? floatval( $input['default_scroll_threshold'] ) : 0.1;
+        return $output;
+    }
+
+    public function field_enabled_html() {
+        $opts = get_option( 'animatrix_options', [ 'enabled' => 1 ] );
+        $checked = ! empty( $opts['enabled'] ) ? 'checked' : '';
+        printf( '<input type="checkbox" name="animatrix_options[enabled]" value="1" %s />', $checked );
+    }
+
+    public function field_default_duration_html() {
+        $opts = get_option( 'animatrix_options', [ 'default_duration' => 1000 ] );
+        $val = isset( $opts['default_duration'] ) ? absint( $opts['default_duration'] ) : 1000;
+        printf( '<input type="number" name="animatrix_options[default_duration]" value="%d" min="100" max="10000" step="50" />', $val );
+    }
+
+    public function field_default_scroll_threshold_html() {
+        $opts = get_option( 'animatrix_options', [ 'default_scroll_threshold' => 0.1 ] );
+        $val = isset( $opts['default_scroll_threshold'] ) ? floatval( $opts['default_scroll_threshold'] ) : 0.1;
+        printf( '<input type="number" name="animatrix_options[default_scroll_threshold]" value="%s" min="0" max="1" step="0.05" />', esc_attr( $val ) );
+    }
+
+    /**
+     * Add settings page under Settings menu.
+     */
+    public function register_settings_page() {
+        add_options_page(
+            __( 'Animatrix Settings', 'animatrix-for-elementor' ),
+            __( 'Animatrix', 'animatrix-for-elementor' ),
+            'manage_options',
+            'animatrix',
+            [ $this, 'settings_page_html' ]
+        );
+    }
+
+    public function settings_page_html() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e( 'Animatrix Settings', 'animatrix-for-elementor' ); ?></h1>
+            <form method="post" action="options.php">
+                <?php
+                settings_fields( 'animatrix_options_group' );
+                do_settings_sections( 'animatrix' );
+                submit_button();
+                ?>
+            </form>
+        </div>
+        <?php
     }
 
     /**
@@ -405,15 +504,30 @@ final class Elementor_Custom_Animations {
     }
 
     public function add_render_attributes( $element ) {
+        // Respect global plugin options
+        $opts = get_option( 'animatrix_options', [
+            'enabled' => 1,
+            'default_duration' => 1000,
+            'default_scroll_threshold' => 0.1,
+        ] );
+
+        if ( empty( $opts['enabled'] ) ) {
+            return; // Globally disabled
+        }
+
         $settings = $element->get_settings();
 
         if ( ! empty( $settings['custom_scroll_animation'] ) ) {
+            $duration = isset( $settings['custom_scroll_animation_duration'] ) ? $settings['custom_scroll_animation_duration'] : $opts['default_duration'];
+            $delay = isset( $settings['custom_scroll_animation_delay'] ) ? $settings['custom_scroll_animation_delay'] : 0;
+            $threshold = isset( $settings['custom_scroll_animation_threshold']['size'] ) ? $settings['custom_scroll_animation_threshold']['size'] : $opts['default_scroll_threshold'];
+
             $element->add_render_attribute( '_wrapper', [
                 'class' => 'eca-scroll-animation',
                 'data-eca-scroll-animation' => $settings['custom_scroll_animation'],
-                'data-eca-scroll-duration' => $settings['custom_scroll_animation_duration'] ?? 1000,
-                'data-eca-scroll-delay' => $settings['custom_scroll_animation_delay'] ?? 0,
-                'data-eca-scroll-threshold' => $settings['custom_scroll_animation_threshold']['size'] ?? 0.1,
+                'data-eca-scroll-duration' => $duration,
+                'data-eca-scroll-delay' => $delay,
+                'data-eca-scroll-threshold' => $threshold,
             ] );
         }
     }

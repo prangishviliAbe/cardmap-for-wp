@@ -123,6 +123,13 @@
 .eca-animated.eca-float-wave { animation-name: ecaFloatWave; }
 .eca-animated.eca-matrix-shift { animation-name: ecaMatrixShift; }
 
+/* Animatrix-prefixed aliases (backwards-compatible) */
+.animatrix-animated.animatrix-glass-pop { animation-name: ecaGlassPop; }
+.animatrix-animated.animatrix-explode-in { animation-name: ecaExplodeIn; }
+.animatrix-animated.animatrix-tilt-zoom { animation-name: ecaTiltZoom; }
+.animatrix-animated.animatrix-float-wave { animation-name: ecaFloatWave; }
+.animatrix-animated.animatrix-matrix-shift { animation-name: ecaMatrixShift; }
+
 /* Scroll variants */
 .eca-scroll-animation.eca-scroll-glass-pop.eca-scroll-animated { animation: ecaGlassPop 0.7s cubic-bezier(.2,.9,.3,1) forwards; }
 .eca-scroll-animation.eca-scroll-explode-in.eca-scroll-animated { animation: ecaExplodeIn 0.7s cubic-bezier(.2,.9,.3,1) forwards; }
@@ -130,9 +137,20 @@
 .eca-scroll-animation.eca-scroll-float-wave.eca-scroll-animated { animation: ecaFloatWave 0.9s ease forwards; }
 .eca-scroll-animation.eca-scroll-matrix-shift.eca-scroll-animated { animation: ecaMatrixShift 0.8s cubic-bezier(.2,.9,.3,1) forwards; }
 
+/* Animatrix scroll aliases */
+.animatrix-scroll-animation.animatrix-scroll-glass-pop.animatrix-scroll-animated { animation: ecaGlassPop 0.7s cubic-bezier(.2,.9,.3,1) forwards; }
+.animatrix-scroll-animation.animatrix-scroll-explode-in.animatrix-scroll-animated { animation: ecaExplodeIn 0.7s cubic-bezier(.2,.9,.3,1) forwards; }
+.animatrix-scroll-animation.animatrix-scroll-tilt-zoom.animatrix-scroll-animated { animation: ecaTiltZoom 0.7s cubic-bezier(.2,.9,.3,1) forwards; }
+.animatrix-scroll-animation.animatrix-scroll-float-wave.animatrix-scroll-animated { animation: ecaFloatWave 0.9s ease forwards; }
+.animatrix-scroll-animation.animatrix-scroll-matrix-shift.animatrix-scroll-animated { animation: ecaMatrixShift 0.8s cubic-bezier(.2,.9,.3,1) forwards; }
+
 /* Hover variants */
 .eca-hover-animated.eca-hover-tilt:hover { animation: ecaTiltHover 0.45s ease forwards; }
 .eca-hover-animated.eca-hover-glow-intense:hover { box-shadow: 0 0 30px rgba(255,255,255,0.9); transform: scale(1.03); transition: all 0.25s ease; }
+
+/* Animatrix hover aliases */
+.animatrix-hover-animated.animatrix-hover-tilt:hover { animation: ecaTiltHover 0.45s ease forwards; }
+.animatrix-hover-animated.animatrix-hover-glow-intense:hover { box-shadow: 0 0 30px rgba(255,255,255,0.9); transform: scale(1.03); transition: all 0.25s ease; }
 
 /* Keyframes for new animations */
 @keyframes ecaGlassPop {

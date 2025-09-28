@@ -288,6 +288,10 @@ svg .jtk-connector {
     top: 0;
     background-color: #A61832;
     border-radius: 4px;
+    /* ensure rails are visible above background and nodes but beneath connectors */
+    z-index: 20;
+    width: 100%;
+    height: 100%;
 }
 
 /* When hidden, make the bar transparent (we keep the rail element for hit tests) */

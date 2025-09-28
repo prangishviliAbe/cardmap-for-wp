@@ -19,7 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function getConnectorConfig(style, color, thickness, rail_size) {
-            const railSize = rail_size ? parseInt(rail_size, 10) : 0;
+            // Default rail thickness when not provided should be 3px
+            const railSize = rail_size ? parseInt(rail_size, 10) : 3;
             const baseConfig = { stroke: color, strokeWidth: thickness };
             const overlays = [["Arrow",{ width:10, length:10, location:1 }]];
             const dashedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "4 2" };
@@ -57,6 +58,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        function getDirectionalAnchorsFrontend(sourceEl, targetEl) {
+            if (!sourceEl || !targetEl) return "Continuous";
+            const s = sourceEl.getBoundingClientRect();
+            const t = targetEl.getBoundingClientRect();
+            const dx = (t.left + t.right) / 2 - (s.left + s.right) / 2;
+            const dy = (t.top + t.bottom) / 2 - (s.top + s.bottom) / 2;
+            return Math.abs(dx) > Math.abs(dy)
+                ? (dx > 0 ? ["RightMiddle", "LeftMiddle"] : ["LeftMiddle", "RightMiddle"])
+                : (dy > 0 ? ["BottomCenter", "TopCenter"] : ["TopCenter", "BottomCenter"]);
+        }
+
         const instance = jsPlumb.getInstance({
             Container: panZoomContainer,
             ConnectionsDetachable: false
@@ -71,32 +83,63 @@ document.addEventListener('DOMContentLoaded', function() {
                         const connStyle = c.style || 'straight-with-arrows';
                         const config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness, c.rail_size);
                         
+                        const anchors = c.anchors || getDirectionalAnchorsFrontend(sourceEl, targetEl) || "Continuous";
                         const connection = instance.connect({
                             source: sourceEl,
                             target: targetEl,
-                            anchors: c.anchors || "Continuous",
+                            anchors: anchors,
                             ...config,
                             endpoint: "Blank"
                         });
 
                         if (mapConfig.enable_animation) {
-                            const delay = index * 100; // 100ms delay between each connection
+                            // Apply animation after the connector DOM has been rendered.
+                            // Use double requestAnimationFrame to ensure SVG path exists, and
+                            // reset animation so it reliably plays on initial load. If the
+                            // path isn't available immediately, retry a few times with a
+                            // short timeout fallback.
                             const animType = mapConfig.connection_animation_type || 'draw';
                             const duration = (mapConfig.connection_animation_duration || 800) + 'ms';
-                            // target the path element inside the connector and add a class
-                            try {
-                                const svg = connection.getConnector().canvas;
-                                if (svg && svg.querySelector) {
-                                    const path = svg.querySelector('path');
-                                    if (path) {
-                                        path.classList.add('cardmap-connection-anim', `conn-anim-${animType}`);
-                                        path.style.animationDelay = `${delay}ms`;
-                                        path.style.animationDuration = duration;
-                                    }
+                            const delay = index * 100; // staggered delay
+
+                            (function(conn, attempts){
+                                attempts = attempts || 0;
+                                function tryApply() {
+                                    requestAnimationFrame(() => {
+                                        requestAnimationFrame(() => {
+                                            try {
+                                                const connector = conn.getConnector && conn.getConnector();
+                                                const svg = connector && connector.canvas;
+                                                const path = svg && svg.querySelector && svg.querySelector('path');
+                                                if (path) {
+                                                    // reset any running animation
+                                                    try { path.style.animation = 'none'; } catch(e) {}
+                                                    // force reflow
+                                                    void path.offsetWidth;
+                                                    // remove any previous conn-anim-* classes then add ours
+                                                    try {
+                                                        const removeClasses = Array.from(path.classList || []).filter(c => c.indexOf('conn-anim-') === 0 || c === 'cardmap-connection-anim');
+                                                        removeClasses.forEach(c => path.classList.remove(c));
+                                                    } catch(e) {}
+                                                    path.classList.add('cardmap-connection-anim', `conn-anim-${animType}`);
+                                                    path.style.animationDelay = `${delay}ms`;
+                                                    path.style.animationDuration = duration;
+                                                    return;
+                                                }
+                                            } catch (err) {
+                                                // ignore
+                                            }
+
+                                            // If path not found yet, retry a few times with a small timeout
+                                            if (attempts < 4) {
+                                                attempts++;
+                                                setTimeout(tryApply, 60);
+                                            }
+                                        });
+                                    });
                                 }
-                            } catch (err) {
-                                // ignore if connector DOM not available yet
-                            }
+                                tryApply();
+                            })(connection, 0);
                         }
                     }
                 });
@@ -112,17 +155,60 @@ document.addEventListener('DOMContentLoaded', function() {
             const rails = panZoomContainer.querySelectorAll('.cardmap-rail');
             rails.forEach(railEl => {
                 // add rail-bar if missing
-                if (!railEl.querySelector('.rail-bar')) {
+                    if (!railEl.querySelector('.rail-bar')) {
                     const bar = document.createElement('div');
                     bar.className = 'rail-bar';
-                    // copy inline sizing where present
-                    bar.style.width = railEl.style.width || '';
-                    bar.style.height = railEl.style.height || '';
+                    // If rails were saved with explicit width/height of 0px, treat that
+                    // as missing and fall back to 100% so the inner bar is visible.
+                    const rawWidth = railEl.style.width || '';
+                    const rawHeight = railEl.style.height || '';
+                    const numericWidth = parseFloat(rawWidth) || 0;
+                    const numericHeight = parseFloat(rawHeight) || 0;
+
+                    // If the rail container has zero size, make the container default to 3px thickness
+                    if (railEl.classList.contains('vertical')) {
+                        if (numericWidth <= 0) {
+                            // vertical rail missing width -> default thickness
+                            railEl.style.width = '3px';
+                        }
+                        if (numericHeight <= 0) {
+                            railEl.style.height = rawHeight || '100%';
+                        }
+                        bar.style.width = railEl.style.width || '100%';
+                        bar.style.height = railEl.style.height || '100%';
+                    } else {
+                        if (numericHeight <= 0) {
+                            // horizontal rail missing height -> default thickness
+                            railEl.style.height = '3px';
+                        }
+                        if (numericWidth <= 0) {
+                            railEl.style.width = rawWidth || '100%';
+                        }
+                        bar.style.width = railEl.style.width || '100%';
+                        bar.style.height = railEl.style.height || '100%';
+                    }
                     bar.style.backgroundColor = mapConfig.line_color || '#A61832';
+                    // ensure the rail bar is visible above the plain background but below connectors
+                    bar.style.zIndex = '20';
                     railEl.appendChild(bar);
                 } else {
                     const bar = railEl.querySelector('.rail-bar');
+                    // ensure the rail container has sensible thickness values (fallback to 3px)
+                    const rawWidth = railEl.style.width || '';
+                    const rawHeight = railEl.style.height || '';
+                    const numericWidth = parseFloat(rawWidth) || 0;
+                    const numericHeight = parseFloat(rawHeight) || 0;
+                    if (railEl.classList.contains('vertical')) {
+                        if (numericWidth <= 0) railEl.style.width = '3px';
+                        if (numericHeight <= 0) railEl.style.height = rawHeight || '100%';
+                    } else {
+                        if (numericHeight <= 0) railEl.style.height = '3px';
+                        if (numericWidth <= 0) railEl.style.width = rawWidth || '100%';
+                    }
+                    if (!bar.style.width || parseFloat(bar.style.width) <= 0) bar.style.width = railEl.style.width || '100%';
+                    if (!bar.style.height || parseFloat(bar.style.height) <= 0) bar.style.height = railEl.style.height || '100%';
                     bar.style.backgroundColor = mapConfig.line_color || '#A61832';
+                    if (!bar.style.zIndex) bar.style.zIndex = '20';
                 }
 
                 // toggle visibility according to setting

@@ -114,15 +114,16 @@ function cardmap_editor_callback( $post ) {
         <button type="button" class="button" id="add-node">+ Add Card</button>
         <button type="button" class="button" id="add-rail">+ Add Rail</button>
         <?php if ( get_option( 'cardmap_show_rail_thickness', 1 ) ) : ?>
-            <input type="number" id="rail-size" value="10" min="1" max="100" style="width: 60px; margin-left: 6px;" title="Rail Size">
+            <input type="number" id="rail-size" value="3" min="1" max="100" style="width: 60px; margin-left: 6px;" title="Rail Size">
         <?php endif; ?>
         <select id="add-rail-orientation" aria-label="Rail orientation" style="margin-left:6px;">
             <option value="horizontal">Horizontal</option>
             <option value="vertical">Vertical</option>
         </select>
         <button type="button" class="button" id="connect-mode">🔗 Connect</button>
-        <button type="button" class="button" id="delete-node">❌ Delete Node</button>
-        <button type="button" class="button" id="delete-rail">🧨 Delete Rail</button>
+    <button type="button" class="button" id="delete-node">❌ Delete Node</button>
+    <button type="button" class="button" id="delete-connection">✂️ Delete Link</button>
+    <button type="button" class="button" id="delete-rail">🧨 Delete Rail</button>
         <button type="button" class="button button-secondary" id="fullscreen-editor">⛶ Fullscreen</button>
         <button type="button" class="button button-primary" id="save-map">💾 Save</button>
     </div>

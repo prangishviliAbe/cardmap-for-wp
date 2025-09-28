@@ -149,6 +149,8 @@ svg .jtk-connector path {
     stroke-width: 2px !important;
     fill: none !important;
 }
+/* Highlight connectors when delete-connection mode is active */
+.deletable-conn path, .deletable-conn { filter: drop-shadow(0 0 6px rgba(200,30,30,0.45)); cursor: pointer !important; }
 /* Ensure jsPlumb's SVG sits above nodes on frontend as well */
 .cardmap-frontend-wrapper svg, .cardmap-frontend-wrapper .jtk-svg, .cardmap-frontend-wrapper .jtk-connector { position: absolute; z-index: 3000 !important; pointer-events: none !important; }
 /* Ensure the jsPlumb SVG container sits above nodes so strokes are visible */

@@ -34,6 +34,8 @@
             this.deleteRailMode = false;
             
             this.connectMode = false;
+            this.deleteConnectionMode = false;
+            this.deleteConnectionFirstNode = null;
             this.deleteMode = false;
             this.firstNode = null;
             this.firstAnchor = null;
@@ -137,6 +139,8 @@
             }
             document.getElementById('connect-mode').addEventListener('click', this.toggleConnectMode.bind(this));
             document.getElementById('delete-node').addEventListener('click', this.toggleDeleteMode.bind(this));
+            const deleteConnBtn = document.getElementById('delete-connection');
+            if (deleteConnBtn) deleteConnBtn.addEventListener('click', this.toggleDeleteConnectionMode.bind(this));
             document.getElementById('save-map').addEventListener('click', this.saveMapData.bind(this));
             document.getElementById('fullscreen-editor').addEventListener('click', this.toggleFullscreen.bind(this));
             // Alignment feature removed per request (buttons removed server-side)
@@ -169,6 +173,26 @@
             // Alignment controls removed
             const deleteRailBtn = document.getElementById('delete-rail');
             if (deleteRailBtn) deleteRailBtn.addEventListener('click', this.toggleDeleteRailMode.bind(this));
+
+            // connection click handler: if in delete-connection mode, delete clicked connection
+            this.instance.bind('click', (conn, originalEvent) => {
+                console.debug('jsPlumb connection clicked', { deleteMode: this.deleteConnectionMode, connId: conn && conn._cardmap_id });
+                if (this.deleteConnectionMode) {
+                    const connId = conn._cardmap_id;
+                    if (connId) {
+                        this.pendingDeletes.add(connId);
+                        // remove from mapData
+                        this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
+                        // remove connection from jsPlumb canvas
+                        try { this.instance.deleteConnection(conn); } catch (e) { try { conn.detach(); } catch (err) {} }
+                        // update UI classes for remaining connections
+                        this.updateDeleteConnectionUI();
+                        // save changes
+                        this.saveMapData();
+                        this.showToast('Connection deleted');
+                    }
+                }
+            });
         }
 
         /**
@@ -253,7 +277,9 @@
                             return a;
                         });
                     }
-                    if (!anchors) anchors = c.anchors || this.getDirectionalAnchors(sourceEl, targetEl);
+                    if (!anchors) {
+                        anchors = c.anchors || this.computeAnchorsBetweenElements(sourceEl, targetEl);
+                    }
 
                     const conn = this.instance.connect({
                         source: c.source,
@@ -595,7 +621,10 @@
          */
         onNodeClick(e, node) {
             if (e.target.closest('.node-tools') || e.target.closest('[contenteditable]')) return;
-
+            if (this.deleteConnectionMode) {
+                this.handleDeleteConnectionClick(e, node);
+                return;
+            }
             if (this.connectMode) {
                 this.handleConnectionClick(e, node);
             } else if (this.deleteMode) {
@@ -603,6 +632,50 @@
             } else {
                 this.handleSelectionClick(e, node);
             }
+        }
+
+        /** Handle node clicks when in delete-connection mode */
+        handleDeleteConnectionClick(e, node) {
+            if (!this.deleteConnectionFirstNode) {
+                this.deleteConnectionFirstNode = node;
+                node.style.boxShadow = '0 0 0 3px rgba(200,30,30,0.5)';
+                return;
+            }
+
+            // if clicked same node, clear selection
+            if (this.deleteConnectionFirstNode === node) {
+                this.deleteConnectionFirstNode.style.boxShadow = '';
+                this.deleteConnectionFirstNode = null;
+                return;
+            }
+
+            const sourceId = this.deleteConnectionFirstNode.id;
+            const targetId = node.id;
+
+            // find matching connection(s)
+            const conns = (this.mapData.connections || []).filter(c =>
+                !this.pendingDeletes.has(c.id) && ((c.source === sourceId && c.target === targetId) || (c.source === targetId && c.target === sourceId))
+            );
+
+            if (conns.length === 0) {
+                this.showToast('No connection between these cards.');
+                this.deleteConnectionFirstNode.style.boxShadow = '';
+                this.deleteConnectionFirstNode = null;
+                return;
+            }
+
+            // delete found connections
+            conns.forEach(c => {
+                this.pendingDeletes.add(c.id);
+                try { const jsConn = this.instance.getConnections({ source: c.source, target: c.target })[0]; if (jsConn) this.instance.deleteConnection(jsConn); } catch (err) {}
+            });
+
+            // remove from mapData
+            this.mapData.connections = (this.mapData.connections || []).filter(c => !this.pendingDeletes.has(c.id));
+            this.saveMapData();
+
+            this.deleteConnectionFirstNode.style.boxShadow = '';
+            this.deleteConnectionFirstNode = null;
         }
 
         /** Convert screen event to world coordinates inside the editor */
@@ -652,14 +725,9 @@
                 let anchorA = null;
                 let anchorB = null;
                 const sourceEl = document.getElementById(sourceId);
-                const autoAnchors = this.getDirectionalAnchors(sourceEl || this.firstNode, railEl);
-                anchorA = this.firstAnchor || autoAnchors[0];
-
-                if (this._lastRailHover && this._lastRailHover.railId === railEl.id) {
-                    // use precise relative anchor array for the rail
-                    anchorB = this.getPreciseRailAnchorArray(railEl, this._lastRailHover.clientX, this._lastRailHover.clientY);
-                }
-                if (!anchorB) anchorB = this.getRailAnchorFromEvent(e, railEl, railData) || autoAnchors[1];
+                const [a, b] = this.computeAnchorsBetweenElements(this.firstNode, railEl, null, e);
+                anchorA = this.firstAnchor || a;
+                anchorB = this.firstAnchor ? (b || this.getRailAnchorFromEvent(e, railEl, railData)) : b;
 
                 // choose connection style: prefer source node's connectionStyle then target's then global
                 const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
@@ -818,13 +886,9 @@
                 // determine anchors, preferring precise rail hover position if available
                 let anchorA = null;
                 let anchorB = null;
-                const autoAnchors = this.getDirectionalAnchors(this.firstNode, node);
-                anchorA = this.firstAnchor || autoAnchors[0];
-
-                if (node.classList && node.classList.contains('cardmap-rail') && this._lastRailHover && this._lastRailHover.railId === node.id) {
-                    anchorB = this.getPreciseRailAnchorArray(node, this._lastRailHover.clientX, this._lastRailHover.clientY);
-                }
-                if (!anchorB) anchorB = this.getPreciseAnchorFromEvent(e, node) || autoAnchors[1];
+                const [a, b] = this.computeAnchorsBetweenElements(this.firstNode, node, null, e);
+                anchorA = this.firstAnchor || a;
+                anchorB = b;
                 
                 const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
                 const targetNodeData = this.mapData.nodes.find(n => n.id === targetId) || {};
@@ -1218,6 +1282,40 @@
             this.editor.style.cursor = this.deleteRailMode ? 'not-allowed' : 'grab';
         }
 
+        /** Toggle delete-connection mode which allows clicking links to delete them */
+        toggleDeleteConnectionMode() {
+            this.deleteConnectionMode = !this.deleteConnectionMode;
+            // turning on delete connection mode should disable other modes
+            if (this.deleteConnectionMode) {
+                this.deleteMode = false;
+                this.deleteRailMode = false;
+                this.connectMode = false;
+            }
+            const btn = document.getElementById('delete-connection');
+            if (btn) btn.classList.toggle('button-primary', this.deleteConnectionMode);
+            // visual cue on connectors
+            this.updateDeleteConnectionUI();
+            const dn = document.getElementById('delete-node'); if (dn) dn.classList.remove('button-primary');
+            const dr = document.getElementById('delete-rail'); if (dr) dr.classList.remove('button-primary');
+            const cm = document.getElementById('connect-mode'); if (cm) cm.classList.remove('button-primary');
+            this.editor.style.cursor = this.deleteConnectionMode ? 'not-allowed' : (this.connectMode ? 'crosshair' : 'grab');
+        }
+
+        /** Update visual state of connections when delete mode toggles */
+        updateDeleteConnectionUI() {
+            const conns = this.instance.getAllConnections();
+            conns.forEach(c => {
+                try {
+                    const el = c.canvas || (c.getConnector && c.getConnector().canvas) || null;
+                    if (this.deleteConnectionMode) {
+                        if (el && el.classList) el.classList.add('deletable-conn');
+                    } else {
+                        if (el && el.classList) el.classList.remove('deletable-conn');
+                    }
+                } catch (err) {}
+            });
+        }
+
         /**
          * Toggles fullscreen mode for the editor.
          */
@@ -1573,33 +1671,84 @@
          * Calculates a precise anchor position based on a click event.
          */
         getPreciseAnchorFromEvent(e, el) {
-            const wrapperRect = this.editorWrapper.getBoundingClientRect();
-            const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
-            const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
-            const elX = parseFloat(el.style.left) || 0;
-            const elY = parseFloat(el.style.top) || 0;
-            const x_in_el = worldX - elX;
-            const y_in_el = worldY - elY;
+            // Prefer using the element's bounding rect and client coordinates
+            // so the result matches what the user clicked visually, even when
+            // the editor is panned/scaled.
+            if (!el || !e || typeof e.clientX !== 'number') return "Continuous";
+            try {
+                const rect = el.getBoundingClientRect();
+                const localX = e.clientX - rect.left;
+                const localY = e.clientY - rect.top;
+                const x = localX / rect.width;
+                const y = localY / rect.height;
 
-            let visibleHeight = el.offsetHeight;
-            if (el.classList.contains('cardmap-node')) {
-                const imageWrapper = el.querySelector('.node-image-wrapper');
-                const title = el.querySelector('.card-title');
-                visibleHeight = (imageWrapper ? imageWrapper.offsetHeight : 0) + (title ? title.offsetHeight : 0);
+                // If click is outside the element bounds, fallback to Continuous
+                if (x < 0 || x > 1 || y < 0 || y > 1) return "Continuous";
+
+                const topDist = y, bottomDist = 1 - y, leftDist = x, rightDist = 1 - x;
+                const min = Math.min(topDist, bottomDist, leftDist, rightDist);
+                if (min === topDist) return "TopCenter";
+                if (min === bottomDist) return "BottomCenter";
+                if (min === leftDist) return "LeftMiddle";
+                return "RightMiddle";
+            } catch (err) {
+                // fallback to previous world-coordinate approach if anything goes wrong
+                const wrapperRect = this.editorWrapper.getBoundingClientRect();
+                const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
+                const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
+                const elX = parseFloat(el.style.left) || 0;
+                const elY = parseFloat(el.style.top) || 0;
+                const x_in_el = worldX - elX;
+                const y_in_el = worldY - elY;
+                const x = x_in_el / el.offsetWidth;
+                const y = y_in_el / el.offsetHeight;
+                if (y < 0 || y > 1) return "Continuous";
+                const topDist = y, bottomDist = 1 - y, leftDist = x, rightDist = 1 - x;
+                const min = Math.min(topDist, bottomDist, leftDist, rightDist);
+                if (min === topDist) return "TopCenter";
+                if (min === bottomDist) return "BottomCenter";
+                if (min === leftDist) return "LeftMiddle";
+                return "RightMiddle";
+            }
+        }
+
+        /**
+         * Compute deterministic anchors for a connection between two elements.
+         * If sourceEvent/targetEvent are provided and inside their elements, prefers precise anchors.
+         * If target is a rail and a precise hover is available, returns a precise anchor array for the rail.
+         */
+        computeAnchorsBetweenElements(sourceEl, targetEl, sourceEvent, targetEvent) {
+            // prefer precise anchors derived from the click events
+            let anchorA = null;
+            let anchorB = null;
+
+            if (sourceEvent) {
+                const a = this.getPreciseAnchorFromEvent(sourceEvent, sourceEl);
+                if (a && a !== 'Continuous') anchorA = a;
+            }
+            if (targetEvent) {
+                // if target is a rail and we have a last hover, prefer precise rail array
+                if (targetEl && targetEl.classList && targetEl.classList.contains('cardmap-rail') && this._lastRailHover && this._lastRailHover.railId === targetEl.id) {
+                    anchorB = this.getPreciseRailAnchorArray(targetEl, this._lastRailHover.clientX, this._lastRailHover.clientY);
+                } else {
+                    const b = this.getPreciseAnchorFromEvent(targetEvent, targetEl);
+                    if (b && b !== 'Continuous') anchorB = b;
+                }
             }
 
-            const x = x_in_el / el.offsetWidth;
-            const y = y_in_el / visibleHeight;
+            // fallback to directional anchors if any side is missing
+            if (!anchorA || !anchorB) {
+                try {
+                    const dir = this.getDirectionalAnchors(sourceEl, targetEl);
+                    if (!anchorA) anchorA = dir[0];
+                    if (!anchorB) anchorB = dir[1];
+                } catch (err) {
+                    if (!anchorA) anchorA = this.getDefaultAnchorForElement(sourceEl);
+                    if (!anchorB) anchorB = this.getDefaultAnchorForElement(targetEl);
+                }
+            }
 
-            if (y < 0 || y > 1) return "Continuous";
-
-            const topDist = y, bottomDist = 1 - y, leftDist = x, rightDist = 1 - x;
-            const min = Math.min(topDist, bottomDist, leftDist, rightDist);
-
-            if (min === topDist) return "TopCenter";
-            if (min === bottomDist) return "BottomCenter";
-            if (min === leftDist) return "LeftMiddle";
-            return "RightMiddle";
+            return [anchorA, anchorB];
         }
 
         // --- Diagonal Rail Helpers ---

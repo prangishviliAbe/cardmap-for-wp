@@ -548,10 +548,15 @@ final class Elementor_Custom_Animations {
 
             $element->add_render_attribute( '_wrapper', [
                 'class' => 'eca-scroll-animation animatrix-scroll-animation',
+                // Data attributes for both prefixes so front-end picks preferred animatrix keys
                 'data-eca-scroll-animation' => $settings['custom_scroll_animation'],
+                'data-animatrix-scroll-animation' => $settings['custom_scroll_animation'],
                 'data-eca-scroll-duration' => $duration,
+                'data-animatrix-scroll-duration' => $duration,
                 'data-eca-scroll-delay' => $delay,
+                'data-animatrix-scroll-delay' => $delay,
                 'data-eca-scroll-threshold' => $threshold,
+                'data-animatrix-scroll-threshold' => $threshold,
             ] );
         }
     }

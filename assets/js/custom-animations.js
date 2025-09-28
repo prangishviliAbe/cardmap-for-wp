@@ -4,12 +4,13 @@
     $(window).on('elementor/frontend/init', function() {
         // Scroll animations
         function initScrollAnimations() {
-            $('.eca-scroll-animation').each(function() {
+            $('.animatrix-scroll-animation, .eca-scroll-animation').each(function() {
                 var $element = $(this);
-                var animation = $element.data('eca-scroll-animation');
-                var duration = $element.data('eca-scroll-duration') || 1000;
-                var delay = $element.data('eca-scroll-delay') || 0;
-                var threshold = parseFloat($element.data('eca-scroll-threshold')) || 0.1;
+                // Prefer animatrix-prefixed data attributes, fall back to eca- ones
+                var animation = $element.data('animatrix-scroll-animation') || $element.data('eca-scroll-animation');
+                var duration = $element.data('animatrix-scroll-duration') || $element.data('eca-scroll-duration') || 1000;
+                var delay = $element.data('animatrix-scroll-delay') || $element.data('eca-scroll-delay') || 0;
+                var threshold = parseFloat($element.data('animatrix-scroll-threshold') || $element.data('eca-scroll-threshold')) || 0.1;
 
                 // Set custom duration and delay
                 $element.css({
@@ -27,7 +28,8 @@
                     entries.forEach(function(entry) {
                         if (entry.isIntersecting) {
                             setTimeout(function() {
-                                $element.addClass('eca-scroll-animated');
+                                // Add both markers for compatibility with eca- and animatrix- CSS
+                                $element.addClass('eca-scroll-animated animatrix-scroll-animated');
                             }, delay);
                             observer.unobserve(entry.target);
                         }

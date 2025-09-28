@@ -1,5 +1,7 @@
 # Animatrix for Elementor
 
+![Animatrix for Elementor Cover](assets/cover.png)
+
 A powerful WordPress plugin that adds advanced animations to Elementor sections, widgets, and containers.
 
 ## Description
@@ -34,6 +36,7 @@ Animatrix for Elementor extends the capabilities of the popular Elementor page b
 ## Animation Categories
 
 ### ✨ Entrance Animations
+
 - **3D Transformations**: Cube rotations, perspective flips, unfolding effects
 - **Creative Unique**: Typewriter, glitch, matrix rain, hologram, particle explosion
 - **Physics-Based**: Elastic bounce, magnetic pull, gravity drop, spring effects
@@ -41,14 +44,16 @@ Animatrix for Elementor extends the capabilities of the popular Elementor page b
 - **Enhanced Basics**: Smooth fade, slide, zoom effects with professional timing
 
 ### 🎯 Hover Effects (FIXED SMOOTH TRANSITIONS!)
+
 - **Transform Effects**: Lift, tilt, rotate, scale, skew - all with smooth transitions
-- **3D Perspective**: Flip, cube rotate, depth push/pull effects  
+- **3D Perspective**: Flip, cube rotate, depth push/pull effects
 - **Glow & Shadows**: Neon glow, soft glow, shadow drop, shadow spread
 - **Color Effects**: Hue rotate, color shift, invert, grayscale pop
 - **Motion Effects**: Float, bob, wiggle, pendulum, orbit
 - **No More Jerky Movements**: All hover effects smoothly return to original state
 
-### 📜 Scroll Animations  
+### 📜 Scroll Animations
+
 - **Basic Effects**: Parallax, scale, fade, blur on scroll
 - **3D Scroll**: Perspective scroll, cube scroll, book flip
 - **Creative**: Liquid morph, particle trail, time warp, portal effect
@@ -58,11 +63,13 @@ Animatrix for Elementor extends the capabilities of the popular Elementor page b
 ## What Makes This Special
 
 🚫 **Eliminates Elementor's Default Animation Limitations**
+
 - Default Elementor has only basic fade/slide/zoom animations
 - Our plugin adds 160+ professional-grade animations
 - Fixes the hover animation "snap-back" problem with smooth CSS transitions
 
 🎨 **Professional Animation Library**
+
 - Animations designed by professionals, not basic CSS transforms
 - Physics-based animations with realistic motion
 - 3D effects that work across all modern browsers

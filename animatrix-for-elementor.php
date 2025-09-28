@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Animatrix for Elementor
  * Description: Add 160+ professional animations to Elementor - Entrance, Hover, Scroll & Exit animations with 3D effects, physics-based motion, creative transitions & smooth hover interactions
- * Version: 2.0.0
+ * Version: 1.2.0
  * Author: Abe Prangishvili
  */
 

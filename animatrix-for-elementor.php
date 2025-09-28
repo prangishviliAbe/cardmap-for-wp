@@ -259,7 +259,7 @@ final class Elementor_Custom_Animations {
         $element->start_controls_section(
             'custom_animations_section',
             [
-                'label' => __( 'Animatrix Animations', 'animatrix-for-elementor' ),
+                'label' => __( 'Animatrix Entrance', 'animatrix-for-elementor' ),
                 'tab' => \Elementor\Controls_Manager::TAB_ADVANCED,
             ]
         );
@@ -361,7 +361,7 @@ final class Elementor_Custom_Animations {
         $element->start_controls_section(
             'custom_hover_animations_section',
             [
-                'label' => __( 'Animatrix Animations', 'animatrix-for-elementor' ),
+                'label' => __( 'Animatrix Hover', 'animatrix-for-elementor' ),
                 'tab' => \Elementor\Controls_Manager::TAB_ADVANCED,
             ]
         );
@@ -429,7 +429,7 @@ final class Elementor_Custom_Animations {
         $element->start_controls_section(
             'custom_scroll_animations_section',
             [
-                'label' => __( 'Animatrix Animations', 'animatrix-for-elementor' ),
+                'label' => __( 'Animatrix Scroll', 'animatrix-for-elementor' ),
                 'tab' => \Elementor\Controls_Manager::TAB_ADVANCED,
             ]
         );

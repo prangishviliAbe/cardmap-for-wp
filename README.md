@@ -8,11 +8,15 @@ Animatrix for Elementor extends the capabilities of the popular Elementor page b
 
 ## Features
 
-- **Advanced Animation Controls**: Add sophisticated animations to any Elementor element
+- **70+ Unique Entrance Animations**: Including 3D transformations, physics-based effects, geometric patterns, and creative unique animations not found in default Elementor
+- **50+ Smooth Hover Effects**: Professionally designed hover animations with seamless transitions (no more jerky mouse movements!)
+- **40+ Advanced Scroll Animations**: Parallax, perspective, and interactive scroll-triggered effects
+- **Smooth Transitions**: All hover effects use CSS transitions for buttery-smooth animations
+- **Performance Optimized**: Hardware-accelerated animations with reduced motion support
+- **3D & Physics Effects**: Cube rotations, magnetic pulls, gravity drops, elastic bounces
+- **Creative Unique Animations**: Typewriter, glitch effects, matrix rain, hologram, neon glow
 - **Easy Integration**: Seamlessly integrates with Elementor's interface
-- **Lightweight**: Optimized for performance
-- **Multiple Animation Types**: Wide variety of animation effects
-- **Custom Controls**: Intuitive animation controls in Elementor editor
+- **Professional Quality**: Studio-grade animations that rival premium animation libraries
 
 ## Requirements
 
@@ -27,13 +31,42 @@ Animatrix for Elementor extends the capabilities of the popular Elementor page b
 3. Activate the plugin through the 'Plugins' menu in WordPress
 4. Start using advanced animations in your Elementor designs!
 
-## Usage
+## Animation Categories
 
-1. Edit any page with Elementor
-2. Select any section, widget, or container
-3. Look for the new Animatrix animation controls in the Advanced tab
-4. Configure your desired animation settings
-5. Preview and publish your animated content
+### ✨ Entrance Animations
+- **3D Transformations**: Cube rotations, perspective flips, unfolding effects
+- **Creative Unique**: Typewriter, glitch, matrix rain, hologram, particle explosion
+- **Physics-Based**: Elastic bounce, magnetic pull, gravity drop, spring effects
+- **Geometric Patterns**: Hexagon burst, spiral in, geometric expand
+- **Enhanced Basics**: Smooth fade, slide, zoom effects with professional timing
+
+### 🎯 Hover Effects (FIXED SMOOTH TRANSITIONS!)
+- **Transform Effects**: Lift, tilt, rotate, scale, skew - all with smooth transitions
+- **3D Perspective**: Flip, cube rotate, depth push/pull effects  
+- **Glow & Shadows**: Neon glow, soft glow, shadow drop, shadow spread
+- **Color Effects**: Hue rotate, color shift, invert, grayscale pop
+- **Motion Effects**: Float, bob, wiggle, pendulum, orbit
+- **No More Jerky Movements**: All hover effects smoothly return to original state
+
+### 📜 Scroll Animations  
+- **Basic Effects**: Parallax, scale, fade, blur on scroll
+- **3D Scroll**: Perspective scroll, cube scroll, book flip
+- **Creative**: Liquid morph, particle trail, time warp, portal effect
+- **Interactive**: Reveal masks, progress bars, counters
+- **Nature-Inspired**: Wave motion, wind sway, fire flicker
+
+## What Makes This Special
+
+🚫 **Eliminates Elementor's Default Animation Limitations**
+- Default Elementor has only basic fade/slide/zoom animations
+- Our plugin adds 160+ professional-grade animations
+- Fixes the hover animation "snap-back" problem with smooth CSS transitions
+
+🎨 **Professional Animation Library**
+- Animations designed by professionals, not basic CSS transforms
+- Physics-based animations with realistic motion
+- 3D effects that work across all modern browsers
+- Performance-optimized with GPU acceleration
 
 ## File Structure
 

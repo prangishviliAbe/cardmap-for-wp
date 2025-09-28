@@ -104,6 +104,74 @@
                 applyScrollAnimations();
             });
         });
+
+        // Enhanced hover animation handling
+        function initHoverAnimations() {
+            // Ensure smooth transitions for all hover elements
+            $('[class*="advanced-hover-"]').each(function() {
+                const $element = $(this);
+                const classes = $element.attr('class').split(' ');
+                
+                // Add performance optimization
+                $element.css({
+                    'backface-visibility': 'hidden',
+                    'transform': 'translateZ(0)',
+                    'will-change': 'transform, opacity, filter'
+                });
+                
+                // Handle typewriter effect character counting
+                if ($element.hasClass('advanced-hover-typewriter-reveal') || $element.hasClass('advanced-animation-typewriter')) {
+                    const text = $element.text();
+                    $element.css('--char-count', text.length);
+                }
+            });
+        }
+
+        // Initialize entrance animations with improved triggers
+        function initEntranceAnimations() {
+            $('[class*="advanced-animation-"]').each(function() {
+                const $element = $(this);
+                
+                // Add intersection observer for better performance
+                if ('IntersectionObserver' in window) {
+                    const observer = new IntersectionObserver((entries) => {
+                        entries.forEach((entry) => {
+                            if (entry.isIntersecting) {
+                                $(entry.target).addClass('animate-in-view');
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    }, {
+                        threshold: 0.1,
+                        rootMargin: '50px'
+                    });
+                    
+                    observer.observe(this);
+                } else {
+                    // Fallback for older browsers
+                    $element.addClass('animate-in-view');
+                }
+            });
+        }
+
+        // Performance optimization for reduced motion
+        function respectReducedMotion() {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                $('body').addClass('reduced-motion');
+            }
+        }
+
+        // Initialize all enhancements
+        function initAnimatrixEnhancements() {
+            initHoverAnimations();
+            initEntranceAnimations();
+            respectReducedMotion();
+        }
+
+        // Run on document ready
+        $(document).ready(function() {
+            initAnimatrixEnhancements();
+        });
     });
 
 })(jQuery);

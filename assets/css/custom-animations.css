@@ -115,3 +115,59 @@
 @keyframes ecaBuzz { 50% { transform: translateX(3px) rotate(2deg); } 100% { transform: translateX(-3px) rotate(-2deg); } }
 @keyframes ecaBuzzOut { 10% { transform: translateX(3px) rotate(2deg); } 20% { transform: translateX(-3px) rotate(-2deg); } 30% { transform: translateX(3px) rotate(2deg); } 40% { transform: translateX(-3px) rotate(-2deg); } 50% { transform: translateX(2px) rotate(1deg); } 60% { transform: translateX(-2px) rotate(-1deg); } 70% { transform: translateX(2px) rotate(1deg); } 80% { transform: translateX(-2px) rotate(-1deg); } 90% { transform: translateX(1px) rotate(0); } 100% { transform: translateX(-1px) rotate(0); } }
 @keyframes ecaFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* New Animations added by user request */
+.eca-animated.eca-glass-pop { animation-name: ecaGlassPop; }
+.eca-animated.eca-explode-in { animation-name: ecaExplodeIn; }
+.eca-animated.eca-tilt-zoom { animation-name: ecaTiltZoom; }
+.eca-animated.eca-float-wave { animation-name: ecaFloatWave; }
+.eca-animated.eca-matrix-shift { animation-name: ecaMatrixShift; }
+
+/* Scroll variants */
+.eca-scroll-animation.eca-scroll-glass-pop.eca-scroll-animated { animation: ecaGlassPop 0.7s cubic-bezier(.2,.9,.3,1) forwards; }
+.eca-scroll-animation.eca-scroll-explode-in.eca-scroll-animated { animation: ecaExplodeIn 0.7s cubic-bezier(.2,.9,.3,1) forwards; }
+.eca-scroll-animation.eca-scroll-tilt-zoom.eca-scroll-animated { animation: ecaTiltZoom 0.7s cubic-bezier(.2,.9,.3,1) forwards; }
+.eca-scroll-animation.eca-scroll-float-wave.eca-scroll-animated { animation: ecaFloatWave 0.9s ease forwards; }
+.eca-scroll-animation.eca-scroll-matrix-shift.eca-scroll-animated { animation: ecaMatrixShift 0.8s cubic-bezier(.2,.9,.3,1) forwards; }
+
+/* Hover variants */
+.eca-hover-animated.eca-hover-tilt:hover { animation: ecaTiltHover 0.45s ease forwards; }
+.eca-hover-animated.eca-hover-glow-intense:hover { box-shadow: 0 0 30px rgba(255,255,255,0.9); transform: scale(1.03); transition: all 0.25s ease; }
+
+/* Keyframes for new animations */
+@keyframes ecaGlassPop {
+	0% { opacity: 0; transform: scale(0.6); filter: blur(6px); }
+	60% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+	100% { transform: scale(1); }
+}
+
+@keyframes ecaExplodeIn {
+	0% { opacity: 0; transform: scale(0.25) rotate(-12deg); filter: blur(8px); }
+	60% { transform: scale(1.08) rotate(6deg); opacity: 1; filter: blur(0); }
+	100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes ecaTiltZoom {
+	0% { opacity: 0; transform: perspective(600px) rotateX(18deg) scale(0.85); }
+	70% { opacity: 1; transform: perspective(600px) rotateX(-6deg) scale(1.03); }
+	100% { transform: none; }
+}
+
+@keyframes ecaFloatWave {
+	0% { opacity: 0; transform: translateY(18px); }
+	40% { opacity: 1; transform: translateY(-8px); }
+	70% { transform: translateY(4px); }
+	100% { transform: translateY(0); }
+}
+
+@keyframes ecaMatrixShift {
+	0% { opacity: 0; transform: translateY(18px) skewY(8deg); filter: hue-rotate(0deg); }
+	50% { opacity: 1; transform: translateY(-6px) skewY(-4deg); filter: hue-rotate(12deg); }
+	100% { transform: none; }
+}
+
+@keyframes ecaTiltHover {
+	0% { transform: rotateX(0) rotateY(0); }
+	50% { transform: rotateX(6deg) rotateY(-6deg); }
+	100% { transform: rotateX(0) rotateY(0); }
+}

@@ -302,6 +302,11 @@ final class Elementor_Custom_Animations {
                     'eca-shake' => __( 'Shake', 'animatrix-for-elementor' ),
                     'eca-head-shake' => __( 'Head Shake', 'animatrix-for-elementor' ),
                     'eca-swirl-in' => __( 'Swirl In', 'animatrix-for-elementor' ),
+                    'eca-glass-pop' => __( 'Glass Pop', 'animatrix-for-elementor' ),
+                    'eca-explode-in' => __( 'Explode In', 'animatrix-for-elementor' ),
+                    'eca-tilt-zoom' => __( 'Tilt Zoom', 'animatrix-for-elementor' ),
+                    'eca-float-wave' => __( 'Float Wave', 'animatrix-for-elementor' ),
+                    'eca-matrix-shift' => __( 'Matrix Shift', 'animatrix-for-elementor' ),
                 ],
                 'prefix_class' => 'eca-animated ',
                 'selector' => '> .elementor-widget-container, > .elementor-column-wrap, > .elementor-section-wrap',
@@ -385,6 +390,8 @@ final class Elementor_Custom_Animations {
                     'eca-hover-shadow' => __( 'Shadow', 'animatrix-for-elementor' ),
                     'eca-hover-float' => __( 'Float', 'animatrix-for-elementor' ),
                     'eca-hover-sink' => __( 'Sink', 'animatrix-for-elementor' ),
+                    'eca-hover-tilt' => __( 'Tilt', 'animatrix-for-elementor' ),
+                    'eca-hover-glow-intense' => __( 'Glow Intense', 'animatrix-for-elementor' ),
                 ],
                 'prefix_class' => 'eca-hover-animated ',
             ]
@@ -445,6 +452,11 @@ final class Elementor_Custom_Animations {
                     'eca-scroll-flip-right' => __( 'Flip Right', 'animatrix-for-elementor' ),
                     'eca-scroll-bounce-in' => __( 'Bounce In', 'animatrix-for-elementor' ),
                     'eca-scroll-rotate-in' => __( 'Rotate In', 'animatrix-for-elementor' ),
+                    'eca-scroll-glass-pop' => __( 'Glass Pop', 'animatrix-for-elementor' ),
+                    'eca-scroll-explode-in' => __( 'Explode In', 'animatrix-for-elementor' ),
+                    'eca-scroll-tilt-zoom' => __( 'Tilt Zoom', 'animatrix-for-elementor' ),
+                    'eca-scroll-float-wave' => __( 'Float Wave', 'animatrix-for-elementor' ),
+                    'eca-scroll-matrix-shift' => __( 'Matrix Shift', 'animatrix-for-elementor' ),
                 ],
             ]
         );

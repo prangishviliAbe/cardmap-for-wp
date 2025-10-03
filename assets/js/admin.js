@@ -41,6 +41,8 @@
             this.firstAnchor = null;
 
             this.railResizeState = null;
+            this.railSettingsPinned = false;
+            this._lastEscapeAt = 0;
             
             // Pan & Zoom state
             this.scale = 1;
@@ -169,6 +171,27 @@
 
             window.addEventListener('mousemove', this.handleRailResize.bind(this));
             window.addEventListener('mouseup', () => { if (this.railResizeState) this.railResizeState = null; });
+
+            // Global keyboard handling for pinning/unpinning rail settings (double Escape to pin)
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' || e.key === 'Esc') {
+                    const now = Date.now();
+                    if (now - this._lastEscapeAt < 400) {
+                        // Toggle pin state
+                        this.railSettingsPinned = !this.railSettingsPinned;
+                        // If unpinning, hide all settings
+                        if (!this.railSettingsPinned) {
+                            document.querySelectorAll('.rail-settings').forEach(s => s.style.display = 'none');
+                        }
+                    } else {
+                        // single Escape: hide settings only if not pinned
+                        if (!this.railSettingsPinned) {
+                            document.querySelectorAll('.rail-settings').forEach(s => s.style.display = 'none');
+                        }
+                    }
+                    this._lastEscapeAt = now;
+                }
+            });
 
             // Alignment controls removed
             const deleteRailBtn = document.getElementById('delete-rail');
@@ -1071,10 +1094,16 @@
                 railEl.appendChild(railBar);
 
                 const resizer = document.createElement('div');
-                resizer.className = 'rail-resizer';
-                railEl.appendChild(resizer);
+                // Add two resizers: one at the end and one at the start so user can resize from both corners
+                const resizerStart = document.createElement('div');
+                const resizerEnd = document.createElement('div');
+                resizerStart.className = 'rail-resizer rail-resizer-start';
+                resizerEnd.className = 'rail-resizer rail-resizer-end';
+                railEl.appendChild(resizerStart);
+                railEl.appendChild(resizerEnd);
 
-                resizer.addEventListener('mousedown', (e) => {
+                const bindResizerDown = (resizerEl, isStart) => {
+                    resizerEl.addEventListener('mousedown', (e) => {
                     e.stopPropagation();
                     // record starting map-space coordinates for robust resizing
                     const rect = this.editor.getBoundingClientRect();
@@ -1090,15 +1119,20 @@
                         startHeight: r.height,
                         startMapX: mapX,
                         startMapY: mapY,
-                        side: null
+                        side: null,
+                        isStart
                     };
                     // determine which side the user started dragging (simple heuristic)
                     const railRect = railEl.getBoundingClientRect();
                     const localX = e.clientX - railRect.left;
                     const localY = e.clientY - railRect.top;
-                    if (r.orientation === 'horizontal') this.railResizeState.side = (localX > railRect.width/2) ? 'right' : 'left';
-                    else if (r.orientation === 'vertical') this.railResizeState.side = (localY > railRect.height/2) ? 'bottom' : 'top';
+                    // If user clicked the start resizer, treat as left/top, else right/bottom
+                    if (r.orientation === 'horizontal') this.railResizeState.side = isStart ? 'left' : 'right';
+                    else if (r.orientation === 'vertical') this.railResizeState.side = isStart ? 'top' : 'bottom';
                 });
+                };
+                bindResizerDown(resizerStart, true);
+                bindResizerDown(resizerEnd, false);
 
                 // make the rail draggable so it can be moved and attached nodes follow
                 this.instance.draggable(railEl, {
@@ -1227,14 +1261,9 @@
                     }, 200);
                 });
                 // Keep settings visible when hovering the settings panel itself
-                railSettings.addEventListener('mouseenter', () => {
-                    // Reposition again in case the user hovered after panning/zooming
-                    this.positionRailSettings(railEl, railSettings, r);
-                    railSettings.style.display = 'block';
-                });
-                railSettings.addEventListener('mouseleave', () => {
-                    railSettings.style.display = 'none';
-                });
+                // The rail settings panel will be shown when the rail is selected (click)
+                // or when pinned via double-Escape. We avoid showing it on hover to reduce
+                // accidental popups.
 
                 // Handle rail connection style changes
                 const railConnStyleSelect = railSettings.querySelector('.rail-connection-style');
@@ -1288,48 +1317,23 @@
                     railColorInput.value = r.railColor || this.config.lineColor || '#A61832';
                     railThicknessInput.value = r.size || 8;
 
+                    // Changing the visual appearance of the rail should NOT change connection styles.
+                    // Connection style is controlled separately via the "Connection Style" select.
                     railAppearanceSelect.addEventListener('change', () => {
                         r.railStyle = railAppearanceSelect.value;
-                        // update DOM attribute immediately
+                        // update DOM attribute immediately and re-render the rail visuals
                         const dom = document.getElementById(r.id);
                         if (dom) dom.setAttribute('data-rail-style', r.railStyle);
                         this.renderRail(r);
-
-                        // update jsPlumb connections attached to this rail to visually match
-                        try {
-                            const allConnections = this.instance.getConnections();
-                            const railConnections = allConnections.filter(conn => (conn.sourceId === r.id || conn.targetId === r.id || (conn.source && conn.source.id === r.id) || (conn.target && conn.target.id === r.id)));
-                            railConnections.forEach(c => {
-                                try {
-                                    const newColor = r.railColor || this.config.lineColor || '#A61832';
-                                    const newWidth = Math.max(1, r.size || this.config.lineThickness || 2);
-                                    const paint = { stroke: newColor, strokeWidth: newWidth };
-                                    // map visual styles to dash patterns
-                                    if (r.railStyle === 'dash-heavy') paint.dashstyle = '12 6';
-                                    else if (r.railStyle === 'dash-subtle') paint.dashstyle = '6 6';
-                                    else if (r.railStyle === 'dotted') paint.dashstyle = '1 4';
-                                    else paint.dashstyle = null;
-                                    if (c.setPaintStyle) c.setPaintStyle(paint);
-                                } catch (err) { console.warn('Error updating connection paint for rail change', err); }
-                            });
-                        } catch (err) { console.warn('Error updating rail connections after appearance change', err); }
-
                         this.saveMapData();
                     });
 
                     railColorInput.addEventListener('input', () => {
                         r.railColor = railColorInput.value;
-                        // update DOM attribute and visible rails/connections immediately
+                        // update DOM attribute and visible rail only; do not change connector styles
                         const dom = document.getElementById(r.id);
                         if (dom) dom.setAttribute('data-rail-color', r.railColor);
                         this.renderRail(r);
-                        try {
-                            const allConnections = this.instance.getConnections();
-                            const railConnections = allConnections.filter(conn => (conn.sourceId === r.id || conn.targetId === r.id || (conn.source && conn.source.id === r.id) || (conn.target && conn.target.id === r.id)));
-                            railConnections.forEach(c => {
-                                try { if (c.setPaintStyle) c.setPaintStyle({ stroke: r.railColor || this.config.lineColor }); } catch(e){}
-                            });
-                        } catch(e){}
                         this.saveMapData();
                     });
 
@@ -1338,17 +1342,10 @@
                         r.size = newSize;
                         if (r.orientation === 'vertical') r.width = newSize;
                         else r.height = newSize;
-                        // update DOM attribute and repaint connections
+                        // update DOM attribute and re-render rail only; do not modify connector paintStyle
                         const dom = document.getElementById(r.id);
                         if (dom) dom.setAttribute('data-rail-size', r.size);
                         this.renderRail(r);
-                        try {
-                            const allConnections = this.instance.getConnections();
-                            const railConnections = allConnections.filter(conn => (conn.sourceId === r.id || conn.targetId === r.id || (conn.source && conn.source.id === r.id) || (conn.target && conn.target.id === r.id)));
-                            railConnections.forEach(c => {
-                                try { if (c.setPaintStyle) c.setPaintStyle({ strokeWidth: Math.max(1, r.size) }); } catch(e){}
-                            });
-                        } catch(e){}
                         if (this.instance && this.instance.repaintEverything) this.instance.repaintEverything();
                         this.saveMapData();
                     });
@@ -1500,6 +1497,12 @@
             const railData = this.mapData.rails.find(r => r.id === railId);
             if (railData && this.railSizeInput) {
                 this.railSizeInput.value = railData.size || 8;
+            }
+            // Show the rail settings panel (if present) when a rail is selected
+            const settings = el && el.querySelector('.rail-settings');
+            if (settings) {
+                this.positionRailSettings(el, settings, railData);
+                settings.style.display = 'block';
             }
         }
 

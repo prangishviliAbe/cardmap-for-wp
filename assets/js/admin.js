@@ -342,7 +342,7 @@
                     <select class="card-node-style" style="width:100%;">${styleOptions}</select>
                     <label style="display:block;margin-top:8px;font-size:12px;color:#666;">Connection Style</label>
                     <select class="card-connection-style" style="width:100%;">
-                        ${ Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}" ${ (n.connectionStyle || this.config.lineStyle) === k ? 'selected' : '' }>${this.config.availableLineStyles[k]}</option>` ).join('') }
+                        ${ Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('') }
                     </select>
                 </div>
             `;
@@ -409,23 +409,25 @@
 
             const connStyleSelect = node.querySelector('.card-connection-style');
             if (connStyleSelect) {
-                // initialize value from data if present - ensure it's set after dropdown is rendered
-                setTimeout(() => {
-                    if (nodeData.connectionStyle) {
-                        connStyleSelect.value = nodeData.connectionStyle;
-                    }
-                }, 0);
+                // Set initial value - use saved connectionStyle or fall back to global default
+                const initialValue = nodeData.connectionStyle || this.config.lineStyle;
+                connStyleSelect.value = initialValue;
+                console.log('Set node connection style:', initialValue, 'for node:', nodeData.id);
+                
                 connStyleSelect.addEventListener('change', () => {
+                    console.log('Connection style changed to:', connStyleSelect.value, 'for node:', nodeData.id);
                     nodeData.connectionStyle = connStyleSelect.value;
                     // Update existing connections that involve this node (both as source and target)
                     const sourceConns = this.instance.getConnections({ source: node.id });
                     const targetConns = this.instance.getConnections({ target: node.id });
+                    console.log('Updating connections - source:', sourceConns.length, 'target:', targetConns.length);
                     
                     // Update connections where this node is the source
                     sourceConns.forEach(c => {
                         const newStyle = nodeData.connectionStyle || this.config.lineStyle;
                         const config = this.getConnectorConfig(newStyle);
                         try {
+                            console.log('Updating connection style to:', newStyle, 'for connection:', c._cardmap_id);
                             c.setPaintStyle && c.setPaintStyle(config.paintStyle);
                             if (config.connector) c.setConnector && c.setConnector(config.connector);
                             // Update overlays (arrows, etc.)
@@ -435,7 +437,10 @@
                             }
                             // Update the mapData to reflect the style change
                             const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
-                            if (connData) connData.style = newStyle;
+                            if (connData) {
+                                connData.style = newStyle;
+                                console.log('Updated mapData connection style:', connData.style);
+                            }
                         } catch (err) {
                             console.warn('Error updating connection style:', err);
                         }
@@ -1127,7 +1132,7 @@
                 railSettings.innerHTML = `
                     <label style="margin-right:10px;">Connection Style:</label>
                     <select class="rail-connection-style" style="font-size:11px;">
-                        ${ Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}" ${ (r.connectionStyle || this.config.lineStyle) === k ? 'selected' : '' }>${this.config.availableLineStyles[k]}</option>` ).join('') }
+                        ${ Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('') }
                     </select>
                 `;
                 railEl.appendChild(railSettings);
@@ -1145,13 +1150,13 @@
                 // Handle rail connection style changes
                 const railConnStyleSelect = railSettings.querySelector('.rail-connection-style');
                 if (railConnStyleSelect) {
-                    // Initialize the dropdown with the saved value
-                    setTimeout(() => {
-                        if (r.connectionStyle) {
-                            railConnStyleSelect.value = r.connectionStyle;
-                        }
-                    }, 0);
+                    // Set initial value - use saved connectionStyle or fall back to global default
+                    const initialValue = r.connectionStyle || this.config.lineStyle;
+                    railConnStyleSelect.value = initialValue;
+                    console.log('Set rail connection style:', initialValue, 'for rail:', r.id);
+                    
                     railConnStyleSelect.addEventListener('change', () => {
+                        console.log('Rail connection style changed to:', railConnStyleSelect.value, 'for rail:', r.id);
                         r.connectionStyle = railConnStyleSelect.value;
                         // Update existing connections involving this rail
                         const railConnections = this.instance.getConnections().filter(conn => 

@@ -81,8 +81,43 @@ document.addEventListener('DOMContentLoaded', function() {
                     const targetEl = panZoomContainer.querySelector('#' + c.target);
                     if (sourceEl && targetEl) {
                         const connStyle = c.style || 'straight-with-arrows';
-                        const config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness, c.rail_size);
-                        
+                        let config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness, c.rail_size);
+
+                        // If the connection is attached to a rail that has a visual appearance,
+                        // try to make the connector visually match the rail (color/thickness/dash).
+                        try {
+                            const sourceIsRail = sourceEl.classList && sourceEl.classList.contains('cardmap-rail');
+                            const targetIsRail = targetEl.classList && targetEl.classList.contains('cardmap-rail');
+                            const railEl = sourceIsRail ? sourceEl : (targetIsRail ? targetEl : null);
+                            if (railEl) {
+                                const railStyle = railEl.dataset.railStyle || railEl.getAttribute('data-rail-style') || '';
+                                const railColor = railEl.dataset.railColor || railEl.getAttribute('data-rail-color') || mapConfig.line_color;
+                                const railSize = parseInt(railEl.dataset.railSize || railEl.getAttribute('data-rail-size') || c.rail_size || mapConfig.line_thickness, 10) || mapConfig.line_thickness;
+
+                                // Start from the current config and override paintStyle properties
+                                const overridden = Object.assign({}, config);
+                                overridden.paintStyle = Object.assign({}, overridden.paintStyle || {});
+                                overridden.paintStyle.stroke = railColor;
+                                overridden.paintStyle.strokeWidth = railStyle === 'double-line' ? Math.max(2, Math.round(railSize * 1.5)) : Math.max(1, railSize);
+
+                                // Map some rail visual styles to dash patterns for connectors
+                                if (railStyle === 'dash-heavy') {
+                                    overridden.paintStyle.dashstyle = '12 6';
+                                } else if (railStyle === 'dash-subtle') {
+                                    overridden.paintStyle.dashstyle = '6 6';
+                                } else if (railStyle === 'dotted') {
+                                    overridden.paintStyle.dashstyle = '1 4';
+                                } else if (railStyle === 'striped' || railStyle === 'gradient' || railStyle === 'embossed') {
+                                    // these complex styles don't translate perfectly to stroke patterns;
+                                    // use a solid stroke with the rail color and a slightly larger width
+                                    overridden.paintStyle.dashstyle = null;
+                                }
+
+                                config = overridden;
+                            }
+                        } catch (err) {
+                            // ignore and use default config
+                        }
                         const anchors = c.anchors || getDirectionalAnchorsFrontend(sourceEl, targetEl) || "Continuous";
                         const connection = instance.connect({
                             source: sourceEl,

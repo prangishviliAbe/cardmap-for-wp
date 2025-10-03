@@ -585,6 +585,7 @@
                 }
             }
 
+            
             (this.mapData.rails || []).forEach(rr => {
                 const d = document.getElementById(rr.id);
                 if (d) {
@@ -1174,7 +1175,9 @@
                 // Add connection style settings to rail
                 const railSettings = document.createElement('div');
                 railSettings.className = 'rail-settings';
-                railSettings.style.cssText = 'position:fixed;top:60px;right:20px;background:rgba(0,0,0,0.95);color:white;padding:12px;border-radius:6px;font-size:13px;display:none;white-space:nowrap;z-index:999999;border:2px solid #666;box-shadow:0 4px 12px rgba(0,0,0,0.6);min-width:180px;';
+                // Use absolute positioning so panel appears near the rail itself (inside scaled editor)
+                // We'll compute X/Y on hover; start hidden off-screen.
+                railSettings.style.cssText = 'position:absolute;left:-9999px;top:-9999px;background:rgba(0,0,0,0.95);color:white;padding:12px;border-radius:6px;font-size:13px;display:none;white-space:nowrap;z-index:999999;border:2px solid #666;box-shadow:0 4px 12px rgba(0,0,0,0.6);min-width:180px;';
                 
                 const optionsHtml = Object.keys(this.config.availableLineStyles || {}).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('');
                 railSettings.innerHTML = `
@@ -1192,6 +1195,7 @@
                 railEl.addEventListener('mouseenter', () => {
                     console.log('Rail hover enter:', r.id);
                     if (!this.connectMode && !this.deleteRailMode) {
+                        this.positionRailSettings(railEl, railSettings, r);
                         railSettings.style.display = 'block';
                     }
                 });
@@ -1205,6 +1209,8 @@
                 });
                 // Keep settings visible when hovering the settings panel itself
                 railSettings.addEventListener('mouseenter', () => {
+                    // Reposition again in case the user hovered after panning/zooming
+                    this.positionRailSettings(railEl, railSettings, r);
                     railSettings.style.display = 'block';
                 });
                 railSettings.addEventListener('mouseleave', () => {
@@ -1334,6 +1340,50 @@
             if (railData && this.railSizeInput) {
                 this.railSizeInput.value = railData.size || 8;
             }
+        }
+
+        /**
+         * Position the floating rail settings panel adjacent to the rail element.
+         * Attempts to place it above (preferred) or to the right if insufficient space.
+         */
+        positionRailSettings(railEl, settingsEl, railData) {
+            if (!railEl || !settingsEl) return;
+            // Ensure settings are measurable
+            settingsEl.style.left = '-9999px';
+            settingsEl.style.top = '-9999px';
+            settingsEl.style.display = 'block';
+
+            // Because the editor is scaled & translated, compute positions in editor coordinates
+            const editorRect = this.editor.getBoundingClientRect();
+            const railRect = railEl.getBoundingClientRect();
+
+            // Convert rail top/left from viewport back into editor local (pre-transform) space.
+            // Current transform: translate(offsetX, offsetY) scale(scale)
+            const localX = (railRect.left - editorRect.left) / this.scale;
+            const localY = (railRect.top - editorRect.top) / this.scale;
+            const localW = railRect.width / this.scale;
+            const localH = railRect.height / this.scale;
+
+            const panelRect = settingsEl.getBoundingClientRect();
+            const panelW = panelRect.width / this.scale;
+            const panelH = panelRect.height / this.scale;
+
+            // Default: place above center of rail
+            let targetX = localX + (localW / 2) - (panelW / 2);
+            let targetY = localY - panelH - 12; // 12px gap
+
+            // If above goes out of top bounds, place below
+            if (targetY < 0) {
+                targetY = localY + localH + 12;
+            }
+            // Clamp horizontally within editor bounds
+            const editorWidth = (this.editor.scrollWidth || this.editor.clientWidth || 2000);
+            if (targetX < 0) targetX = 8;
+            if (targetX + panelW > editorWidth) targetX = editorWidth - panelW - 8;
+
+            // Apply coordinates in editor's transformed space
+            settingsEl.style.left = `${targetX}px`;
+            settingsEl.style.top = `${targetY}px`;
         }
 
         /**

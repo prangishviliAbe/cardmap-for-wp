@@ -43,6 +43,7 @@
             this.railResizeState = null;
             this.railSettingsPinned = false;
             this._lastEscapeAt = 0;
+            this._saveTimeout = null;
             
             // Pan & Zoom state
             this.scale = 1;
@@ -1242,7 +1243,10 @@
                 
                 const optionsHtml = Object.keys(this.config.availableLineStyles || {}).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('');
                 railSettings.innerHTML = `
-                    <div style="margin-bottom:8px;font-weight:bold;color:#ffeb3b;">🛤️ Rail Settings</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div style="font-weight:bold;color:#ffeb3b;">🛤️ Rail Settings</div>
+                        <button class="rail-settings-close" title="Close" style="background:transparent;border:none;color:#fff;font-size:14px;cursor:pointer;padding:2px 6px;">✕</button>
+                    </div>
                     <div style="margin-bottom:5px;font-size:11px;color:#ccc;">Rail ID: ${r.id}</div>
                     <label style="display:block;margin-bottom:5px;font-weight:bold;">Connection Style:</label>
                     <select class="rail-connection-style" style="font-size:12px;background:white;color:black;padding:4px;border-radius:3px;width:150px;">
@@ -1313,9 +1317,19 @@
                 }
 
                 // Rail appearance controls (style, color, thickness)
-                const railAppearanceSelect = railSettings.querySelector('.rail-appearance-style');
+                    const railAppearanceSelect = railSettings.querySelector('.rail-appearance-style');
                 const railColorInput = railSettings.querySelector('.rail-color-input');
                 const railThicknessInput = railSettings.querySelector('.rail-thickness-input');
+                const railSettingsClose = railSettings.querySelector('.rail-settings-close');
+
+                if (railSettingsClose) {
+                    railSettingsClose.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        // hide and unpin
+                        railSettings.style.display = 'none';
+                        this.railSettingsPinned = false;
+                    });
+                }
 
                 if (railAppearanceSelect) {
                     railAppearanceSelect.value = r.railStyle || 'solid';
@@ -1342,17 +1356,18 @@
                         this.saveMapData();
                     });
 
-                    railThicknessInput.addEventListener('change', () => {
+                    // Update thickness live on input and debounce saving to avoid excessive requests
+                    railThicknessInput.addEventListener('input', () => {
                         const newSize = parseInt(railThicknessInput.value, 10) || 8;
                         r.size = newSize;
                         if (r.orientation === 'vertical') r.width = newSize;
                         else r.height = newSize;
-                        // update DOM attribute and re-render rail only; do not modify connector paintStyle
                         const dom = document.getElementById(r.id);
                         if (dom) dom.setAttribute('data-rail-size', r.size);
                         this.renderRail(r);
                         if (this.instance && this.instance.repaintEverything) this.instance.repaintEverything();
-                        this.saveMapData();
+                        if (this._saveTimeout) clearTimeout(this._saveTimeout);
+                        this._saveTimeout = setTimeout(() => { this.saveMapData(); this._saveTimeout = null; }, 450);
                     });
                 }
             }

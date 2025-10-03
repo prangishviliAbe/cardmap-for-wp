@@ -531,6 +531,14 @@
         }
 
         /**
+         * Opens the node inspector (settings panel) for the given node.
+         * @param {HTMLElement} node The node element.
+         */
+        openNodeInspector(node) {
+            node.classList.toggle('settings-visible');
+        }
+
+        /**
          * Handles the start of a node drag operation.
          */
         onNodeDragStart(params) {

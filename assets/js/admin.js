@@ -1192,8 +1192,13 @@
                     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
                         <select class="rail-appearance-style" style="font-size:12px;padding:4px;border-radius:3px;">
                             <option value="solid">Solid</option>
-                            <option value="dashed">Dashed</option>
+                            <option value="dash-heavy">Dashed (heavy)</option>
+                            <option value="dash-subtle">Dashed (subtle)</option>
                             <option value="dotted">Dotted</option>
+                            <option value="double-line">Double line</option>
+                            <option value="striped">Striped</option>
+                            <option value="gradient">Gradient</option>
+                            <option value="embossed">Embossed</option>
                         </select>
                         <input type="color" class="rail-color-input" title="Rail color" style="width:34px;height:28px;padding:0;border-radius:4px;border:1px solid #444;" />
                         <input type="number" class="rail-thickness-input" min="1" max="200" style="width:64px;padding:4px;border-radius:3px;border:1px solid #444;" />
@@ -1315,28 +1320,76 @@
             if (railBarEl) {
                 const color = r.railColor || this.config.lineColor || '#A61832';
                 const style = r.railStyle || 'solid';
+                const thickness = Math.max(1, r.size || 8);
                 // reset
                 railBarEl.style.backgroundImage = '';
                 railBarEl.style.backgroundColor = '';
                 railBarEl.style.border = 'none';
+                railBarEl.style.boxShadow = '';
 
-                if (style === 'solid') {
-                    railBarEl.style.backgroundColor = color;
-                } else if (style === 'dashed' || style === 'dotted') {
-                    // use a repeating-linear-gradient to emulate dashed/dotted lines
-                    const sizePx = Math.max(2, r.size || 8);
-                    const gap = style === 'dashed' ? Math.max(6, sizePx * 2) : Math.max(3, Math.floor(sizePx / 2));
-                    const repeat = `repeating-linear-gradient(90deg, ${color} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gap}px)`;
-                    // For vertical rails, rotate gradient
+                // helper to set repeating gradient with orientation
+                const setRepeat = (col, sizePx, gapPx) => {
                     if (r.orientation === 'vertical') {
-                        railBarEl.style.backgroundImage = `repeating-linear-gradient(180deg, ${color} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gap}px)`;
+                        railBarEl.style.backgroundImage = `repeating-linear-gradient(180deg, ${col} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gapPx}px)`;
                     } else {
-                        railBarEl.style.backgroundImage = repeat;
+                        railBarEl.style.backgroundImage = `repeating-linear-gradient(90deg, ${col} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gapPx}px)`;
                     }
                     railBarEl.style.backgroundRepeat = 'repeat';
                     railBarEl.style.backgroundSize = 'auto';
-                    // ensure transparent background to show gradient
                     railBarEl.style.backgroundColor = 'transparent';
+                };
+
+                switch (style) {
+                    case 'solid':
+                        railBarEl.style.backgroundColor = color;
+                        break;
+                    case 'dash-heavy':
+                        // chunky dashes
+                        setRepeat(color, Math.max(6, thickness * 1.2), Math.max(8, thickness * 1.5));
+                        break;
+                    case 'dash-subtle':
+                        // thin subtle dashes
+                        setRepeat(color, Math.max(3, Math.floor(thickness / 1.5)), Math.max(6, thickness * 1.2));
+                        break;
+                    case 'dotted':
+                        // small dots
+                        setRepeat(color, Math.max(2, Math.floor(thickness / 2)), Math.max(4, Math.floor(thickness / 1.5)));
+                        break;
+                    case 'double-line':
+                        // two parallel lines using background linear-gradients
+                        if (r.orientation === 'vertical') {
+                            railBarEl.style.backgroundImage = `linear-gradient(${color} 0 0), linear-gradient(${color} 0 0)`;
+                            railBarEl.style.backgroundSize = `${Math.max(1, Math.floor(thickness/3))}px 100%, ${Math.max(1, Math.floor(thickness/3))}px 100%`;
+                            railBarEl.style.backgroundPosition = `0 10%, 0 70%`;
+                        } else {
+                            railBarEl.style.backgroundImage = `linear-gradient(${color} 0 0), linear-gradient(${color} 0 0)`;
+                            railBarEl.style.backgroundSize = `100% ${Math.max(1, Math.floor(thickness/3))}px, 100% ${Math.max(1, Math.floor(thickness/3))}px`;
+                            railBarEl.style.backgroundPosition = `10% 0, 70% 0`;
+                        }
+                        railBarEl.style.backgroundRepeat = 'no-repeat';
+                        break;
+                    case 'striped':
+                        // diagonal stripe overlay
+                        if (r.orientation === 'vertical') {
+                            railBarEl.style.backgroundImage = `linear-gradient(135deg, ${color} 25%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 50%, ${color} 50%, ${color} 75%, rgba(0,0,0,0) 75%, rgba(0,0,0,0) 100%)`;
+                        } else {
+                            railBarEl.style.backgroundImage = `linear-gradient(45deg, ${color} 25%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 50%, ${color} 50%, ${color} 75%, rgba(0,0,0,0) 75%, rgba(0,0,0,0) 100%)`;
+                        }
+                        railBarEl.style.backgroundSize = `${Math.max(8, thickness*2)}px ${Math.max(8, thickness*2)}px`;
+                        railBarEl.style.backgroundRepeat = 'repeat';
+                        break;
+                    case 'gradient':
+                        // subtle gradient using the chosen color as base
+                        railBarEl.style.backgroundImage = `linear-gradient(90deg, ${color} 0%, rgba(255,255,255,0.08) 50%, ${color} 100%)`;
+                        railBarEl.style.backgroundRepeat = 'no-repeat';
+                        break;
+                    case 'embossed':
+                        // use a shadow to give embossed effect
+                        railBarEl.style.backgroundColor = color;
+                        railBarEl.style.boxShadow = r.orientation === 'vertical' ? `inset -2px 0 4px rgba(255,255,255,0.15), inset 2px 0 6px rgba(0,0,0,0.2)` : `inset 0 -2px 4px rgba(255,255,255,0.15), inset 0 2px 6px rgba(0,0,0,0.2)`;
+                        break;
+                    default:
+                        railBarEl.style.backgroundColor = color;
                 }
             }
 

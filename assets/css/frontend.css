@@ -1,0 +1,310 @@
+.cardmap-frontend-wrapper {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    border: 1px solid #ddd;
+    overflow: hidden;
+    background-color: #ebf1ff;
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUiIGhlaWdodD0iMjUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9IiM4ODllY2MiLz48L3N2Zz4=');
+    cursor: grab;
+    transition: all 0.3s ease-in-out;
+}
+
+.cardmap-viewport {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.cardmap-pan-zoom-container {
+    position: relative;
+    width: 1200px;
+    height: 1000px;
+    transform-origin: 0 0;
+    transition: transform 0.3s ease-out;
+}
+
+.cardmap-node {
+    position: absolute;
+    width: 240px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    cursor: grab;
+    user-select: none;
+    transition: transform .12s, box-shadow .12s;
+    border: 1px solid #E0E0E0;
+}
+
+.cardmap-node a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+/* --- HOVER EFFECTS --- */
+
+/* Default hover is lift */
+.cardmap-node.hover-lift:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px);
+}
+
+/* Glow Effect */
+.cardmap-node.hover-glow:hover {
+    box-shadow: 0 0 20px rgba(34, 113, 177, 0.4);
+}
+
+/* Zoom Effect */
+.cardmap-node.hover-zoom:hover {
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+/* Border Highlight Effect */
+.cardmap-node.hover-border:hover {
+    border-color: #2271b1;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.cardmap-node.jsplumb-drag-selected {
+    box-shadow: 0 0 0 3px #A61832, 0 8px 25px rgba(0, 0, 0, 0.2);
+    border-color: #A61832;
+}
+
+.node-image-wrapper {
+    position: relative;
+}
+
+.node-image img {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    display: block;
+}
+
+.card-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    font-size: 14px;
+    color: white;
+    background-color: rgba(40, 40, 40, 0.7);
+    padding: 8px 12px;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 12px;
+    color: #222;
+    text-align: left;
+}
+
+.cardmap-controls {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.zoom-controls {
+    display: flex;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.zoom-controls button, .cardmap-fullscreen-btn {
+    background-color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 20px;
+    color: #A61832;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.cardmap-fullscreen-btn svg {
+    stroke: #A61832;
+}
+
+.zoom-controls button:hover, .cardmap-fullscreen-btn:hover {
+    background-color: #f4f4f4;
+}
+
+.zoom-controls button:focus, .cardmap-fullscreen-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 125, 255, 0.5);
+}
+
+.zoom-controls button:active, .cardmap-fullscreen-btn:active {
+    background-color: #e9e9e9;
+    transform: translateY(1px);
+}
+
+.cardmap-fullscreen-btn {
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.cardmap-zoom-display {
+    width: 50px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-size: 14px;
+    color: #A61832;
+    background-color: #fafafa;
+    border-left: 1px solid #eee;
+    border-right: 1px solid #eee;
+}
+
+/* Connector/jsPlumb Styles */
+.jtk-svg,
+.jtk-connector,
+svg.jtk-svg,
+svg .jtk-connector {
+    z-index: 100 !important;
+    position: absolute !important;
+    pointer-events: none !important;
+    display: block !important;
+}
+
+.jtk-svg path,
+.jtk-connector path,
+.cardmap-connector path {
+    fill: none !important;
+    /* Default draw animation; specific animation classes can override */
+    animation: cardmap-draw-line 1s ease-out forwards;
+}
+
+@keyframes cardmap-draw-line {
+    from {
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+    }
+    to {
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 0;
+    }
+}
+
+/* Connection animation helper class - base */
+.cardmap-connection-anim {
+    animation-fill-mode: forwards;
+    animation-timing-function: ease-out;
+}
+
+/* 1) draw (stroke reveal) - same as default */
+.conn-anim-draw { animation-name: cardmap-draw-line; }
+
+/* 2) fade */
+@keyframes cardmap-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.conn-anim-fade { animation-name: cardmap-fade-in; }
+
+/* 3) grow (increase stroke-width) */
+@keyframes cardmap-grow { from { stroke-width: 0; opacity: 0.9; } to { stroke-width: var(--stroke-width, 2); opacity: 1; } }
+.conn-anim-grow { animation-name: cardmap-grow; }
+
+/* 4) dash (dash reveal) */
+@keyframes cardmap-dash { from { stroke-dasharray: 1, 1000; stroke-dashoffset: 1000; } to { stroke-dasharray: 1000, 0; stroke-dashoffset: 0; } }
+.conn-anim-dash { animation-name: cardmap-dash; }
+
+/* 5) wipe-left and 6) wipe-right - simulate a wipe by animating a clip-path via SVG transform on the path's stroke-dashoffset */
+@keyframes cardmap-wipe-left { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+.conn-anim-wipe-left { animation-name: cardmap-wipe-left; }
+@keyframes cardmap-wipe-right { from { stroke-dashoffset: -1000; } to { stroke-dashoffset: 0; } }
+.conn-anim-wipe-right { animation-name: cardmap-wipe-right; }
+
+/* 7) bounce - draw with slight overshoot */
+@keyframes cardmap-bounce { 0% { stroke-dashoffset: 1000; } 80% { stroke-dashoffset: 0; } 90% { stroke-dashoffset: -40; } 100% { stroke-dashoffset: 0; } }
+.conn-anim-bounce { animation-name: cardmap-bounce; animation-timing-function: cubic-bezier(.2,.8,.4,1.4); }
+
+/* 8) pulse - fade and scale via stroke width mimic */
+@keyframes cardmap-pulse { 0% { opacity: 0; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
+.conn-anim-pulse { animation-name: cardmap-pulse; transform-origin: center; }
+
+/* 9) slide-up - translate the SVG path upward while fading in */
+@keyframes cardmap-slide-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.conn-anim-slide-up { animation-name: cardmap-slide-up; transform-origin: center; }
+
+/* 10) scale - scale from near-zero to full size */
+@keyframes cardmap-scale { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+.conn-anim-scale { animation-name: cardmap-scale; transform-origin: center; }
+
+/* Per-node style variations */
+.cardmap-node.style-default {
+    border-color: #E0E0E0;
+}
+
+.cardmap-node.style-highlight {
+    box-shadow: 0 6px 22px rgba(166, 24, 50, 0.12);
+    border-color: #A61832;
+}
+
+.cardmap-node.style-highlighted {
+    border-color: #ffc107;
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.6);
+}
+
+.cardmap-node.style-muted {
+    opacity: 0.88;
+    filter: grayscale(10%);
+}
+
+/* Rail styles */
+.cardmap-rail {
+    position: absolute;
+    /* container; the visible bar sits inside */
+    border-radius: 4px;
+}
+
+.cardmap-rail:not(.vertical) {
+    height: 8px;
+}
+
+.cardmap-rail.vertical {
+    width: 8px;
+}
+
+/* The inner visible bar that represents the rail thickness */
+.cardmap-rail .rail-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    background-color: #A61832;
+    border-radius: 4px;
+    /* ensure rails are visible above background and nodes but beneath connectors */
+    z-index: 20;
+    width: 100%;
+    height: 100%;
+}
+
+/* When hidden, make the bar transparent (we keep the rail element for hit tests) */
+.cardmap-rail.rail-thickness-hidden .rail-bar {
+    background-color: transparent !important;
+}
+
+/* Fullscreen */
+.cardmap-frontend-wrapper:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+}

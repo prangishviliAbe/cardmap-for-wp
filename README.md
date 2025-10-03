@@ -1,44 +1,37 @@
-# Animatrix for Elementor
+![CardMap for WP Banner](assets/images/banner.png)
 
-![Plugin Cover](assets/cover.png)
+# CardMap for WP
 
-Animatrix for Elementor is a lightweight WordPress plugin that adds a set of entrance, hover and scroll-triggered CSS animations to Elementor widgets. It provides easy-to-use controls in the Elementor editor so you can apply animations per-widget without writing custom code.
+A WordPress plugin for creating interactive, node-based maps with connections. Built with jsPlumb, this plugin allows you to visually design and display complex diagrams, flowcharts, or maps on your WordPress site using a simple shortcode.
 
-Key features
+## Features
 
-- Simple entrance and hover animations for Elementor widgets
-- Scroll-triggered animations using the IntersectionObserver API
-- Cleanly separated assets under `assets/` for easy packaging
-- Ready for translation (text domain: `animatrix-for-elementor`)
+- **Custom Post Type:** Adds a "CardMaps" post type to your WordPress admin for easy management.
+- **Visual Editor:** A drag-and-drop interface to add, position, and connect nodes (cards).
+- **Node Customization:** Add titles, captions, images, and links to each card.
+- **Connection Styling:** Customize the color, thickness, and style of the connecting lines.
+- **Rails System:** Add horizontal or vertical rails to align nodes neatly.
+- **Frontend Rendering:** Display your map on any page or post with the `[cardmap id="..."]` shortcode.
+- **Interactive Frontend:** Users can pan and zoom the map for better viewing.
+- **Fullscreen Mode:** A dedicated button to view the map in fullscreen.
 
-Installation
+## Installation
 
-1. Option A — Install from GitHub (recommended for development):
-   - Clone this repository into your WordPress `wp-content/plugins/` directory and activate from the Plugins screen:
+1.  Download the plugin as a `.zip` file from the GitHub repository.
+2.  In your WordPress admin dashboard, navigate to **Plugins > Add New**.
+3.  Click **Upload Plugin** and select the `.zip` file you downloaded.
+4.  Click **Install Now** and then **Activate Plugin**.
 
-```bash
-git clone https://github.com/prangishviliAbe/cardmap-for-wp.git animatrix-for-elementor
-```
+## How to Use
 
-2. Option B — Upload ZIP:
-   - Compress the plugin folder into a `.zip` and upload via WordPress Admin > Plugins > Add New > Upload Plugin.
-
-Usage
-
-1. Open Elementor and edit any page.
-2. Select a widget, go to the Advanced tab and look for the "Animatrix Animations" section (or similar). Choose entrance, hover or scroll animation and tweak the duration/delay.
-3. For scroll-triggered animations, the plugin uses IntersectionObserver; elements will animate when scrolled into view.
-
-Developer notes
-
-- Assets live in `assets/css/custom-animations.css` and `assets/js/custom-animations.js`.
-- Translations: `load_plugin_textdomain( 'animatrix-for-elementor' )` is used; add `.po/.mo` files under `languages/`.
-- Uninstall: `uninstall.php` is present as a placeholder for cleaning up any plugin options.
-
-Contributing
-
-Please open issues or PRs on GitHub. When submitting PRs, include a short description, the files changed and a test plan.
-
-License
-
-This project is licensed under the GNU General Public License v2 (or later).
+1.  After activating the plugin, a new **CardMaps** menu will appear in your WordPress admin sidebar.
+2.  Click **CardMaps > Add New** to create a new map.
+3.  Give your map a title and use the visual editor on the page to build your map:
+    - **Add Node:** Creates a new card on the canvas.
+    - **Add Rail:** Adds a horizontal or vertical rail for alignment.
+    - **Connect Mode:** Click this, then click two nodes to draw a connection between them.
+    - **Delete Mode:** Click this, then click a node to delete it.
+4.  Double-click any node to edit its content (title, caption, image, link).
+5.  Click the **Save Map** button in the editor toolbar to save your progress.
+6.  Once you are finished, click the main **Publish** or **Update** button for the post.
+7.  To display the map, copy the shortcode provided in the "Shortcode" meta box (e.g., `[cardmap id="123"]`) and paste it into any post or page.

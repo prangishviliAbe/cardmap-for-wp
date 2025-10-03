@@ -125,7 +125,7 @@ use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 $myUpdateChecker = PucFactory::buildUpdateChecker(
     'https://github.com/prangishviliAbe/cardmap-for-wp/',
     __FILE__,
-    'cardmap'
+    'cardmap-for-wp'
 );
 
 //Tell the update checker to look for a readme.txt file for details.

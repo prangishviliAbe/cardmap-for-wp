@@ -501,7 +501,12 @@
             const connections = this.instance.getConnections({ source: params.el.id }).concat(this.instance.getConnections({ target: params.el.id }));
             connections.forEach(conn => {
                 // Store original anchors at the start of any drag
-                conn._originalAnchors = conn.getAnchors();
+                // Store original anchors safely
+                try {
+                    conn._originalAnchors = conn.getAnchors ? conn.getAnchors() : conn.anchors;
+                } catch (e) {
+                    conn._originalAnchors = conn.anchors || ['Continuous', 'Continuous'];
+                }
             });
         }
 
@@ -519,7 +524,15 @@
                 if (rail) {
                     const connections = this.instance.getConnections({ source: node.id }).concat(this.instance.getConnections({ target: node.id }));
                     const simpleAnchors = rail.orientation === 'vertical' ? ["LeftMiddle", "RightMiddle"] : ["TopCenter", "BottomCenter"];
-                    connections.forEach(conn => conn.setAnchors(simpleAnchors));
+                    connections.forEach(conn => {
+                        try {
+                            if (conn.setAnchors) {
+                                conn.setAnchors(simpleAnchors);
+                            }
+                        } catch (e) {
+                            console.warn('Could not set anchors during drag:', e);
+                        }
+                    });
                 }
             }
 
@@ -645,14 +658,32 @@
                     }
                     
                     // Set the determined anchors for all connections of the node
-                    connections.forEach(c => c.setAnchors(anchors));
+                    connections.forEach(c => {
+                        try {
+                            if (c.setAnchors) {
+                                c.setAnchors(anchors);
+                            }
+                        } catch (e) {
+                            console.warn('Could not set anchors:', e);
+                        }
+                    });
 
                 } else {
                     delete draggedNode.attachedRail;
                     // Restore original or directional anchors when not on a rail
                     connections.forEach(conn => {
                         if (conn._originalAnchors) {
-                            conn.setAnchors(conn._originalAnchors);
+                            try {
+                                try {
+                                    if (conn.setAnchors && conn._originalAnchors) {
+                                        conn.setAnchors(conn._originalAnchors);
+                                    }
+                                } catch (e) {
+                                    console.warn('Could not restore anchors:', e);
+                                }
+                            } catch (e) {
+                                console.warn('Could not restore anchors:', e);
+                            }
                             delete conn._originalAnchors;
                         } else {
                             const sourceEl = document.getElementById(conn.sourceId);
@@ -1133,26 +1164,41 @@
                 // Add connection style settings to rail
                 const railSettings = document.createElement('div');
                 railSettings.className = 'rail-settings';
-                railSettings.style.cssText = 'position:absolute;top:-40px;left:0;background:rgba(0,0,0,0.9);color:white;padding:8px;border-radius:4px;font-size:12px;display:block;white-space:nowrap;z-index:9999;border:1px solid #333;';
-                console.log('Available line styles for rail:', this.config.availableLineStyles);
-                const optionsHtml = Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('');
+                railSettings.style.cssText = 'position:fixed;top:60px;right:20px;background:rgba(0,0,0,0.95);color:white;padding:12px;border-radius:6px;font-size:13px;display:none;white-space:nowrap;z-index:999999;border:2px solid #666;box-shadow:0 4px 12px rgba(0,0,0,0.6);min-width:180px;';
+                
+                const optionsHtml = Object.keys(this.config.availableLineStyles || {}).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('');
                 railSettings.innerHTML = `
-                    <div style="margin-bottom:5px;font-weight:bold;">Rail: ${r.id}</div>
-                    <label style="margin-right:10px;">Connection Style:</label>
-                    <select class="rail-connection-style" style="font-size:11px;background:white;color:black;">
+                    <div style="margin-bottom:8px;font-weight:bold;color:#ffeb3b;">🛤️ Rail Settings</div>
+                    <div style="margin-bottom:5px;font-size:11px;color:#ccc;">Rail ID: ${r.id}</div>
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;">Connection Style:</label>
+                    <select class="rail-connection-style" style="font-size:12px;background:white;color:black;padding:4px;border-radius:3px;width:150px;">
                         ${optionsHtml}
                     </select>
+                    <div style="margin-top:8px;font-size:11px;color:#ccc;">💡 Hover rail to show/hide</div>
                 `;
                 railEl.appendChild(railSettings);
 
-                // Show/hide rail settings on hover (temporarily always visible for debugging)
+                // Show/hide rail settings on hover
                 railEl.addEventListener('mouseenter', () => {
                     console.log('Rail hover enter:', r.id);
-                    railSettings.style.display = 'block';
+                    if (!this.connectMode && !this.deleteRailMode) {
+                        railSettings.style.display = 'block';
+                    }
                 });
                 railEl.addEventListener('mouseleave', () => {
                     console.log('Rail hover leave:', r.id);
-                    // railSettings.style.display = 'none'; // Commented out for debugging
+                    setTimeout(() => {
+                        if (!railSettings.matches(':hover')) {
+                            railSettings.style.display = 'none';
+                        }
+                    }, 200);
+                });
+                // Keep settings visible when hovering the settings panel itself
+                railSettings.addEventListener('mouseenter', () => {
+                    railSettings.style.display = 'block';
+                });
+                railSettings.addEventListener('mouseleave', () => {
+                    railSettings.style.display = 'none';
                 });
 
                 // Handle rail connection style changes
@@ -1179,17 +1225,33 @@
                             const newStyle = r.connectionStyle || this.config.lineStyle;
                             const config = this.getConnectorConfig(newStyle);
                             try {
-                                c.setPaintStyle && c.setPaintStyle(config.paintStyle);
-                                if (config.connector) c.setConnector && c.setConnector(config.connector);
-                                c.removeAllOverlays && c.removeAllOverlays();
+                                console.log('Updating rail connection with style:', newStyle);
+                                if (c.setPaintStyle && config.paintStyle) {
+                                    c.setPaintStyle(config.paintStyle);
+                                }
+                                if (c.setConnector && config.connector) {
+                                    c.setConnector(config.connector);
+                                }
+                                if (c.removeAllOverlays) {
+                                    c.removeAllOverlays();
+                                }
                                 if (config.overlays && Array.isArray(config.overlays)) {
-                                    config.overlays.forEach(overlay => c.addOverlay && c.addOverlay(overlay));
+                                    config.overlays.forEach(overlay => {
+                                        if (c.addOverlay) c.addOverlay(overlay);
+                                    });
                                 }
                                 // Update the mapData to reflect the style change
                                 const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
-                                if (connData) connData.style = newStyle;
+                                if (connData) {
+                                    connData.style = newStyle;
+                                    console.log('Updated mapData connection style to:', newStyle);
+                                }
+                                // Force repaint
+                                if (this.instance && this.instance.repaintEverything) {
+                                    this.instance.repaintEverything();
+                                }
                             } catch (err) {
-                                console.warn('Error updating rail connection style:', err);
+                                console.error('Error updating rail connection style:', err);
                             }
                         });
                         this.saveMapData();

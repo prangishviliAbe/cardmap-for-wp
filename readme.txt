@@ -2,7 +2,7 @@
 Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
-Tested up to: 6.6
+Tested up to: 6.8
 Stable tag: 1.5.3
 Requires PHP: 7.4
 License: GPLv2 or later

@@ -1290,13 +1290,46 @@
 
                     railAppearanceSelect.addEventListener('change', () => {
                         r.railStyle = railAppearanceSelect.value;
+                        // update DOM attribute immediately
+                        const dom = document.getElementById(r.id);
+                        if (dom) dom.setAttribute('data-rail-style', r.railStyle);
                         this.renderRail(r);
+
+                        // update jsPlumb connections attached to this rail to visually match
+                        try {
+                            const allConnections = this.instance.getConnections();
+                            const railConnections = allConnections.filter(conn => (conn.sourceId === r.id || conn.targetId === r.id || (conn.source && conn.source.id === r.id) || (conn.target && conn.target.id === r.id)));
+                            railConnections.forEach(c => {
+                                try {
+                                    const newColor = r.railColor || this.config.lineColor || '#A61832';
+                                    const newWidth = Math.max(1, r.size || this.config.lineThickness || 2);
+                                    const paint = { stroke: newColor, strokeWidth: newWidth };
+                                    // map visual styles to dash patterns
+                                    if (r.railStyle === 'dash-heavy') paint.dashstyle = '12 6';
+                                    else if (r.railStyle === 'dash-subtle') paint.dashstyle = '6 6';
+                                    else if (r.railStyle === 'dotted') paint.dashstyle = '1 4';
+                                    else paint.dashstyle = null;
+                                    if (c.setPaintStyle) c.setPaintStyle(paint);
+                                } catch (err) { console.warn('Error updating connection paint for rail change', err); }
+                            });
+                        } catch (err) { console.warn('Error updating rail connections after appearance change', err); }
+
                         this.saveMapData();
                     });
 
                     railColorInput.addEventListener('input', () => {
                         r.railColor = railColorInput.value;
+                        // update DOM attribute and visible rails/connections immediately
+                        const dom = document.getElementById(r.id);
+                        if (dom) dom.setAttribute('data-rail-color', r.railColor);
                         this.renderRail(r);
+                        try {
+                            const allConnections = this.instance.getConnections();
+                            const railConnections = allConnections.filter(conn => (conn.sourceId === r.id || conn.targetId === r.id || (conn.source && conn.source.id === r.id) || (conn.target && conn.target.id === r.id)));
+                            railConnections.forEach(c => {
+                                try { if (c.setPaintStyle) c.setPaintStyle({ stroke: r.railColor || this.config.lineColor }); } catch(e){}
+                            });
+                        } catch(e){}
                         this.saveMapData();
                     });
 
@@ -1305,7 +1338,17 @@
                         r.size = newSize;
                         if (r.orientation === 'vertical') r.width = newSize;
                         else r.height = newSize;
+                        // update DOM attribute and repaint connections
+                        const dom = document.getElementById(r.id);
+                        if (dom) dom.setAttribute('data-rail-size', r.size);
                         this.renderRail(r);
+                        try {
+                            const allConnections = this.instance.getConnections();
+                            const railConnections = allConnections.filter(conn => (conn.sourceId === r.id || conn.targetId === r.id || (conn.source && conn.source.id === r.id) || (conn.target && conn.target.id === r.id)));
+                            railConnections.forEach(c => {
+                                try { if (c.setPaintStyle) c.setPaintStyle({ strokeWidth: Math.max(1, r.size) }); } catch(e){}
+                            });
+                        } catch(e){}
                         if (this.instance && this.instance.repaintEverything) this.instance.repaintEverything();
                         this.saveMapData();
                     });

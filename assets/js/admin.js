@@ -266,7 +266,13 @@
                     const targetEl = document.getElementById(c.target);
                     if (!sourceEl || !targetEl) return;
 
-                    const connStyle = c.style || this.config.lineStyle || 'straight';
+                    // Get connection style priority: connection's own style > source node's style > target node's style > global default
+                    let connStyle = c.style;
+                    if (!connStyle) {
+                        const sourceNodeData = this.mapData.nodes.find(n => n.id === c.source) || {};
+                        const targetNodeData = this.mapData.nodes.find(n => n.id === c.target) || {};
+                        connStyle = sourceNodeData.connectionStyle || targetNodeData.connectionStyle || this.config.lineStyle || 'straight';
+                    }
                     const config = this.getConnectorConfig(connStyle);
                     
                     // normalize saved anchors: allow {type:'precise',value:[x,y,ox,oy]} entries
@@ -405,14 +411,53 @@
                 if (nodeData.connectionStyle) connStyleSelect.value = nodeData.connectionStyle;
                 connStyleSelect.addEventListener('change', () => {
                     nodeData.connectionStyle = connStyleSelect.value;
-                    // Update existing connections that originate from this node to use the new style
-                    const conns = this.instance.getConnections({ source: node.id });
-                    conns.forEach(c => {
-                        const config = this.getConnectorConfig(nodeData.connectionStyle || this.config.lineStyle);
+                    // Update existing connections that involve this node (both as source and target)
+                    const sourceConns = this.instance.getConnections({ source: node.id });
+                    const targetConns = this.instance.getConnections({ target: node.id });
+                    
+                    // Update connections where this node is the source
+                    sourceConns.forEach(c => {
+                        const newStyle = nodeData.connectionStyle || this.config.lineStyle;
+                        const config = this.getConnectorConfig(newStyle);
                         try {
                             c.setPaintStyle && c.setPaintStyle(config.paintStyle);
                             if (config.connector) c.setConnector && c.setConnector(config.connector);
-                        } catch (err) {}
+                            // Update overlays (arrows, etc.)
+                            c.removeAllOverlays && c.removeAllOverlays();
+                            if (config.overlays && Array.isArray(config.overlays)) {
+                                config.overlays.forEach(overlay => c.addOverlay && c.addOverlay(overlay));
+                            }
+                            // Update the mapData to reflect the style change
+                            const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
+                            if (connData) connData.style = newStyle;
+                        } catch (err) {
+                            console.warn('Error updating connection style:', err);
+                        }
+                    });
+                    
+                    // Update connections where this node is the target (only if target node doesn't have its own style)
+                    targetConns.forEach(c => {
+                        const sourceNodeId = c.sourceId;
+                        const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceNodeId) || {};
+                        // Only update if the source node doesn't have its own connection style
+                        if (!sourceNodeData.connectionStyle) {
+                            const newStyle = nodeData.connectionStyle || this.config.lineStyle;
+                            const config = this.getConnectorConfig(newStyle);
+                            try {
+                                c.setPaintStyle && c.setPaintStyle(config.paintStyle);
+                                if (config.connector) c.setConnector && c.setConnector(config.connector);
+                                // Update overlays (arrows, etc.)
+                                c.removeAllOverlays && c.removeAllOverlays();
+                                if (config.overlays && Array.isArray(config.overlays)) {
+                                    config.overlays.forEach(overlay => c.addOverlay && c.addOverlay(overlay));
+                                }
+                                // Update the mapData to reflect the style change
+                                const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
+                                if (connData) connData.style = newStyle;
+                            } catch (err) {
+                                console.warn('Error updating connection style:', err);
+                            }
+                        }
                     });
                 });
             }

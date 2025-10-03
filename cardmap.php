@@ -54,11 +54,11 @@ function cardmap_admin_assets( $hook ) {
             'post_id' => $post_id,
             'map_data' => $map_data,
             'line_style' => get_option( 'cardmap_line_style', 'straight-with-arrows' ),
-            'available_line_styles' => json_decode( get_option( 'cardmap_line_styles', '{}' ), true ),
+            'available_line_styles' => json_decode( get_option( 'cardmap_line_styles', json_encode( [ 'straight' => 'Straight', 'straight-with-arrows' => 'Straight with Arrows', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart', 'flowchart-with-arrows' => 'Flowchart with Arrows' ] ) ), true ),
             'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
             'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
             'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
-            'node_styles' => json_decode( get_option( 'cardmap_node_styles', '{}' ), true ),
+            'node_styles' => json_decode( get_option( 'cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ] ) ), true ),
         ] );
     }
 

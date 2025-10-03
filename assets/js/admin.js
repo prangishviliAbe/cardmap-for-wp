@@ -1368,6 +1368,9 @@
 
             // set bar appearance (color, dashed/dotted/solid)
             const railBarEl = railEl.querySelector('.rail-bar');
+            // Ensure the outer rail container doesn't paint a default solid background
+            // so that the inner .rail-bar is fully visible for all styles.
+            try { railEl.style.background = 'transparent'; } catch(e) {}
             if (railBarEl) {
                 const color = r.railColor || this.config.lineColor || '#A61832';
                 const style = r.railStyle || 'solid';

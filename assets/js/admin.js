@@ -1187,6 +1187,18 @@
                     <select class="rail-connection-style" style="font-size:12px;background:white;color:black;padding:4px;border-radius:3px;width:150px;">
                         ${optionsHtml}
                     </select>
+                    <hr style="border:0;border-top:1px solid rgba(255,255,255,0.08);margin:8px 0">
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;">Rail Appearance</label>
+                    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+                        <select class="rail-appearance-style" style="font-size:12px;padding:4px;border-radius:3px;">
+                            <option value="solid">Solid</option>
+                            <option value="dashed">Dashed</option>
+                            <option value="dotted">Dotted</option>
+                        </select>
+                        <input type="color" class="rail-color-input" title="Rail color" style="width:34px;height:28px;padding:0;border-radius:4px;border:1px solid #444;" />
+                        <input type="number" class="rail-thickness-input" min="1" max="200" style="width:64px;padding:4px;border-radius:3px;border:1px solid #444;" />
+                    </div>
+                    <div style="margin-top:4px;font-size:11px;color:#ccc;">Change rail thickness, color, and visual style (solid/dashed/dotted).</div>
                     <div style="margin-top:8px;font-size:11px;color:#ccc;">💡 Hover rail to show/hide</div>
                 `;
                 railEl.appendChild(railSettings);
@@ -1230,46 +1242,64 @@
                         r.connectionStyle = railConnStyleSelect.value;
                         // Update existing connections involving this rail
                         const allConnections = this.instance.getConnections();
-                        console.log('All connections:', allConnections.length);
                         const railConnections = allConnections.filter(conn => {
-                            const sourceMatch = conn.sourceId === r.id || conn.source.id === r.id;
-                            const targetMatch = conn.targetId === r.id || conn.target.id === r.id;
+                            const sourceMatch = conn.sourceId === r.id || (conn.source && conn.source.id === r.id);
+                            const targetMatch = conn.targetId === r.id || (conn.target && conn.target.id === r.id);
                             return sourceMatch || targetMatch;
                         });
-                        console.log('Rail connections found:', railConnections.length, 'for rail:', r.id);
                         railConnections.forEach(c => {
                             const newStyle = r.connectionStyle || this.config.lineStyle;
                             const config = this.getConnectorConfig(newStyle);
                             try {
-                                console.log('Updating rail connection with style:', newStyle);
                                 if (c.setPaintStyle && config.paintStyle) {
                                     c.setPaintStyle(config.paintStyle);
                                 }
                                 if (c.setConnector && config.connector) {
                                     c.setConnector(config.connector);
                                 }
-                                if (c.removeAllOverlays) {
-                                    c.removeAllOverlays();
-                                }
+                                if (c.removeAllOverlays) c.removeAllOverlays();
                                 if (config.overlays && Array.isArray(config.overlays)) {
-                                    config.overlays.forEach(overlay => {
-                                        if (c.addOverlay) c.addOverlay(overlay);
-                                    });
+                                    config.overlays.forEach(overlay => { if (c.addOverlay) c.addOverlay(overlay); });
                                 }
-                                // Update the mapData to reflect the style change
                                 const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
-                                if (connData) {
-                                    connData.style = newStyle;
-                                    console.log('Updated mapData connection style to:', newStyle);
-                                }
-                                // Force repaint
-                                if (this.instance && this.instance.repaintEverything) {
-                                    this.instance.repaintEverything();
-                                }
+                                if (connData) connData.style = newStyle;
                             } catch (err) {
                                 console.error('Error updating rail connection style:', err);
                             }
                         });
+                        this.saveMapData();
+                    });
+                }
+
+                // Rail appearance controls (style, color, thickness)
+                const railAppearanceSelect = railSettings.querySelector('.rail-appearance-style');
+                const railColorInput = railSettings.querySelector('.rail-color-input');
+                const railThicknessInput = railSettings.querySelector('.rail-thickness-input');
+
+                if (railAppearanceSelect) {
+                    railAppearanceSelect.value = r.railStyle || 'solid';
+                    railColorInput.value = r.railColor || this.config.lineColor || '#A61832';
+                    railThicknessInput.value = r.size || 8;
+
+                    railAppearanceSelect.addEventListener('change', () => {
+                        r.railStyle = railAppearanceSelect.value;
+                        this.renderRail(r);
+                        this.saveMapData();
+                    });
+
+                    railColorInput.addEventListener('input', () => {
+                        r.railColor = railColorInput.value;
+                        this.renderRail(r);
+                        this.saveMapData();
+                    });
+
+                    railThicknessInput.addEventListener('change', () => {
+                        const newSize = parseInt(railThicknessInput.value, 10) || 8;
+                        r.size = newSize;
+                        if (r.orientation === 'vertical') r.width = newSize;
+                        else r.height = newSize;
+                        this.renderRail(r);
+                        if (this.instance && this.instance.repaintEverything) this.instance.repaintEverything();
                         this.saveMapData();
                     });
                 }
@@ -1280,10 +1310,34 @@
             railEl.style.top = `${r.y}px`;
             railEl.classList.toggle('vertical', r.orientation === 'vertical');
 
-            // set bar appearance
+            // set bar appearance (color, dashed/dotted/solid)
             const railBarEl = railEl.querySelector('.rail-bar');
             if (railBarEl) {
-                railBarEl.style.backgroundColor = this.config.lineColor;
+                const color = r.railColor || this.config.lineColor || '#A61832';
+                const style = r.railStyle || 'solid';
+                // reset
+                railBarEl.style.backgroundImage = '';
+                railBarEl.style.backgroundColor = '';
+                railBarEl.style.border = 'none';
+
+                if (style === 'solid') {
+                    railBarEl.style.backgroundColor = color;
+                } else if (style === 'dashed' || style === 'dotted') {
+                    // use a repeating-linear-gradient to emulate dashed/dotted lines
+                    const sizePx = Math.max(2, r.size || 8);
+                    const gap = style === 'dashed' ? Math.max(6, sizePx * 2) : Math.max(3, Math.floor(sizePx / 2));
+                    const repeat = `repeating-linear-gradient(90deg, ${color} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gap}px)`;
+                    // For vertical rails, rotate gradient
+                    if (r.orientation === 'vertical') {
+                        railBarEl.style.backgroundImage = `repeating-linear-gradient(180deg, ${color} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gap}px)`;
+                    } else {
+                        railBarEl.style.backgroundImage = repeat;
+                    }
+                    railBarEl.style.backgroundRepeat = 'repeat';
+                    railBarEl.style.backgroundSize = 'auto';
+                    // ensure transparent background to show gradient
+                    railBarEl.style.backgroundColor = 'transparent';
+                }
             }
 
             // thickness is stored in r.size; update width/height depending on orientation

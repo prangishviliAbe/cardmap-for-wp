@@ -187,7 +187,39 @@ document.addEventListener('DOMContentLoaded', function() {
                         bar.style.width = railEl.style.width || '100%';
                         bar.style.height = railEl.style.height || '100%';
                     }
-                    bar.style.backgroundColor = mapConfig.line_color || '#A61832';
+                    // Read appearance from data attributes (added by shortcode serialization)
+                    const railStyle = railEl.dataset.railStyle || 'solid';
+                    const railColor = railEl.dataset.railColor || mapConfig.line_color || '#A61832';
+                    const railSizeAttr = parseInt(railEl.dataset.railSize, 10);
+                    const defaultSize = 3;
+                    const railSize = !isNaN(railSizeAttr) && railSizeAttr > 0 ? railSizeAttr : defaultSize;
+
+                    // Apply thickness for the inner bar
+                    if (railEl.classList.contains('vertical')) {
+                        bar.style.width = (railSize) + 'px';
+                        bar.style.height = railEl.style.height || '100%';
+                    } else {
+                        bar.style.height = (railSize) + 'px';
+                        bar.style.width = railEl.style.width || '100%';
+                    }
+
+                    // Apply visual style
+                    if (railStyle === 'solid') {
+                        bar.style.backgroundImage = '';
+                        bar.style.backgroundColor = railColor;
+                    } else {
+                        // dashed or dotted
+                        const sizePx = Math.max(1, railSize);
+                        const gap = railStyle === 'dashed' ? Math.max(6, sizePx * 2) : Math.max(3, Math.floor(sizePx / 2));
+                        if (railEl.classList.contains('vertical')) {
+                            bar.style.backgroundImage = `repeating-linear-gradient(180deg, ${railColor} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gap}px)`;
+                        } else {
+                            bar.style.backgroundImage = `repeating-linear-gradient(90deg, ${railColor} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gap}px)`;
+                        }
+                        bar.style.backgroundRepeat = 'repeat';
+                        bar.style.backgroundSize = 'auto';
+                        bar.style.backgroundColor = 'transparent';
+                    }
                     // ensure the rail bar is visible above the plain background but below connectors
                     bar.style.zIndex = '20';
                     railEl.appendChild(bar);
@@ -207,7 +239,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     if (!bar.style.width || parseFloat(bar.style.width) <= 0) bar.style.width = railEl.style.width || '100%';
                     if (!bar.style.height || parseFloat(bar.style.height) <= 0) bar.style.height = railEl.style.height || '100%';
-                    bar.style.backgroundColor = mapConfig.line_color || '#A61832';
+                    // Respect any saved rail appearance attributes if present
+                    const existingRailStyle = railEl.dataset.railStyle || 'solid';
+                    const existingRailColor = railEl.dataset.railColor || mapConfig.line_color || '#A61832';
+                    const existingRailSizeAttr = parseInt(railEl.dataset.railSize, 10);
+                    const existingRailSize = !isNaN(existingRailSizeAttr) && existingRailSizeAttr > 0 ? existingRailSizeAttr : 3;
+
+                    if (railEl.classList.contains('vertical')) {
+                        bar.style.width = (existingRailSize) + 'px';
+                        bar.style.height = railEl.style.height || '100%';
+                    } else {
+                        bar.style.height = (existingRailSize) + 'px';
+                        bar.style.width = railEl.style.width || '100%';
+                    }
+
+                    if (existingRailStyle === 'solid') {
+                        bar.style.backgroundImage = '';
+                        bar.style.backgroundColor = existingRailColor;
+                    } else {
+                        const sizePx = Math.max(1, existingRailSize);
+                        const gap = existingRailStyle === 'dashed' ? Math.max(6, sizePx * 2) : Math.max(3, Math.floor(sizePx / 2));
+                        if (railEl.classList.contains('vertical')) {
+                            bar.style.backgroundImage = `repeating-linear-gradient(180deg, ${existingRailColor} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gap}px)`;
+                        } else {
+                            bar.style.backgroundImage = `repeating-linear-gradient(90deg, ${existingRailColor} 0 ${sizePx}px, transparent ${sizePx}px ${sizePx + gap}px)`;
+                        }
+                        bar.style.backgroundRepeat = 'repeat';
+                        bar.style.backgroundSize = 'auto';
+                        bar.style.backgroundColor = 'transparent';
+                    }
                     if (!bar.style.zIndex) bar.style.zIndex = '20';
                 }
 

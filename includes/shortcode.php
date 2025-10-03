@@ -64,7 +64,22 @@ add_shortcode( 'cardmap', function( $atts ) {
                     <?php foreach ( $map_data['nodes'] as $node ) : 
                         if (isset($node['is_rail']) && $node['is_rail']) {
                             $orientation_class = isset($node['orientation']) && $node['orientation'] === 'vertical' ? 'vertical' : 'horizontal';
-                            echo '<div id="' . esc_attr( $node['id'] ) . '" class="cardmap-rail ' . $orientation_class . '" style="left:' . esc_attr( $node['x'] ) . 'px;top:' . esc_attr( $node['y'] ) . 'px; width: ' . esc_attr($node['width']) . 'px; height: ' . esc_attr($node['height']) . 'px;"></div>';
+                            // If rail appearance properties exist in the rails array, pass them through as data attributes.
+                            $rail_style = '';
+                            $rail_color = '';
+                            $rail_size = '';
+                            // Attempt to find the corresponding rail data in original $map_data['rails']
+                            if (!empty($map_data['rails']) && is_array($map_data['rails'])) {
+                                foreach ($map_data['rails'] as $r) {
+                                    if (isset($r['id']) && $r['id'] === $node['id']) {
+                                        $rail_style = isset($r['railStyle']) ? $r['railStyle'] : (isset($r['rail_style']) ? $r['rail_style'] : '');
+                                        $rail_color = isset($r['railColor']) ? $r['railColor'] : (isset($r['rail_color']) ? $r['rail_color'] : '');
+                                        $rail_size = isset($r['size']) ? $r['size'] : (isset($r['rail_size']) ? $r['rail_size'] : '');
+                                        break;
+                                    }
+                                }
+                            }
+                            echo '<div id="' . esc_attr( $node['id'] ) . '" class="cardmap-rail ' . $orientation_class . '" data-rail-style="' . esc_attr($rail_style) . '" data-rail-color="' . esc_attr($rail_color) . '" data-rail-size="' . esc_attr($rail_size) . '" style="left:' . esc_attr( $node['x'] ) . 'px;top:' . esc_attr( $node['y'] ) . 'px; width: ' . esc_attr($node['width']) . 'px; height: ' . esc_attr($node['height']) . 'px;"></div>';
                         } else {
                     ?>
                         <div id="<?php echo esc_attr( $node['id'] ); ?>" class="cardmap-node hover-<?php echo esc_attr($hover_effect); ?> <?php echo isset($node['style']) ? 'style-'.esc_attr($node['style']) : 'style-default'; ?>" style="left:<?php echo esc_attr( $node['x'] ); ?>px;top:<?php echo esc_attr( $node['y'] ); ?>px;">

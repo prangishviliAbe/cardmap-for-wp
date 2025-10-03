@@ -35,3 +35,10 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 5.  Click the **Save Map** button in the editor toolbar to save your progress.
 6.  Once you are finished, click the main **Publish** or **Update** button for the post.
 7.  To display the map, copy the shortcode provided in the "Shortcode" meta box (e.g., `[cardmap id="123"]`) and paste it into any post or page.
+
+## Changelog
+
+### v1.5.0 (2025-10-03)
+- Added rail appearance controls in the admin editor: rail style (solid/dashed/dotted), color picker, and thickness.
+- Improved rail settings panel positioning: panel now appears adjacent to the hovered rail and respects pan/zoom.
+- Fixed plugin update checker slug and published release tags so WordPress can detect updates.

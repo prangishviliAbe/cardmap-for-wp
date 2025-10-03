@@ -823,9 +823,34 @@
                 return;
             }
 
-            // If not in connect mode, select the rail for editing
+            // If not in connect mode, select the rail and show settings only after two clicks
             if (!this.connectMode) {
                 this.selectRail(railEl.id);
+                const now = Date.now();
+                if (this._lastRailClickedId === railEl.id && (now - this._lastRailClickAt) < 400) {
+                    // second quick click -> toggle settings visibility (respect pin)
+                    const settings = railEl.querySelector('.rail-settings');
+                    if (settings) {
+                        if (settings.style.display === 'block') {
+                            if (!this.railSettingsPinned) settings.style.display = 'none';
+                        } else {
+                            this.positionRailSettings(railEl, settings, railData);
+                            settings.style.display = 'block';
+                        }
+                    }
+                    this._lastRailClickedId = null;
+                    this._lastRailClickAt = 0;
+                } else {
+                    // record this as first click and await a potential second
+                    this._lastRailClickedId = railEl.id;
+                    this._lastRailClickAt = now;
+                    setTimeout(() => {
+                        // clear after timeout if no second click
+                        if (this._lastRailClickedId === railEl.id) {
+                            this._lastRailClickedId = null;
+                        }
+                    }, 450);
+                }
                 return;
             }
 
@@ -1240,30 +1265,10 @@
                         <input type="number" class="rail-thickness-input" min="1" max="200" style="width:64px;padding:4px;border-radius:3px;border:1px solid #444;" />
                     </div>
                     <div style="margin-top:4px;font-size:11px;color:#ccc;">Change rail thickness, color, and visual style (solid/dashed/dotted).</div>
-                    <div style="margin-top:8px;font-size:11px;color:#ccc;">💡 Hover rail to show/hide</div>
+                    <div style="margin-top:8px;font-size:11px;color:#ccc;">💡 Click twice on the rail to open settings; press Esc to hide. Double-Escape pins/unpins settings.</div>
                 `;
                 railEl.appendChild(railSettings);
-
-                // Show/hide rail settings on hover
-                railEl.addEventListener('mouseenter', () => {
-                    console.log('Rail hover enter:', r.id);
-                    if (!this.connectMode && !this.deleteRailMode) {
-                        this.positionRailSettings(railEl, railSettings, r);
-                        railSettings.style.display = 'block';
-                    }
-                });
-                railEl.addEventListener('mouseleave', () => {
-                    console.log('Rail hover leave:', r.id);
-                    setTimeout(() => {
-                        if (!railSettings.matches(':hover')) {
-                            railSettings.style.display = 'none';
-                        }
-                    }, 200);
-                });
-                // Keep settings visible when hovering the settings panel itself
-                // The rail settings panel will be shown when the rail is selected (click)
-                // or when pinned via double-Escape. We avoid showing it on hover to reduce
-                // accidental popups.
+                // Do not show settings on hover; settings are shown after two clicks (see onRailClick logic)
 
                 // Handle rail connection style changes
                 const railConnStyleSelect = railSettings.querySelector('.rail-connection-style');

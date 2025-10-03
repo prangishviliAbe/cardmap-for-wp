@@ -1722,7 +1722,7 @@
                     railData.width = parseInt(el.style.width, 10) || 0;
                     railData.height = parseInt(el.style.height, 10) || 0;
                     // preserve logical size property (thickness)
-                    railData.size = railData.size || (railData.orientation === 'vertical' ? railData.width : railData.height || this.RAIL_HEIGHT);
+                    railData.size = railData.size || (railData.orientation === 'vertical' ? railData.width : (railData.height || this.RAIL_HEIGHT));
                     // persist rail connection style if user set it
                     const railConnSel = el.querySelector('.rail-connection-style');
                     if (railConnSel) {
@@ -1730,6 +1730,32 @@
                         railData.connectionStyle = railConnSel.value;
                     } else {
                         console.log('No connection style selector found for rail:', railData.id);
+                    }
+                    // Persist visual appearance controls (style, color, thickness)
+                    const railAppearanceSel = el.querySelector('.rail-appearance-style');
+                    if (railAppearanceSel) {
+                        console.log('Saving rail', railData.id, 'appearance style:', railAppearanceSel.value);
+                        railData.railStyle = railAppearanceSel.value;
+                    } else {
+                        // leave existing value
+                    }
+                    const railColorInput = el.querySelector('.rail-color-input');
+                    if (railColorInput) {
+                        console.log('Saving rail', railData.id, 'color:', railColorInput.value);
+                        railData.railColor = railColorInput.value;
+                    }
+                    const railThicknessInput = el.querySelector('.rail-thickness-input');
+                    if (railThicknessInput) {
+                        const newSize = parseInt(railThicknessInput.value, 10);
+                        if (!isNaN(newSize) && newSize > 0) {
+                            console.log('Saving rail', railData.id, 'thickness:', newSize);
+                            railData.size = newSize;
+                            if (railData.orientation === 'vertical') {
+                                railData.width = newSize;
+                            } else {
+                                railData.height = newSize;
+                            }
+                        }
                     }
                 }
             });

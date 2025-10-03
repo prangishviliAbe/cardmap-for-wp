@@ -166,6 +166,10 @@ svg .jtk-connector path {
 .cardmap-node.style-default { border-color: #E0E0E0; }
 .cardmap-node.style-highlight { box-shadow: 0 6px 22px rgba(166,24,50,0.12); border-color: #A61832; }
 .cardmap-node.style-muted { opacity: 0.88; filter: grayscale(10%); }
+.cardmap-node.style-bold { border-width: 3px; font-weight: bold; }
+.cardmap-node.style-shadow { box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+.cardmap-node.style-bordered { border-width: 4px; border-color: #333; }
+.cardmap-node.style-minimal { border: none; box-shadow: none; background: #f9f9f9; }
 .node-delete-btn { background: rgba(200,40,40,0.95); color:white; border:none; padding:6px 8px; border-radius:6px; cursor:pointer; }
 .cardmap-node.jsplumb-drag-selected {
     border-color: #a61832;

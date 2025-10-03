@@ -47,3 +47,7 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 ### v1.5.1 (2025-10-03)
 
 - Added additional rail appearance styles (dash-heavy, dash-subtle, double-line, striped, gradient, embossed) and improved dashed rendering for better visibility.
+
+### v1.5.2 (2025-10-03)
+
+- Bugfix: Ensure rail appearance changes persist across save/load in the editor and reflect immediately on existing connections. Added extra debug logging to assist with persistence issues.

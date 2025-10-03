@@ -249,6 +249,11 @@
          * Renders the initial map data from the server.
          */
         loadInitialData() {
+            console.log('=== LOADING INITIAL DATA ===');
+            console.log('Loaded mapData:', this.mapData);
+            console.log('Nodes with connection styles:', this.mapData.nodes?.filter(n => n.connectionStyle).map(n => ({id: n.id, style: n.connectionStyle})));
+            console.log('Rails with connection styles:', this.mapData.rails?.filter(r => r.connectionStyle).map(r => ({id: r.id, style: r.connectionStyle})));
+            
             this.instance.batch(() => {
                 (this.mapData.rails || []).forEach(r => this.renderRail(r));
                 (this.mapData.nodes || []).forEach(n => this.renderNode(n));
@@ -410,13 +415,18 @@
             const connStyleSelect = node.querySelector('.card-connection-style');
             if (connStyleSelect) {
                 // Set initial value - use saved connectionStyle or fall back to global default
+                console.log('=== NODE CONNECTION STYLE INIT ===');
                 console.log('Available line styles for node:', this.config.availableLineStyles);
                 console.log('Node data connectionStyle:', nodeData.connectionStyle);
                 console.log('Global line style:', this.config.lineStyle);
+                console.log('Dropdown options:', Array.from(connStyleSelect.options).map(o => ({value: o.value, text: o.text})));
+                
                 const initialValue = nodeData.connectionStyle || this.config.lineStyle;
+                console.log('Setting dropdown to:', initialValue);
                 connStyleSelect.value = initialValue;
-                console.log('Set node connection style:', initialValue, 'for node:', nodeData.id);
                 console.log('Dropdown actual value after setting:', connStyleSelect.value);
+                console.log('Selected option text:', connStyleSelect.options[connStyleSelect.selectedIndex]?.text);
+                console.log('=== END INIT ===');
                 
                 connStyleSelect.addEventListener('change', (e) => {
                     console.log('Change event fired! Connection style changed to:', connStyleSelect.value, 'for node:', nodeData.id);
@@ -1538,7 +1548,12 @@
                     nodeData.target = el.dataset.target || '_self';
                     // persist per-node connection style if user set it
                     const connSel = el.querySelector('.card-connection-style');
-                    if (connSel) nodeData.connectionStyle = connSel.value;
+                    if (connSel) {
+                        console.log('Saving node', nodeData.id, 'connection style:', connSel.value);
+                        nodeData.connectionStyle = connSel.value;
+                    } else {
+                        console.log('No connection style selector found for node:', nodeData.id);
+                    }
                 }
             });
             
@@ -1553,7 +1568,12 @@
                     railData.size = railData.size || (railData.orientation === 'vertical' ? railData.width : railData.height || this.RAIL_HEIGHT);
                     // persist rail connection style if user set it
                     const railConnSel = el.querySelector('.rail-connection-style');
-                    if (railConnSel) railData.connectionStyle = railConnSel.value;
+                    if (railConnSel) {
+                        console.log('Saving rail', railData.id, 'connection style:', railConnSel.value);
+                        railData.connectionStyle = railConnSel.value;
+                    } else {
+                        console.log('No connection style selector found for rail:', railData.id);
+                    }
                 }
             });
 

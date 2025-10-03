@@ -1650,6 +1650,9 @@
                 }
                 dom.style.left = `${rs.x}px`;
                 dom.style.width = `${rs.width}px`;
+                // Update .rail-bar width to match
+                const railBarEl = dom.querySelector('.rail-bar');
+                if (railBarEl) railBarEl.style.width = `${rs.width}px`;
             } else if (rs.orientation === 'diagonal') {
                 const deltaX = mapX - rs.x;
                 const deltaY = mapY - rs.y;
@@ -1671,6 +1674,9 @@
                 }
                 dom.style.top = `${rs.y}px`;
                 dom.style.height = `${rs.height}px`;
+                // Update .rail-bar height to match
+                const railBarEl = dom.querySelector('.rail-bar');
+                if (railBarEl) railBarEl.style.height = `${rs.height}px`;
             }
             this.instance.repaintEverything();
         }

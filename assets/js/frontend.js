@@ -397,7 +397,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         viewport.addEventListener('wheel', e => {
             e.preventDefault();
-            if (e.target.closest('.cardmap-node')) return;
             
             const rect = viewport.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;

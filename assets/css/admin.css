@@ -123,7 +123,7 @@
 }
 .cardmap-rail .rail-resizer { position: absolute; right: 0; top: 0; bottom: 0; width: 12px; cursor: ew-resize; background: transparent; }
 .cardmap-rail.vertical .rail-resizer { right: auto; bottom: 0; left: 0; top: auto; height: 12px; width: 100%; cursor: ns-resize; }
-.cardmap-rail:hover .rail-resizer { background: rgba(0,0,0,0.02); }
+.cardmap-rail:hover .rail-resizer { background: rgba(0,0,0,0.1); }
 
 /* Specific positioning for start and end resizers */
 .cardmap-rail .rail-resizer-start { left: 0; right: auto; }

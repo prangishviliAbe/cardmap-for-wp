@@ -410,12 +410,17 @@
             const connStyleSelect = node.querySelector('.card-connection-style');
             if (connStyleSelect) {
                 // Set initial value - use saved connectionStyle or fall back to global default
+                console.log('Available line styles for node:', this.config.availableLineStyles);
+                console.log('Node data connectionStyle:', nodeData.connectionStyle);
+                console.log('Global line style:', this.config.lineStyle);
                 const initialValue = nodeData.connectionStyle || this.config.lineStyle;
                 connStyleSelect.value = initialValue;
                 console.log('Set node connection style:', initialValue, 'for node:', nodeData.id);
+                console.log('Dropdown actual value after setting:', connStyleSelect.value);
                 
-                connStyleSelect.addEventListener('change', () => {
-                    console.log('Connection style changed to:', connStyleSelect.value, 'for node:', nodeData.id);
+                connStyleSelect.addEventListener('change', (e) => {
+                    console.log('Change event fired! Connection style changed to:', connStyleSelect.value, 'for node:', nodeData.id);
+                    console.log('Event target:', e.target);
                     nodeData.connectionStyle = connStyleSelect.value;
                     // Update existing connections that involve this node (both as source and target)
                     const sourceConns = this.instance.getConnections({ source: node.id });
@@ -1128,23 +1133,26 @@
                 // Add connection style settings to rail
                 const railSettings = document.createElement('div');
                 railSettings.className = 'rail-settings';
-                railSettings.style.cssText = 'position:absolute;top:-40px;left:0;background:rgba(0,0,0,0.8);color:white;padding:5px;border-radius:3px;font-size:12px;display:none;white-space:nowrap;z-index:3000;';
+                railSettings.style.cssText = 'position:absolute;top:-40px;left:0;background:rgba(0,0,0,0.9);color:white;padding:8px;border-radius:4px;font-size:12px;display:block;white-space:nowrap;z-index:9999;border:1px solid #333;';
+                console.log('Available line styles for rail:', this.config.availableLineStyles);
+                const optionsHtml = Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('');
                 railSettings.innerHTML = `
+                    <div style="margin-bottom:5px;font-weight:bold;">Rail: ${r.id}</div>
                     <label style="margin-right:10px;">Connection Style:</label>
-                    <select class="rail-connection-style" style="font-size:11px;">
-                        ${ Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('') }
+                    <select class="rail-connection-style" style="font-size:11px;background:white;color:black;">
+                        ${optionsHtml}
                     </select>
                 `;
                 railEl.appendChild(railSettings);
 
-                // Show/hide rail settings on hover
+                // Show/hide rail settings on hover (temporarily always visible for debugging)
                 railEl.addEventListener('mouseenter', () => {
-                    if (!this.connectMode && !this.deleteRailMode) {
-                        railSettings.style.display = 'block';
-                    }
+                    console.log('Rail hover enter:', r.id);
+                    railSettings.style.display = 'block';
                 });
                 railEl.addEventListener('mouseleave', () => {
-                    railSettings.style.display = 'none';
+                    console.log('Rail hover leave:', r.id);
+                    // railSettings.style.display = 'none'; // Commented out for debugging
                 });
 
                 // Handle rail connection style changes
@@ -1159,9 +1167,14 @@
                         console.log('Rail connection style changed to:', railConnStyleSelect.value, 'for rail:', r.id);
                         r.connectionStyle = railConnStyleSelect.value;
                         // Update existing connections involving this rail
-                        const railConnections = this.instance.getConnections().filter(conn => 
-                            conn.sourceId === r.id || conn.targetId === r.id
-                        );
+                        const allConnections = this.instance.getConnections();
+                        console.log('All connections:', allConnections.length);
+                        const railConnections = allConnections.filter(conn => {
+                            const sourceMatch = conn.sourceId === r.id || conn.source.id === r.id;
+                            const targetMatch = conn.targetId === r.id || conn.target.id === r.id;
+                            return sourceMatch || targetMatch;
+                        });
+                        console.log('Rail connections found:', railConnections.length, 'for rail:', r.id);
                         railConnections.forEach(c => {
                             const newStyle = r.connectionStyle || this.config.lineStyle;
                             const config = this.getConnectorConfig(newStyle);

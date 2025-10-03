@@ -266,6 +266,26 @@ svg .jtk-connector {
     filter: grayscale(10%);
 }
 
+.cardmap-node.style-bold {
+    font-weight: bold;
+    border-width: 2px;
+}
+
+.cardmap-node.style-shadow {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cardmap-node.style-bordered {
+    border-width: 3px;
+    border-color: #333;
+}
+
+.cardmap-node.style-minimal {
+    border: none;
+    background: transparent;
+    color: #333;
+}
+
 /* Rail styles */
 .cardmap-rail {
     position: absolute;

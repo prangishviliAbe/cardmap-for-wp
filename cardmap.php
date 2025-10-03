@@ -58,7 +58,7 @@ function cardmap_admin_assets( $hook ) {
             'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
             'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
             'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
-            'node_styles' => json_decode( get_option( 'cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ] ) ), true ),
+            'node_styles' => json_decode( get_option( 'cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted', 'bold' => 'Bold', 'shadow' => 'Shadow', 'bordered' => 'Bordered', 'minimal' => 'Minimal' ] ) ), true ),
         ] );
     }
 
@@ -113,6 +113,29 @@ function cardmap_send_activation_email() {
     wp_mail( $to, $subject, $message );
 }
 register_activation_hook( __FILE__, 'cardmap_send_activation_email' );
+
+// Update node styles option to include new styles
+function cardmap_update_node_styles() {
+    $current_styles = get_option( 'cardmap_node_styles' );
+    if ( ! $current_styles ) {
+        // If not set, it will use the default in get_option
+        return;
+    }
+    $styles = json_decode( $current_styles, true );
+    $new_styles = [
+        'default' => 'Default',
+        'highlight' => 'Highlight',
+        'muted' => 'Muted',
+        'bold' => 'Bold',
+        'shadow' => 'Shadow',
+        'bordered' => 'Bordered',
+        'minimal' => 'Minimal'
+    ];
+    if ( $styles !== $new_styles ) {
+        update_option( 'cardmap_node_styles', json_encode( $new_styles ) );
+    }
+}
+add_action( 'admin_init', 'cardmap_update_node_styles' );
 
 
 

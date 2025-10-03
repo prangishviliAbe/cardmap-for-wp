@@ -266,12 +266,14 @@
                     const targetEl = document.getElementById(c.target);
                     if (!sourceEl || !targetEl) return;
 
-                    // Get connection style priority: connection's own style > source node's style > target node's style > global default
+                    // Get connection style priority: connection's own style > source's style > target's style > global default
                     let connStyle = c.style;
                     if (!connStyle) {
                         const sourceNodeData = this.mapData.nodes.find(n => n.id === c.source) || {};
                         const targetNodeData = this.mapData.nodes.find(n => n.id === c.target) || {};
-                        connStyle = sourceNodeData.connectionStyle || targetNodeData.connectionStyle || this.config.lineStyle || 'straight';
+                        const sourceRailData = this.mapData.rails.find(r => r.id === c.source) || {};
+                        const targetRailData = this.mapData.rails.find(r => r.id === c.target) || {};
+                        connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || targetNodeData.connectionStyle || targetRailData.connectionStyle || this.config.lineStyle || 'straight';
                     }
                     const config = this.getConnectorConfig(connStyle);
                     
@@ -407,8 +409,12 @@
 
             const connStyleSelect = node.querySelector('.card-connection-style');
             if (connStyleSelect) {
-                // initialize value from data if present
-                if (nodeData.connectionStyle) connStyleSelect.value = nodeData.connectionStyle;
+                // initialize value from data if present - ensure it's set after dropdown is rendered
+                setTimeout(() => {
+                    if (nodeData.connectionStyle) {
+                        connStyleSelect.value = nodeData.connectionStyle;
+                    }
+                }, 0);
                 connStyleSelect.addEventListener('change', () => {
                     nodeData.connectionStyle = connStyleSelect.value;
                     // Update existing connections that involve this node (both as source and target)
@@ -774,10 +780,12 @@
                 anchorA = this.firstAnchor || a;
                 anchorB = this.firstAnchor ? (b || this.getRailAnchorFromEvent(e, railEl, railData)) : b;
 
-                // choose connection style: prefer source node's connectionStyle then target's then global
+                // choose connection style: prefer source's connectionStyle then target's then global
                 const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
                 const targetNodeData = this.mapData.nodes.find(n => n.id === targetId) || {};
-                const connStyle = sourceNodeData.connectionStyle || targetNodeData.connectionStyle || this.config.lineStyle;
+                const sourceRailData = this.mapData.rails.find(r => r.id === sourceId) || {};
+                const targetRailData = this.mapData.rails.find(r => r.id === targetId) || {};
+                const connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || targetNodeData.connectionStyle || targetRailData.connectionStyle || this.config.lineStyle;
                 const conn = this.instance.connect({
                     source: sourceId,
                     target: targetId,
@@ -937,7 +945,9 @@
                 
                 const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
                 const targetNodeData = this.mapData.nodes.find(n => n.id === targetId) || {};
-                const connStyle = sourceNodeData.connectionStyle || targetNodeData.connectionStyle || this.config.lineStyle;
+                const sourceRailData = this.mapData.rails.find(r => r.id === sourceId) || {};
+                const targetRailData = this.mapData.rails.find(r => r.id === targetId) || {};
+                const connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || targetNodeData.connectionStyle || targetRailData.connectionStyle || this.config.lineStyle;
                 const conn = this.instance.connect({
                     source: sourceId,
                     target: targetId,
@@ -1109,6 +1119,64 @@
                 previewDot.className = 'rail-anchor-preview';
                 previewDot.style.display = 'none';
                 railEl.appendChild(previewDot);
+
+                // Add connection style settings to rail
+                const railSettings = document.createElement('div');
+                railSettings.className = 'rail-settings';
+                railSettings.style.cssText = 'position:absolute;top:-40px;left:0;background:rgba(0,0,0,0.8);color:white;padding:5px;border-radius:3px;font-size:12px;display:none;white-space:nowrap;z-index:3000;';
+                railSettings.innerHTML = `
+                    <label style="margin-right:10px;">Connection Style:</label>
+                    <select class="rail-connection-style" style="font-size:11px;">
+                        ${ Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}" ${ (r.connectionStyle || this.config.lineStyle) === k ? 'selected' : '' }>${this.config.availableLineStyles[k]}</option>` ).join('') }
+                    </select>
+                `;
+                railEl.appendChild(railSettings);
+
+                // Show/hide rail settings on hover
+                railEl.addEventListener('mouseenter', () => {
+                    if (!this.connectMode && !this.deleteRailMode) {
+                        railSettings.style.display = 'block';
+                    }
+                });
+                railEl.addEventListener('mouseleave', () => {
+                    railSettings.style.display = 'none';
+                });
+
+                // Handle rail connection style changes
+                const railConnStyleSelect = railSettings.querySelector('.rail-connection-style');
+                if (railConnStyleSelect) {
+                    // Initialize the dropdown with the saved value
+                    setTimeout(() => {
+                        if (r.connectionStyle) {
+                            railConnStyleSelect.value = r.connectionStyle;
+                        }
+                    }, 0);
+                    railConnStyleSelect.addEventListener('change', () => {
+                        r.connectionStyle = railConnStyleSelect.value;
+                        // Update existing connections involving this rail
+                        const railConnections = this.instance.getConnections().filter(conn => 
+                            conn.sourceId === r.id || conn.targetId === r.id
+                        );
+                        railConnections.forEach(c => {
+                            const newStyle = r.connectionStyle || this.config.lineStyle;
+                            const config = this.getConnectorConfig(newStyle);
+                            try {
+                                c.setPaintStyle && c.setPaintStyle(config.paintStyle);
+                                if (config.connector) c.setConnector && c.setConnector(config.connector);
+                                c.removeAllOverlays && c.removeAllOverlays();
+                                if (config.overlays && Array.isArray(config.overlays)) {
+                                    config.overlays.forEach(overlay => c.addOverlay && c.addOverlay(overlay));
+                                }
+                                // Update the mapData to reflect the style change
+                                const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
+                                if (connData) connData.style = newStyle;
+                            } catch (err) {
+                                console.warn('Error updating rail connection style:', err);
+                            }
+                        });
+                        this.saveMapData();
+                    });
+                }
             }
 
             // apply positioning based on orientation + size
@@ -1403,6 +1471,9 @@
                     railData.height = parseInt(el.style.height, 10) || 0;
                     // preserve logical size property (thickness)
                     railData.size = railData.size || (railData.orientation === 'vertical' ? railData.width : railData.height || this.RAIL_HEIGHT);
+                    // persist rail connection style if user set it
+                    const railConnSel = el.querySelector('.rail-connection-style');
+                    if (railConnSel) railData.connectionStyle = railConnSel.value;
                 }
             });
 

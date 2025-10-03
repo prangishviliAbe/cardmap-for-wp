@@ -253,6 +253,8 @@
             console.log('Loaded mapData:', this.mapData);
             console.log('Nodes with connection styles:', this.mapData.nodes?.filter(n => n.connectionStyle).map(n => ({id: n.id, style: n.connectionStyle})));
             console.log('Rails with connection styles:', this.mapData.rails?.filter(r => r.connectionStyle).map(r => ({id: r.id, style: r.connectionStyle})));
+            // Also log rail appearance properties if present
+            console.log('Rails with appearance properties:', this.mapData.rails?.map(r => ({ id: r.id, railStyle: r.railStyle, railColor: r.railColor, size: r.size })));
             
             this.instance.batch(() => {
                 (this.mapData.rails || []).forEach(r => this.renderRail(r));
@@ -1314,6 +1316,12 @@
             railEl.style.left = `${r.x}px`;
             railEl.style.top = `${r.y}px`;
             railEl.classList.toggle('vertical', r.orientation === 'vertical');
+
+            // ensure DOM reflects any saved appearance properties
+            if (r.railStyle) railEl.setAttribute('data-rail-style', r.railStyle);
+            if (r.railColor) railEl.setAttribute('data-rail-color', r.railColor);
+            if (r.size) railEl.setAttribute('data-rail-size', r.size);
+            console.log('Render rail:', r.id, 'appearance:', { railStyle: r.railStyle, railColor: r.railColor, size: r.size });
 
             // set bar appearance (color, dashed/dotted/solid)
             const railBarEl = railEl.querySelector('.rail-bar');

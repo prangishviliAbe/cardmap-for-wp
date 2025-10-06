@@ -42,6 +42,8 @@
 
             this.railResizeState = null;
             this.railSettingsPinned = false;
+            // timestamp to ignore click events immediately after dragging a rail
+            this._lastRailDraggedAt = 0;
             this._lastEscapeAt = 0;
             this._saveTimeout = null;
             
@@ -864,7 +866,14 @@
             }
 
             // In connect mode: treat a rail click similarly to a node click
-            if (!this.firstNode) {
+                // Ignore clicks that happen immediately after a rail drag to avoid accidental auto-connections
+                if (Date.now() - (this._lastRailDraggedAt || 0) < 300) {
+                    // just clear selection and bail
+                    this.selectRail(railEl.id);
+                    return;
+                }
+
+                if (!this.firstNode) {
                 // Use rail element as firstNode
                 this.firstNode = railEl;
                 this.firstAnchor = this.getRailAnchorFromEvent(e, railEl, railData);
@@ -1226,6 +1235,8 @@
                                 railData.y = parseInt(document.getElementById(railData.id).style.top, 10) || railData.y;
                             }
                             this.railDragState = null;
+                            // record drag timestamp so subsequent click events can be ignored
+                            this._lastRailDraggedAt = Date.now();
                             this.saveMapData();
                         }
                     }

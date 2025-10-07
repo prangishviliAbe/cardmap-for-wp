@@ -92,10 +92,13 @@
             this.initKeyboardShortcuts();
             this.loadInitialData();
 
-            // Initialize ruler if enabled
-            if (this.rulerEnabled) {
+            // Initialize ruler if enabled (check if elements exist first)
+            if (this.rulerEnabled && this.editorWrapper) {
+                console.log('Initializing ruler on load...');
                 this.createRuler();
                 this.updateRuler();
+            } else if (this.rulerEnabled) {
+                console.warn('Ruler enabled but editor wrapper not found during initialization');
             }
 
             // Add resize listener for fullscreen changes
@@ -534,23 +537,55 @@
          * Toggles ruler overlay functionality.
          */
         toggleRuler() {
-            this.rulerEnabled = !this.rulerEnabled;
-            this.showToast(`Ruler ${this.rulerEnabled ? 'enabled' : 'disabled'}`);
+            try {
+                console.log('=== RULER TOGGLE ===');
+                console.log('Current ruler state:', this.rulerEnabled);
 
-            // Update visual indicator
-            this.editorWrapper.classList.toggle('ruler-enabled', this.rulerEnabled);
+                this.rulerEnabled = !this.rulerEnabled;
+                console.log('New ruler state:', this.rulerEnabled);
 
-            // Update button visual state
-            const rulerBtn = document.getElementById('toggle-ruler');
-            if (rulerBtn) {
-                rulerBtn.classList.toggle('ruler-active', this.rulerEnabled);
-            }
+                this.showToast(`Ruler ${this.rulerEnabled ? 'enabled' : 'disabled'}`);
 
-            if (this.rulerEnabled) {
-                this.createRuler();
-                this.updateRuler();
-            } else {
-                this.removeRuler();
+                // Update visual indicator
+                if (this.editorWrapper) {
+                    this.editorWrapper.classList.toggle('ruler-enabled', this.rulerEnabled);
+                    console.log('Editor wrapper ruler class updated:', this.rulerEnabled);
+                } else {
+                    console.warn('Editor wrapper not found');
+                }
+
+                // Update button visual state
+                const rulerBtn = document.getElementById('toggle-ruler');
+                if (rulerBtn) {
+                    rulerBtn.classList.toggle('ruler-active', this.rulerEnabled);
+                    console.log('Ruler button state updated:', this.rulerEnabled);
+                } else {
+                    console.warn('Ruler toggle button not found');
+                }
+
+                if (this.rulerEnabled) {
+                    console.log('Creating ruler...');
+                    this.createRuler();
+                    console.log('Updating ruler...');
+                    this.updateRuler();
+                    console.log('Ruler creation complete');
+                } else {
+                    console.log('Removing ruler...');
+                    this.removeRuler();
+                    console.log('Ruler removal complete');
+                }
+
+                console.log('=== RULER TOGGLE COMPLETE ===');
+            } catch (error) {
+                console.error('Error in toggleRuler:', error);
+                this.showToast('Error toggling ruler: ' + error.message);
+                // Reset ruler state on error
+                this.rulerEnabled = false;
+                this.editorWrapper.classList.remove('ruler-enabled');
+                const rulerBtn = document.getElementById('toggle-ruler');
+                if (rulerBtn) {
+                    rulerBtn.classList.remove('ruler-active');
+                }
             }
         }
 
@@ -558,25 +593,42 @@
          * Creates the ruler overlay canvas.
          */
         createRuler() {
-            if (this.rulerCanvas) {
-                this.rulerCanvas.remove();
+            try {
+                console.log('Creating ruler canvas...');
+
+                // Remove existing canvas if any
+                if (this.rulerCanvas) {
+                    console.log('Removing existing ruler canvas');
+                    this.rulerCanvas.remove();
+                    this.rulerCanvas = null;
+                }
+
+                this.rulerCanvas = document.createElement('canvas');
+                this.rulerCanvas.id = 'cardmap-ruler-canvas';
+                this.rulerCanvas.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    pointer-events: none;
+                    z-index: 1000;
+                    opacity: ${this.rulerOpacity};
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                `;
+
+                console.log('Appending ruler canvas to wrapper');
+                this.editorWrapper.appendChild(this.rulerCanvas);
+
+                console.log('Updating ruler canvas size');
+                this.updateRulerCanvasSize();
+
+                console.log('Ruler canvas created successfully');
+            } catch (error) {
+                console.error('Error creating ruler:', error);
+                this.showToast('Error creating ruler: ' + error.message);
+                this.rulerCanvas = null;
             }
-
-            this.rulerCanvas = document.createElement('canvas');
-            this.rulerCanvas.id = 'cardmap-ruler-canvas';
-            this.rulerCanvas.style.cssText = `
-                position: absolute;
-                top: 0;
-                left: 0;
-                pointer-events: none;
-                z-index: 1000;
-                opacity: ${this.rulerOpacity};
-                width: 100%;
-                height: 100%;
-            `;
-
-            this.editorWrapper.appendChild(this.rulerCanvas);
-            this.updateRulerCanvasSize();
         }
 
         /**
@@ -600,29 +652,49 @@
         updateRulerCanvasSize() {
             if (!this.rulerCanvas) return;
 
-            const wrapperRect = this.editorWrapper.getBoundingClientRect();
+            try {
+                const wrapperRect = this.editorWrapper.getBoundingClientRect();
 
-            // Set canvas to cover the entire wrapper area
-            const canvasSize = Math.max(2000, wrapperRect.width * 2, wrapperRect.height * 2);
-            this.rulerCanvas.width = canvasSize;
-            this.rulerCanvas.height = canvasSize;
+                // Limit canvas size to prevent memory issues
+                const maxCanvasSize = 4000;
+                const canvasSize = Math.min(maxCanvasSize, Math.max(1000, wrapperRect.width * 2, wrapperRect.height * 2));
 
-            // Style to fill the wrapper
-            this.rulerCanvas.style.width = `${wrapperRect.width}px`;
-            this.rulerCanvas.style.height = `${wrapperRect.height}px`;
+                console.log('Setting canvas size:', { canvasSize, wrapperRect: { width: wrapperRect.width, height: wrapperRect.height } });
+
+                this.rulerCanvas.width = canvasSize;
+                this.rulerCanvas.height = canvasSize;
+
+                // Style to fill the wrapper
+                this.rulerCanvas.style.width = `${wrapperRect.width}px`;
+                this.rulerCanvas.style.height = `${wrapperRect.height}px`;
+
+                console.log('Canvas size updated successfully');
+            } catch (error) {
+                console.error('Error updating ruler canvas size:', error);
+            }
         }
 
         /**
          * Handles window resize events (fullscreen, etc.).
          */
         handleWindowResize() {
-            if (this.rulerEnabled) {
-                // Debounce resize updates
-                clearTimeout(this._resizeTimeout);
-                this._resizeTimeout = setTimeout(() => {
-                    this.updateRulerCanvasSize();
-                    this.updateRuler();
-                }, 100);
+            try {
+                if (this.rulerEnabled) {
+                    console.log('Window resize detected, updating ruler...');
+                    // Debounce resize updates
+                    clearTimeout(this._resizeTimeout);
+                    this._resizeTimeout = setTimeout(() => {
+                        try {
+                            this.updateRulerCanvasSize();
+                            this.updateRuler();
+                            console.log('Ruler resize update complete');
+                        } catch (resizeError) {
+                            console.error('Error in resize timeout:', resizeError);
+                        }
+                    }, 150); // Increased debounce time
+                }
+            } catch (error) {
+                console.error('Error in handleWindowResize:', error);
             }
         }
 
@@ -630,92 +702,153 @@
          * Updates the ruler display.
          */
         updateRuler() {
-            if (!this.rulerEnabled || !this.rulerCanvas) return;
+            try {
+                if (!this.rulerEnabled || !this.rulerCanvas) {
+                    console.log('Ruler update skipped - not enabled or no canvas');
+                    return;
+                }
 
-            this.updateRulerCanvasSize();
-            this.drawRuler();
+                console.log('Updating ruler display...');
+                this.updateRulerCanvasSize();
+                this.drawRuler();
+                console.log('Ruler update complete');
+            } catch (error) {
+                console.error('Error updating ruler:', error);
+                this.showToast('Error updating ruler: ' + error.message);
+            }
         }
 
         /**
          * Draws the ruler lines on the canvas.
          */
         drawRuler() {
-            if (!this.rulerCanvas) return;
-
-            const ctx = this.rulerCanvas.getContext('2d');
-            const width = this.rulerCanvas.width;
-            const height = this.rulerCanvas.height;
-
-            // Clear canvas
-            ctx.clearRect(0, 0, width, height);
-
-            // Set ruler properties with scale compensation
-            const lineWidth = Math.max(0.5, 1 / this.scale);
-            ctx.strokeStyle = this.rulerColor;
-            ctx.lineWidth = lineWidth;
-            ctx.setLineDash([]);
-
-            // Calculate spacing based on scale for better visibility
-            const baseSpacing = 50;
-            const minSpacing = 20;
-            const maxSpacing = 100;
-            const dynamicSpacing = Math.max(minSpacing, Math.min(maxSpacing, baseSpacing / this.scale));
-
-            // Draw vertical lines
-            for (let x = 0; x < width; x += dynamicSpacing) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, height);
-                ctx.stroke();
-
-                // Draw measurement labels for major lines (every 100px scaled)
-                const labelInterval = Math.max(100, dynamicSpacing * 2);
-                if (Math.abs(x % labelInterval) < 2 && x > 0) {
-                    ctx.fillStyle = this.rulerColor;
-                    ctx.font = `${Math.max(10, 12 / this.scale)}px monospace`;
-                    ctx.textAlign = 'center';
-                    ctx.fillText(Math.round(x).toString(), x, Math.max(12, 15 / this.scale));
+            try {
+                if (!this.rulerCanvas) {
+                    console.log('No ruler canvas found');
+                    return;
                 }
-            }
 
-            // Draw horizontal lines
-            for (let y = 0; y < height; y += dynamicSpacing) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(width, y);
-                ctx.stroke();
-
-                // Draw measurement labels for major lines
-                const labelInterval = Math.max(100, dynamicSpacing * 2);
-                if (Math.abs(y % labelInterval) < 2 && y > 0) {
-                    ctx.fillStyle = this.rulerColor;
-                    ctx.font = `${Math.max(10, 12 / this.scale)}px monospace`;
-                    ctx.textAlign = 'right';
-                    ctx.fillText(Math.round(y).toString(), Math.max(25, 30 / this.scale), y - 2);
+                const ctx = this.rulerCanvas.getContext('2d');
+                if (!ctx) {
+                    console.log('Could not get canvas context');
+                    return;
                 }
+
+                const width = this.rulerCanvas.width;
+                const height = this.rulerCanvas.height;
+
+                console.log('Drawing ruler:', { width, height, scale: this.scale });
+
+                // Prevent infinite loops by limiting canvas size
+                if (width > 10000 || height > 10000) {
+                    console.warn('Canvas too large, skipping ruler draw');
+                    return;
+                }
+
+                // Clear canvas
+                ctx.clearRect(0, 0, width, height);
+
+                // Set ruler properties with scale compensation
+                const lineWidth = Math.max(0.5, Math.min(2, 1 / this.scale));
+                ctx.strokeStyle = this.rulerColor;
+                ctx.lineWidth = lineWidth;
+                ctx.setLineDash([]);
+
+                // Calculate spacing based on scale for better visibility
+                const baseSpacing = 50;
+                const minSpacing = 10;
+                const maxSpacing = 200;
+                const dynamicSpacing = Math.max(minSpacing, Math.min(maxSpacing, baseSpacing / this.scale));
+
+                console.log('Ruler spacing:', dynamicSpacing);
+
+                // Draw vertical lines (limit iterations to prevent freeze)
+                const maxIterations = 1000;
+                let iterations = 0;
+
+                for (let x = 0; x < width && iterations < maxIterations; x += dynamicSpacing, iterations++) {
+                    try {
+                        ctx.beginPath();
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, height);
+                        ctx.stroke();
+
+                        // Draw measurement labels for major lines (every 100px scaled)
+                        const labelInterval = Math.max(50, dynamicSpacing * 2);
+                        if (Math.abs(x % labelInterval) < 2 && x > 0) {
+                            ctx.fillStyle = this.rulerColor;
+                            const fontSize = Math.max(8, Math.min(16, 12 / this.scale));
+                            ctx.font = `${fontSize}px monospace`;
+                            ctx.textAlign = 'center';
+                            const label = Math.round(x).toString();
+                            if (label.length < 10) { // Prevent extremely long labels
+                                ctx.fillText(label, x, Math.max(fontSize, 15 / this.scale));
+                            }
+                        }
+                    } catch (lineError) {
+                        console.warn('Error drawing vertical line at x=' + x, lineError);
+                        break;
+                    }
+                }
+
+                // Draw horizontal lines (reset iterations)
+                iterations = 0;
+                for (let y = 0; y < height && iterations < maxIterations; y += dynamicSpacing, iterations++) {
+                    try {
+                        ctx.beginPath();
+                        ctx.moveTo(0, y);
+                        ctx.lineTo(width, y);
+                        ctx.stroke();
+
+                        // Draw measurement labels for major lines
+                        const labelInterval = Math.max(50, dynamicSpacing * 2);
+                        if (Math.abs(y % labelInterval) < 2 && y > 0) {
+                            ctx.fillStyle = this.rulerColor;
+                            const fontSize = Math.max(8, Math.min(16, 12 / this.scale));
+                            ctx.font = `${fontSize}px monospace`;
+                            ctx.textAlign = 'right';
+                            const label = Math.round(y).toString();
+                            if (label.length < 10) { // Prevent extremely long labels
+                                ctx.fillText(label, Math.max(20, 30 / this.scale), y - 2);
+                            }
+                        }
+                    } catch (lineError) {
+                        console.warn('Error drawing horizontal line at y=' + y, lineError);
+                        break;
+                    }
+                }
+
+                // Draw corner ruler markers (scale-compensated size)
+                try {
+                    const markerSize = Math.max(15, Math.min(50, 25 / this.scale));
+                    ctx.strokeStyle = this.rulerColor;
+                    ctx.lineWidth = Math.max(1, Math.min(3, 3 / this.scale));
+
+                    // Top-left corner marker
+                    ctx.strokeRect(0, 0, markerSize, markerSize);
+
+                    // Draw crosshairs at origin
+                    const crosshairSize = markerSize * 0.6;
+                    ctx.beginPath();
+                    ctx.moveTo(0, crosshairSize);
+                    ctx.lineTo(markerSize, crosshairSize);
+                    ctx.moveTo(crosshairSize, 0);
+                    ctx.lineTo(crosshairSize, markerSize);
+                    ctx.stroke();
+
+                    // Add center dot at origin
+                    ctx.beginPath();
+                    ctx.arc(crosshairSize, crosshairSize, Math.max(1, Math.min(3, 2 / this.scale)), 0, 2 * Math.PI);
+                    ctx.fill();
+                } catch (markerError) {
+                    console.warn('Error drawing ruler markers:', markerError);
+                }
+
+                console.log('Ruler drawing complete');
+            } catch (error) {
+                console.error('Error in drawRuler:', error);
+                this.showToast('Error drawing ruler: ' + error.message);
             }
-
-            // Draw corner ruler markers (scale-compensated size)
-            const markerSize = Math.max(20, 25 / this.scale);
-            ctx.strokeStyle = this.rulerColor;
-            ctx.lineWidth = Math.max(2, 3 / this.scale);
-
-            // Top-left corner marker
-            ctx.strokeRect(0, 0, markerSize, markerSize);
-
-            // Draw crosshairs at origin
-            const crosshairSize = markerSize * 0.6;
-            ctx.beginPath();
-            ctx.moveTo(0, crosshairSize);
-            ctx.lineTo(markerSize, crosshairSize);
-            ctx.moveTo(crosshairSize, 0);
-            ctx.lineTo(crosshairSize, markerSize);
-            ctx.stroke();
-
-            // Add center dot at origin
-            ctx.beginPath();
-            ctx.arc(crosshairSize, crosshairSize, Math.max(1, 2 / this.scale), 0, 2 * Math.PI);
-            ctx.fill();
         }
 
         /**
@@ -2517,12 +2650,16 @@
         }
 
         updateTransform() {
-            this.editor.style.transform = `translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale})`;
-            this.instance.setZoom(this.scale);
+            try {
+                this.editor.style.transform = `translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale})`;
+                this.instance.setZoom(this.scale);
 
-            // Update ruler if enabled
-            if (this.rulerEnabled) {
-                this.updateRuler();
+                // Update ruler if enabled and properly initialized
+                if (this.rulerEnabled && this.rulerCanvas) {
+                    this.updateRuler();
+                }
+            } catch (error) {
+                console.error('Error in updateTransform:', error);
             }
         }
 

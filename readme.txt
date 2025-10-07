@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.6.1
+Stable tag: 1.6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,13 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 4.  Use the shortcode `[cardmap id="your_map_id"]` to display your map.
 
 == Changelog ==
+
+= 1.6.2 =
+*   Fixed: Connection style selection now updates visually in real-time. Previously, selecting different connection styles (straight, bezier, dashed, etc.) from the dropdown had no visual effect on existing connections.
+*   Technical: Removed CSS !important declarations that were preventing JavaScript from updating connection styles dynamically.
+*   Enhanced: Added proper repaint calls and improved error handling for connection style changes.
+*   Improved: Added user feedback via toast notifications when connection styles are updated.
+*   Debugging: Enhanced console logging to help identify connection style issues in the future.
 
 = 1.6.1 =
 *   Maintenance: Updated version for release

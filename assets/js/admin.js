@@ -756,38 +756,47 @@
                 console.log('=== END INIT ===');
                 
                 connStyleSelect.addEventListener('change', (e) => {
-                    console.log('Change event fired! Connection style changed to:', connStyleSelect.value, 'for node:', nodeData.id);
+                    console.log('=== CONNECTION STYLE CHANGE EVENT ===');
+                    console.log('Connection style changed to:', connStyleSelect.value, 'for node:', nodeData.id);
                     console.log('Event target:', e.target);
+                    console.log('Available line styles:', this.config.availableLineStyles);
+
                     nodeData.connectionStyle = connStyleSelect.value;
+
                     // Update existing connections that involve this node (both as source and target)
                     const sourceConns = this.instance.getConnections({ source: node.id });
                     const targetConns = this.instance.getConnections({ target: node.id });
-                    console.log('Updating connections - source:', sourceConns.length, 'target:', targetConns.length);
-                    
+                    console.log('Found connections - source:', sourceConns.length, 'target:', targetConns.length);
+
+                    let updatedConnections = 0;
+
                     // Update connections where this node is the source
                     sourceConns.forEach(c => {
                         const newStyle = nodeData.connectionStyle || this.config.lineStyle;
                         const config = this.getConnectorConfig(newStyle);
                         try {
-                            console.log('Updating connection style to:', newStyle, 'for connection:', c._cardmap_id);
+                            console.log('Updating SOURCE connection style to:', newStyle, 'for connection:', c._cardmap_id);
                             c.setPaintStyle && c.setPaintStyle(config.paintStyle);
                             if (config.connector) c.setConnector && c.setConnector(config.connector);
+
                             // Update overlays (arrows, etc.)
                             c.removeAllOverlays && c.removeAllOverlays();
                             if (config.overlays && Array.isArray(config.overlays)) {
                                 config.overlays.forEach(overlay => c.addOverlay && c.addOverlay(overlay));
                             }
+
                             // Update the mapData to reflect the style change
                             const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
                             if (connData) {
                                 connData.style = newStyle;
                                 console.log('Updated mapData connection style:', connData.style);
                             }
+                            updatedConnections++;
                         } catch (err) {
-                            console.warn('Error updating connection style:', err);
+                            console.error('Error updating SOURCE connection style:', err);
                         }
                     });
-                    
+
                     // Update connections where this node is the target (only if target node doesn't have its own style)
                     targetConns.forEach(c => {
                         const sourceNodeId = c.sourceId;
@@ -797,21 +806,34 @@
                             const newStyle = nodeData.connectionStyle || this.config.lineStyle;
                             const config = this.getConnectorConfig(newStyle);
                             try {
+                                console.log('Updating TARGET connection style to:', newStyle, 'for connection:', c._cardmap_id);
                                 c.setPaintStyle && c.setPaintStyle(config.paintStyle);
                                 if (config.connector) c.setConnector && c.setConnector(config.connector);
+
                                 // Update overlays (arrows, etc.)
                                 c.removeAllOverlays && c.removeAllOverlays();
                                 if (config.overlays && Array.isArray(config.overlays)) {
                                     config.overlays.forEach(overlay => c.addOverlay && c.addOverlay(overlay));
                                 }
+
                                 // Update the mapData to reflect the style change
                                 const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
                                 if (connData) connData.style = newStyle;
+                                updatedConnections++;
                             } catch (err) {
-                                console.warn('Error updating connection style:', err);
+                                console.error('Error updating TARGET connection style:', err);
                             }
                         }
                     });
+
+                    // Force repaint to ensure visual changes are applied
+                    console.log('Forcing repaint after updating', updatedConnections, 'connections');
+                    this.instance.repaintEverything();
+
+                    // Show user feedback
+                    this.showToast(`Connection style updated to: ${this.config.availableLineStyles[connStyleSelect.value]}`);
+
+                    console.log('=== CONNECTION STYLE CHANGE COMPLETE ===');
                 });
             }
 
@@ -1609,19 +1631,26 @@
                     console.log('Set rail connection style:', initialValue, 'for rail:', r.id);
                     
                     railConnStyleSelect.addEventListener('change', () => {
+                        console.log('=== RAIL CONNECTION STYLE CHANGE ===');
                         console.log('Rail connection style changed to:', railConnStyleSelect.value, 'for rail:', r.id);
                         r.connectionStyle = railConnStyleSelect.value;
+
                         // Update existing connections involving this rail
-                        const allConnections = this.instance.getConnections();
+                        const allConnections = this.instance.getAllConnections();
                         const railConnections = allConnections.filter(conn => {
                             const sourceMatch = conn.sourceId === r.id || (conn.source && conn.source.id === r.id);
                             const targetMatch = conn.targetId === r.id || (conn.target && conn.target.id === r.id);
                             return sourceMatch || targetMatch;
                         });
+
+                        console.log('Found', railConnections.length, 'connections involving rail', r.id);
+                        let updatedCount = 0;
+
                         railConnections.forEach(c => {
                             const newStyle = r.connectionStyle || this.config.lineStyle;
                             const config = this.getConnectorConfig(newStyle);
                             try {
+                                console.log('Updating rail connection style to:', newStyle, 'for connection:', c._cardmap_id);
                                 if (c.setPaintStyle && config.paintStyle) {
                                     c.setPaintStyle(config.paintStyle);
                                 }
@@ -1633,12 +1662,24 @@
                                     config.overlays.forEach(overlay => { if (c.addOverlay) c.addOverlay(overlay); });
                                 }
                                 const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
-                                if (connData) connData.style = newStyle;
+                                if (connData) {
+                                    connData.style = newStyle;
+                                    updatedCount++;
+                                }
                             } catch (err) {
                                 console.error('Error updating rail connection style:', err);
                             }
                         });
+
+                        // Force repaint to ensure visual changes are applied
+                        console.log('Forcing repaint after updating', updatedCount, 'rail connections');
+                        this.instance.repaintEverything();
+
+                        // Show user feedback
+                        this.showToast(`Rail connection style updated to: ${this.config.availableLineStyles[railConnStyleSelect.value]}`);
+
                         this.saveMapData();
+                        console.log('=== RAIL CONNECTION STYLE CHANGE COMPLETE ===');
                     });
                 }
 

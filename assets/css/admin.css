@@ -145,15 +145,15 @@
     pointer-events: none !important;
 }
 .cardmap-connector { z-index: 2500 !important; }
-/* Ensure visible connector stroke (admin) - cover multiple possible jsPlumb DOM shapes */
+/* Default connector stroke styles - these will be overridden by JavaScript for dynamic styling */
 .cardmap-connector path,
 .jtk-connector path,
 .jtk-connector,
 svg .jtk-connector,
 svg .jtk-connector path {
-    stroke: #A61832 !important;
-    stroke-width: 2px !important;
-    fill: none !important;
+    stroke: #A61832;
+    stroke-width: 2px;
+    fill: none;
 }
 /* Highlight connectors when delete-connection mode is active */
 .deletable-conn path, .deletable-conn { filter: drop-shadow(0 0 6px rgba(200,30,30,0.45)); cursor: pointer !important; }

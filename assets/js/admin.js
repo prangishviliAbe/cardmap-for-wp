@@ -358,36 +358,56 @@
             // Fullscreen link modal handlers
             const modal = document.getElementById('fullscreen-link-modal');
             const closeBtn = document.getElementById('close-fullscreen-modal');
+            const closeBtnFooter = document.getElementById('close-fullscreen-modal-footer');
             const copyBtn = document.getElementById('copy-fullscreen-link');
             const openBtn = document.getElementById('open-fullscreen-link');
-            
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
+
+            const closeModal = () => {
+                if (modal) {
                     modal.style.display = 'none';
-                });
+                }
+            };
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeModal);
             }
-            
+
+            if (closeBtnFooter) {
+                closeBtnFooter.addEventListener('click', closeModal);
+            }
+
             if (copyBtn) {
                 copyBtn.addEventListener('click', () => {
                     const input = document.getElementById('fullscreen-link-input');
-                    input.select();
-                    document.execCommand('copy');
-                    this.showToast('Link copied to clipboard!');
+                    if (input) {
+                        input.select();
+                        input.setSelectionRange(0, 99999); // For mobile devices
+
+                        try {
+                            document.execCommand('copy');
+                            this.showToast('Link copied to clipboard!');
+                        } catch (err) {
+                            console.error('Failed to copy link:', err);
+                            this.showToast('Failed to copy link');
+                        }
+                    }
                 });
             }
-            
+
             if (openBtn) {
                 openBtn.addEventListener('click', () => {
-                    const link = document.getElementById('fullscreen-link-input').value;
-                    window.open(link, '_blank');
+                    const input = document.getElementById('fullscreen-link-input');
+                    if (input && input.value) {
+                        window.open(input.value, '_blank');
+                    }
                 });
             }
-            
+
             // Close modal when clicking outside
             if (modal) {
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) {
-                        modal.style.display = 'none';
+                        closeModal();
                     }
                 });
             }
@@ -2788,12 +2808,20 @@
                 return;
             }
 
-            // Generate the fullscreen URL
-            const baseUrl = window.location.origin + window.location.pathname;
-            const fullscreenUrl = `${baseUrl}?cardmap_id=${this.postId}&fullscreen=1`;
+            // Generate the frontend URL properly
+            const currentUrl = new URL(window.location.href);
+            const siteUrl = new URL(currentUrl.origin);
 
-            input.value = fullscreenUrl;
+            // Remove admin path and go to frontend
+            const frontendUrl = new URL(siteUrl);
+            frontendUrl.searchParams.set('cardmap_id', this.postId);
+            frontendUrl.searchParams.set('fullscreen', '1');
+
+            input.value = frontendUrl.toString();
             modal.style.display = 'flex';
+
+            // Focus on input for easy copying
+            setTimeout(() => input.focus(), 100);
 
             this.showToast('Fullscreen link generated!');
         }

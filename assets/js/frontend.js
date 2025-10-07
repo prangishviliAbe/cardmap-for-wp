@@ -18,10 +18,23 @@ document.addEventListener('DOMContentLoaded', function() {
         // Auto-enter fullscreen if URL parameters match this map
         if (autoCardmapId && autoCardmapId === mapId && autoFullscreen) {
             setTimeout(() => {
+                console.log('Attempting auto-fullscreen for map:', mapId);
                 wrapper.requestFullscreen().catch(err => {
                     console.warn('Auto-fullscreen failed:', err);
+                    // Try alternative fullscreen methods if the primary one fails
+                    if (wrapper.webkitRequestFullscreen) {
+                        wrapper.webkitRequestFullscreen().catch(webkitErr => {
+                            console.warn('Webkit fullscreen also failed:', webkitErr);
+                        });
+                    } else if (wrapper.msRequestFullscreen) {
+                        wrapper.msRequestFullscreen().catch(msErr => {
+                            console.warn('MS fullscreen also failed:', msErr);
+                        });
+                    }
+                }).then(() => {
+                    console.log('Auto-fullscreen successful for map:', mapId);
                 });
-            }, 100); // Small delay to ensure everything is loaded
+            }, 500); // Increased delay to ensure everything is loaded
         }
 
         const mapConfig = cardmap_frontend_data[mapId];
@@ -497,8 +510,26 @@ document.addEventListener('DOMContentLoaded', function() {
         if (fullscreenBtn) {
             fullscreenBtn.addEventListener('click', () => {
                 if (!document.fullscreenElement) {
+                    // Try standard fullscreen first
                     wrapper.requestFullscreen().catch(err => {
-                        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                        console.warn('Standard fullscreen failed:', err);
+                        // Try webkit prefix
+                        if (wrapper.webkitRequestFullscreen) {
+                            wrapper.webkitRequestFullscreen().catch(webkitErr => {
+                                console.warn('Webkit fullscreen failed:', webkitErr);
+                                // Try MS prefix
+                                if (wrapper.msRequestFullscreen) {
+                                    wrapper.msRequestFullscreen().catch(msErr => {
+                                        console.warn('MS fullscreen failed:', msErr);
+                                        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                                    });
+                                } else {
+                                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                                }
+                            });
+                        } else {
+                            alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                        }
                     });
                 } else {
                     document.exitFullscreen();

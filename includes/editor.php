@@ -138,17 +138,22 @@ function cardmap_editor_callback( $post ) {
     </div>
 
     <!-- Fullscreen Link Popup Modal -->
-    <div id="fullscreen-link-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:999999;align-items:center;justify-content:center;">
-        <div style="background:white;padding:30px;border-radius:8px;max-width:600px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
-            <h2 style="margin-top:0;color:#333;">🔗 Fullscreen Map Link</h2>
-            <p style="color:#666;margin-bottom:20px;">Share this link to display your map in fullscreen mode:</p>
-            <div style="display:flex;gap:10px;margin-bottom:20px;">
-                <input type="text" id="fullscreen-link-input" readonly style="flex:1;padding:10px;border:1px solid #ddd;border-radius:4px;font-family:monospace;font-size:13px;background:#f9f9f9;" />
-                <button type="button" id="copy-fullscreen-link" class="button button-primary" style="padding:10px 20px;">📋 Copy</button>
+    <div id="fullscreen-link-modal" class="fullscreen-link-modal" style="display:none;">
+        <div class="fullscreen-link-modal-content">
+            <div class="fullscreen-link-modal-header">
+                <h2>🔗 Fullscreen Map Link</h2>
+                <button type="button" id="close-fullscreen-modal" class="fullscreen-link-modal-close">&times;</button>
             </div>
-            <div style="display:flex;gap:10px;">
-                <button type="button" id="open-fullscreen-link" class="button button-secondary" style="flex:1;">🚀 Open in New Tab</button>
-                <button type="button" id="close-fullscreen-modal" class="button" style="flex:1;">Close</button>
+            <div class="fullscreen-link-modal-body">
+                <p>Share this link to display your map in fullscreen mode:</p>
+                <div class="fullscreen-link-input-container">
+                    <input type="text" id="fullscreen-link-input" class="fullscreen-link-input" readonly />
+                    <button type="button" id="copy-fullscreen-link" class="button button-primary">📋 Copy</button>
+                </div>
+                <div class="fullscreen-link-modal-actions">
+                    <button type="button" id="open-fullscreen-link" class="button button-secondary">🚀 Open in New Tab</button>
+                    <button type="button" id="close-fullscreen-modal-footer" class="button">Close</button>
+                </div>
             </div>
         </div>
     </div>

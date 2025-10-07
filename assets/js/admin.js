@@ -49,6 +49,7 @@
             this._lastRailDraggedAt = 0;
             this._lastEscapeAt = 0;
             this._saveTimeout = null;
+            this._resizeTimeout = null;
 
             // History and undo/redo system
             this.historyStack = [];
@@ -96,6 +97,9 @@
                 this.createRuler();
                 this.updateRuler();
             }
+
+            // Add resize listener for fullscreen changes
+            window.addEventListener('resize', this.handleWindowResize.bind(this));
         }
 
         /**
@@ -534,7 +538,7 @@
             this.showToast(`Ruler ${this.rulerEnabled ? 'enabled' : 'disabled'}`);
 
             // Update visual indicator
-            this.editor.classList.toggle('ruler-enabled', this.rulerEnabled);
+            this.editorWrapper.classList.toggle('ruler-enabled', this.rulerEnabled);
 
             // Update button visual state
             const rulerBtn = document.getElementById('toggle-ruler');
@@ -567,9 +571,11 @@
                 pointer-events: none;
                 z-index: 1000;
                 opacity: ${this.rulerOpacity};
+                width: 100%;
+                height: 100%;
             `;
 
-            this.editor.appendChild(this.rulerCanvas);
+            this.editorWrapper.appendChild(this.rulerCanvas);
             this.updateRulerCanvasSize();
         }
 
@@ -581,6 +587,11 @@
                 this.rulerCanvas.remove();
                 this.rulerCanvas = null;
             }
+            // Clear any pending resize timeouts
+            if (this._resizeTimeout) {
+                clearTimeout(this._resizeTimeout);
+                this._resizeTimeout = null;
+            }
         }
 
         /**
@@ -589,9 +600,30 @@
         updateRulerCanvasSize() {
             if (!this.rulerCanvas) return;
 
-            const rect = this.editor.getBoundingClientRect();
-            this.rulerCanvas.width = rect.width;
-            this.rulerCanvas.height = rect.height;
+            const wrapperRect = this.editorWrapper.getBoundingClientRect();
+
+            // Set canvas to cover the entire wrapper area
+            const canvasSize = Math.max(2000, wrapperRect.width * 2, wrapperRect.height * 2);
+            this.rulerCanvas.width = canvasSize;
+            this.rulerCanvas.height = canvasSize;
+
+            // Style to fill the wrapper
+            this.rulerCanvas.style.width = `${wrapperRect.width}px`;
+            this.rulerCanvas.style.height = `${wrapperRect.height}px`;
+        }
+
+        /**
+         * Handles window resize events (fullscreen, etc.).
+         */
+        handleWindowResize() {
+            if (this.rulerEnabled) {
+                // Debounce resize updates
+                clearTimeout(this._resizeTimeout);
+                this._resizeTimeout = setTimeout(() => {
+                    this.updateRulerCanvasSize();
+                    this.updateRuler();
+                }, 100);
+            }
         }
 
         /**
@@ -617,57 +649,73 @@
             // Clear canvas
             ctx.clearRect(0, 0, width, height);
 
-            // Set ruler properties
+            // Set ruler properties with scale compensation
+            const lineWidth = Math.max(0.5, 1 / this.scale);
             ctx.strokeStyle = this.rulerColor;
-            ctx.lineWidth = 0.5;
+            ctx.lineWidth = lineWidth;
             ctx.setLineDash([]);
 
-            // Draw vertical lines (every 50px)
-            for (let x = 0; x < width; x += 50) {
+            // Calculate spacing based on scale for better visibility
+            const baseSpacing = 50;
+            const minSpacing = 20;
+            const maxSpacing = 100;
+            const dynamicSpacing = Math.max(minSpacing, Math.min(maxSpacing, baseSpacing / this.scale));
+
+            // Draw vertical lines
+            for (let x = 0; x < width; x += dynamicSpacing) {
                 ctx.beginPath();
                 ctx.moveTo(x, 0);
                 ctx.lineTo(x, height);
                 ctx.stroke();
 
-                // Draw measurement labels for major lines (every 100px)
-                if (x % 100 === 0 && x > 0) {
+                // Draw measurement labels for major lines (every 100px scaled)
+                const labelInterval = Math.max(100, dynamicSpacing * 2);
+                if (Math.abs(x % labelInterval) < 2 && x > 0) {
                     ctx.fillStyle = this.rulerColor;
-                    ctx.font = '10px monospace';
+                    ctx.font = `${Math.max(10, 12 / this.scale)}px monospace`;
                     ctx.textAlign = 'center';
-                    ctx.fillText(x.toString(), x, 12);
+                    ctx.fillText(Math.round(x).toString(), x, Math.max(12, 15 / this.scale));
                 }
             }
 
-            // Draw horizontal lines (every 50px)
-            for (let y = 0; y < height; y += 50) {
+            // Draw horizontal lines
+            for (let y = 0; y < height; y += dynamicSpacing) {
                 ctx.beginPath();
                 ctx.moveTo(0, y);
                 ctx.lineTo(width, y);
                 ctx.stroke();
 
-                // Draw measurement labels for major lines (every 100px)
-                if (y % 100 === 0 && y > 0) {
+                // Draw measurement labels for major lines
+                const labelInterval = Math.max(100, dynamicSpacing * 2);
+                if (Math.abs(y % labelInterval) < 2 && y > 0) {
                     ctx.fillStyle = this.rulerColor;
-                    ctx.font = '10px monospace';
+                    ctx.font = `${Math.max(10, 12 / this.scale)}px monospace`;
                     ctx.textAlign = 'right';
-                    ctx.fillText(y.toString(), 25, y - 2);
+                    ctx.fillText(Math.round(y).toString(), Math.max(25, 30 / this.scale), y - 2);
                 }
             }
 
-            // Draw corner ruler markers
+            // Draw corner ruler markers (scale-compensated size)
+            const markerSize = Math.max(20, 25 / this.scale);
             ctx.strokeStyle = this.rulerColor;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = Math.max(2, 3 / this.scale);
 
             // Top-left corner marker
-            ctx.strokeRect(0, 0, 20, 20);
+            ctx.strokeRect(0, 0, markerSize, markerSize);
 
             // Draw crosshairs at origin
+            const crosshairSize = markerSize * 0.6;
             ctx.beginPath();
-            ctx.moveTo(0, 10);
-            ctx.lineTo(20, 10);
-            ctx.moveTo(10, 0);
-            ctx.lineTo(10, 20);
+            ctx.moveTo(0, crosshairSize);
+            ctx.lineTo(markerSize, crosshairSize);
+            ctx.moveTo(crosshairSize, 0);
+            ctx.lineTo(crosshairSize, markerSize);
             ctx.stroke();
+
+            // Add center dot at origin
+            ctx.beginPath();
+            ctx.arc(crosshairSize, crosshairSize, Math.max(1, 2 / this.scale), 0, 2 * Math.PI);
+            ctx.fill();
         }
 
         /**

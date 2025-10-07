@@ -225,7 +225,7 @@ svg .jtk-connector path {
 }
 
 /* Ruler overlay styles */
-#cardmap-editor.ruler-enabled {
+#cardmap-editor-wrapper.ruler-enabled {
     position: relative;
 }
 
@@ -236,9 +236,6 @@ svg .jtk-connector path {
     pointer-events: none;
     z-index: 1000;
     opacity: 0.3;
-}
-
-#cardmap-editor.ruler-enabled #cardmap-ruler-canvas {
     display: block;
 }
 

@@ -140,9 +140,10 @@
 #cardmap-editor-wrapper:-ms-fullscreen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
 #cardmap-editor-wrapper:fullscreen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
 
-/* Connector visuals should be above nodes but not block pointer events */
+/* Connector visuals should be above nodes and receive click events for deletion */
 .cardmap-connector path, .cardmap-connector .jtk-connector {
-    pointer-events: none !important;
+    pointer-events: stroke !important;
+    cursor: pointer !important;
 }
 .cardmap-connector { z-index: 2500 !important; }
 /* Default connector stroke styles - these will be overridden by JavaScript for dynamic styling */
@@ -157,10 +158,31 @@ svg .jtk-connector path {
 }
 /* Highlight connectors when delete-connection mode is active */
 .deletable-conn path, .deletable-conn { filter: drop-shadow(0 0 6px rgba(200,30,30,0.45)); cursor: pointer !important; }
+
+/* Hover effect for connections to indicate they can be double-clicked */
+.connection-hover path,
+.connection-hover .jtk-connector path {
+    filter: drop-shadow(0 0 4px rgba(166, 24, 50, 0.6)) !important;
+    stroke-width: 3px !important;
+    stroke: #A61832 !important;
+    transition: all 0.2s ease;
+}
+
+/* Add visual feedback for clickable connections */
+.cardmap-connector:hover {
+    cursor: pointer !important;
+}
+
+.cardmap-connector:hover path,
+.cardmap-connector:hover .jtk-connector path {
+    stroke-width: 3px !important;
+    filter: drop-shadow(0 0 3px rgba(166, 24, 50, 0.5)) !important;
+}
 /* Ensure jsPlumb's SVG sits above nodes on frontend as well */
 .cardmap-frontend-wrapper svg, .cardmap-frontend-wrapper .jtk-svg, .cardmap-frontend-wrapper .jtk-connector { position: absolute; z-index: 3000 !important; pointer-events: none !important; }
 /* Ensure the jsPlumb SVG container sits above nodes so strokes are visible */
-#cardmap-editor svg, #cardmap-editor .jtk-svg, #cardmap-editor .jtk-connector { position: absolute; z-index: 3000 !important; pointer-events: none !important; }
+#cardmap-editor svg, #cardmap-editor .jtk-svg, #cardmap-editor .jtk-connector { position: absolute; z-index: 3000 !important; }
+#cardmap-editor svg .jtk-connector, #cardmap-editor .jtk-connector { pointer-events: stroke !important; cursor: pointer !important; }
 
 /* Node style examples: these intentionally don't change core layout, just subtle colors */
 .cardmap-node.style-default { border-color: #E0E0E0; }

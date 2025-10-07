@@ -14,6 +14,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const mapData = mapConfig.map_data;
         const panZoomContainer = wrapper.querySelector('.cardmap-pan-zoom-container');
 
+        console.log('Frontend map config:', mapConfig);
+        console.log('Frontend map data:', mapData);
+        console.log('Rails in map data:', mapData.rails);
+        console.log('Show rail thickness setting:', mapConfig.show_rail_thickness);
+
         if (!panZoomContainer || !mapData) {
             return;
         }
@@ -59,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function getDirectionalAnchorsFrontend(sourceEl, targetEl) {
-            if (!sourceEl || !targetEl) return "Continuous";
+            if (!sourceEl || !targetEl) return ["Continuous", "Continuous"];
             const s = sourceEl.getBoundingClientRect();
             const t = targetEl.getBoundingClientRect();
             const dx = (t.left + t.right) / 2 - (s.left + s.right) / 2;
@@ -74,121 +79,218 @@ document.addEventListener('DOMContentLoaded', function() {
             ConnectionsDetachable: false
         });
 
-        instance.batch(() => {
-            if (mapData.connections) {
-                mapData.connections.forEach((c, index) => {
-                    const sourceEl = panZoomContainer.querySelector('#' + c.source);
-                    const targetEl = panZoomContainer.querySelector('#' + c.target);
-                    if (sourceEl && targetEl) {
-                        const connStyle = c.style || 'straight-with-arrows';
-                        let config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness, c.rail_size);
+        // Initialize rails as jsPlumb endpoints first
+        const rails = panZoomContainer.querySelectorAll('.cardmap-rail');
+        rails.forEach(railEl => {
+            try {
+                // Ensure rail has proper ID before initializing
+                if (!railEl.id) {
+                    console.warn('Rail missing ID, skipping jsPlumb initialization');
+                    return;
+                }
 
-                        // If the connection is attached to a rail that has a visual appearance,
-                        // try to make the connector visually match the rail (color/thickness/dash).
-                        try {
-                            const sourceIsRail = sourceEl.classList && sourceEl.classList.contains('cardmap-rail');
-                            const targetIsRail = targetEl.classList && targetEl.classList.contains('cardmap-rail');
-                            const railEl = sourceIsRail ? sourceEl : (targetIsRail ? targetEl : null);
-                            if (railEl) {
-                                const railStyle = railEl.dataset.railStyle || railEl.getAttribute('data-rail-style') || '';
-                                const railColor = railEl.dataset.railColor || railEl.getAttribute('data-rail-color') || mapConfig.line_color;
-                                const railSize = parseInt(railEl.dataset.railSize || railEl.getAttribute('data-rail-size') || c.rail_size || mapConfig.line_thickness, 10) || mapConfig.line_thickness;
+                console.log('Initializing rail as jsPlumb endpoint:', railEl.id, railEl);
 
-                                // Start from the current config and override paintStyle properties
-                                const overridden = Object.assign({}, config);
-                                overridden.paintStyle = Object.assign({}, overridden.paintStyle || {});
-                                overridden.paintStyle.stroke = railColor;
-                                overridden.paintStyle.strokeWidth = railStyle === 'double-line' ? Math.max(2, Math.round(railSize * 1.5)) : Math.max(1, railSize);
-
-                                // Map some rail visual styles to dash patterns for connectors
-                                if (railStyle === 'dash-heavy') {
-                                    overridden.paintStyle.dashstyle = '12 6';
-                                } else if (railStyle === 'dash-subtle') {
-                                    overridden.paintStyle.dashstyle = '6 6';
-                                } else if (railStyle === 'dotted') {
-                                    overridden.paintStyle.dashstyle = '1 4';
-                                } else if (railStyle === 'striped' || railStyle === 'gradient' || railStyle === 'embossed') {
-                                    // these complex styles don't translate perfectly to stroke patterns;
-                                    // use a solid stroke with the rail color and a slightly larger width
-                                    overridden.paintStyle.dashstyle = null;
-                                }
-
-                                config = overridden;
-                            }
-                        } catch (err) {
-                            // ignore and use default config
-                        }
-                        const anchors = c.anchors || getDirectionalAnchorsFrontend(sourceEl, targetEl) || "Continuous";
-                        const connection = instance.connect({
-                            source: sourceEl,
-                            target: targetEl,
-                            anchors: anchors,
-                            ...config,
-                            endpoint: "Blank"
-                        });
-
-                        if (mapConfig.enable_animation) {
-                            // Apply animation after the connector DOM has been rendered.
-                            // Use double requestAnimationFrame to ensure SVG path exists, and
-                            // reset animation so it reliably plays on initial load. If the
-                            // path isn't available immediately, retry a few times with a
-                            // short timeout fallback.
-                            const animType = mapConfig.connection_animation_type || 'draw';
-                            const duration = (mapConfig.connection_animation_duration || 800) + 'ms';
-                            const delay = index * 100; // staggered delay
-
-                            (function(conn, attempts){
-                                attempts = attempts || 0;
-                                function tryApply() {
-                                    requestAnimationFrame(() => {
-                                        requestAnimationFrame(() => {
-                                            try {
-                                                const connector = conn.getConnector && conn.getConnector();
-                                                const svg = connector && connector.canvas;
-                                                const path = svg && svg.querySelector && svg.querySelector('path');
-                                                if (path) {
-                                                    // reset any running animation
-                                                    try { path.style.animation = 'none'; } catch(e) {}
-                                                    // force reflow
-                                                    void path.offsetWidth;
-                                                    // remove any previous conn-anim-* classes then add ours
-                                                    try {
-                                                        const removeClasses = Array.from(path.classList || []).filter(c => c.indexOf('conn-anim-') === 0 || c === 'cardmap-connection-anim');
-                                                        removeClasses.forEach(c => path.classList.remove(c));
-                                                    } catch(e) {}
-                                                    path.classList.add('cardmap-connection-anim', `conn-anim-${animType}`);
-                                                    path.style.animationDelay = `${delay}ms`;
-                                                    path.style.animationDuration = duration;
-                                                    return;
-                                                }
-                                            } catch (err) {
-                                                // ignore
-                                            }
-
-                                            // If path not found yet, retry a few times with a small timeout
-                                            if (attempts < 4) {
-                                                attempts++;
-                                                setTimeout(tryApply, 60);
-                                            }
-                                        });
-                                    });
-                                }
-                                tryApply();
-                            })(connection, 0);
-                        }
-                    }
+                instance.makeSource(railEl, {
+                    anchor: ["Continuous"],
+                    endpoint: "Blank",
+                    maxConnections: -1
                 });
-            }
-            if (mapConfig.enable_drag) {
-                const nodes = wrapper.querySelectorAll('.cardmap-node');
-                instance.draggable(nodes);
+                instance.makeTarget(railEl, {
+                    anchor: ["Continuous"],
+                    endpoint: "Blank",
+                    maxConnections: -1
+                });
+                console.log('Rail initialized as jsPlumb endpoint:', railEl.id);
+            } catch (err) {
+                console.error('Error initializing rail as jsPlumb endpoint:', railEl.id, err);
             }
         });
 
+        // Create connections after a short delay to ensure rails are fully initialized
+        setTimeout(() => {
+            instance.batch(() => {
+                if (mapData.connections) {
+                    mapData.connections.forEach((c, index) => {
+                    try {
+                        console.log('Processing connection:', c, 'Source:', c.source, 'Target:', c.target);
+                        if (!c.source || !c.target) {
+                            console.warn('Connection missing source or target:', c);
+                            return;
+                        }
+
+                        const sourceEl = panZoomContainer.querySelector('#' + c.source);
+                        const targetEl = panZoomContainer.querySelector('#' + c.target);
+                        console.log('Found elements:', {
+                            source: !!sourceEl,
+                            target: !!targetEl,
+                            sourceId: c.source,
+                            targetId: c.target,
+                            sourceElId: sourceEl?.id,
+                            targetElId: targetEl?.id
+                        });
+
+                        if (sourceEl && targetEl) {
+                            const connStyle = c.style || 'straight-with-arrows';
+                            let config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness, c.rail_size);
+
+                            // If the connection is attached to a rail that has a visual appearance,
+                            // try to make the connector visually match the rail (color/thickness/dash).
+                            try {
+                                const sourceIsRail = sourceEl.classList && sourceEl.classList.contains('cardmap-rail');
+                                const targetIsRail = targetEl.classList && targetEl.classList.contains('cardmap-rail');
+                                const railEl = sourceIsRail ? sourceEl : (targetIsRail ? targetEl : null);
+                                if (railEl) {
+                                    const railStyle = railEl.dataset.railStyle || railEl.getAttribute('data-rail-style') || '';
+                                    const railColor = railEl.dataset.railColor || railEl.getAttribute('data-rail-color') || mapConfig.line_color;
+                                    const railSize = parseInt(railEl.dataset.railSize || railEl.getAttribute('data-rail-size') || c.rail_size || mapConfig.line_thickness, 10) || mapConfig.line_thickness;
+
+                                    // Start from the current config and override paintStyle properties
+                                    const overridden = Object.assign({}, config);
+                                    overridden.paintStyle = Object.assign({}, overridden.paintStyle || {});
+                                    overridden.paintStyle.stroke = railColor;
+                                    overridden.paintStyle.strokeWidth = railStyle === 'double-line' ? Math.max(2, Math.round(railSize * 1.5)) : Math.max(1, railSize);
+
+                                    // Map some rail visual styles to dash patterns for connectors
+                                    if (railStyle === 'dash-heavy') {
+                                        overridden.paintStyle.dashstyle = '12 6';
+                                    } else if (railStyle === 'dash-subtle') {
+                                        overridden.paintStyle.dashstyle = '6 6';
+                                    } else if (railStyle === 'dotted') {
+                                        overridden.paintStyle.dashstyle = '1 4';
+                                    } else if (railStyle === 'striped' || railStyle === 'gradient' || railStyle === 'embossed') {
+                                        // these complex styles don't translate perfectly to stroke patterns;
+                                        // use a solid stroke with the rail color and a slightly larger width
+                                        overridden.paintStyle.dashstyle = null;
+                                    }
+
+                                    config = overridden;
+                                }
+                            } catch (err) {
+                                // ignore and use default config
+                            }
+
+                            // Use saved anchors if available, otherwise compute directional anchors
+                            const sourceIsRail = sourceEl.classList && sourceEl.classList.contains('cardmap-rail');
+                            const targetIsRail = targetEl.classList && targetEl.classList.contains('cardmap-rail');
+
+                            let anchors;
+                            const savedAnchors = c.anchors;
+                            
+                            if (Array.isArray(savedAnchors) && savedAnchors.length >= 2) {
+                                // Process saved anchors - handle both string anchors and precise anchor objects
+                                anchors = savedAnchors.map(anchor => {
+                                    if (anchor && typeof anchor === 'object' && anchor.type === 'precise' && Array.isArray(anchor.value)) {
+                                        return anchor.value; // Return the precise anchor array [x, y, ox, oy]
+                                    }
+                                    return anchor; // Return string anchor as-is
+                                });
+                                console.log('Using saved anchors for connection:', anchors);
+                            } else if (sourceIsRail || targetIsRail) {
+                                // For rail connections without saved anchors, use Continuous
+                                anchors = ["Continuous", "Continuous"];
+                                console.log('Using Continuous anchors for rail connection');
+                            } else {
+                                // For node-to-node connections, compute directional anchors
+                                anchors = getDirectionalAnchorsFrontend(sourceEl, targetEl) || ["Continuous", "Continuous"];
+                                console.log('Using computed directional anchors:', anchors);
+                            }
+
+                            console.log('Creating connection with config:', {
+                                source: c.source,
+                                target: c.target,
+                                anchors: anchors,
+                                style: c.style,
+                                sourceIsRail: sourceIsRail,
+                                targetIsRail: targetIsRail,
+                                config: config
+                            });
+
+                            try {
+                                const connection = instance.connect({
+                                    source: sourceEl,
+                                    target: targetEl,
+                                    anchors: anchors,
+                                    ...config,
+                                    endpoint: "Blank"
+                                });
+
+                                if (connection) {
+                                    console.log('Connection created successfully:', c.id || 'no-id');
+
+                                    // Apply animation if enabled
+                                    if (mapConfig.enable_animation) {
+                                        const animType = mapConfig.connection_animation_type || 'draw';
+                                        const duration = (mapConfig.connection_animation_duration || 800) + 'ms';
+                                        const delay = index * 100; // staggered delay
+
+                                        // Apply animation after the connector DOM has been rendered
+                                        setTimeout(() => {
+                                            try {
+                                                const connector = connection.getConnector && connection.getConnector();
+                                                const svg = connector && connector.canvas;
+                                                const path = svg && svg.querySelector && svg.querySelector('path');
+                                                if (path) {
+                                                    path.classList.add('cardmap-connection-anim', `conn-anim-${animType}`);
+                                                    path.style.animationDelay = `${delay}ms`;
+                                                    path.style.animationDuration = duration;
+                                                }
+                                            } catch (err) {
+                                                console.warn('Could not apply animation to connection:', err);
+                                            }
+                                        }, 50);
+                                    }
+                                } else {
+                                    console.error('Connection creation returned null/undefined');
+                                }
+                            } catch (connErr) {
+                                console.error('Error creating connection:', connErr, {
+                                    source: c.source,
+                                    target: c.target,
+                                    sourceEl: !!sourceEl,
+                                    targetEl: !!targetEl
+                                });
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error processing connection:', err, c);
+                    }
+                    });
+                }
+
+                if (mapConfig.enable_drag) {
+                    const nodes = wrapper.querySelectorAll('.cardmap-node');
+                    instance.draggable(nodes);
+                }
+            });
+
+            // Force a repaint after all connections are created
+            setTimeout(() => {
+                instance.repaintEverything();
+                console.log('Repainted all connections');
+            }, 100);
+        }, 50);
+
         // Ensure rails have a visible inner bar (.rail-bar) so we can hide/show thickness
         try {
+            // Look for rails both as direct elements and as nodes with is_rail flag
             const rails = panZoomContainer.querySelectorAll('.cardmap-rail');
-            rails.forEach(railEl => {
+            console.log('Found', rails.length, 'rails in frontend');
+
+            // Also check if there are any elements with data attributes that indicate they are rails
+            const allElements = panZoomContainer.querySelectorAll('*');
+            const potentialRails = Array.from(allElements).filter(el =>
+                el.dataset && (el.dataset.railStyle || el.dataset.railColor || el.dataset.railSize)
+            );
+            console.log('Found', potentialRails.length, 'potential rails by data attributes');
+
+            rails.forEach((railEl, index) => {
+                console.log('Processing rail', index + 1, ':', {
+                    id: railEl.id,
+                    classList: railEl.className,
+                    style: railEl.style.cssText,
+                    dataset: railEl.dataset
+                });
                 // add rail-bar if missing
                     if (!railEl.querySelector('.rail-bar')) {
                     const bar = document.createElement('div');
@@ -306,12 +408,46 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!bar.style.zIndex) bar.style.zIndex = '20';
                 }
 
-                // toggle visibility according to setting
-                if (mapConfig.show_rail_thickness === false || mapConfig.show_rail_thickness === 0) {
+                // toggle visibility according to setting - default to showing rails if setting is undefined
+                // Fix: Default to showing rails unless explicitly disabled
+                const shouldHideRails = mapConfig.show_rail_thickness === false || mapConfig.show_rail_thickness === 0;
+                console.log('Rail visibility check:', {
+                    setting: mapConfig.show_rail_thickness,
+                    shouldHide: shouldHideRails,
+                    railId: railEl.id
+                });
+
+                if (shouldHideRails) {
                     railEl.classList.add('rail-thickness-hidden');
+                    console.log('Hiding rail thickness for rail:', railEl.id);
                 } else {
                     railEl.classList.remove('rail-thickness-hidden');
+                    console.log('Showing rail thickness for rail:', railEl.id, 'setting:', mapConfig.show_rail_thickness, 'shouldHide:', shouldHideRails);
                 }
+
+                // Ensure rail has proper positioning and is visible in the container
+                if (!railEl.style.left) railEl.style.left = '0px';
+                if (!railEl.style.top) railEl.style.top = '0px';
+
+                // Final check - ensure rail bar is visible unless explicitly hidden
+                const railBar = railEl.querySelector('.rail-bar');
+                if (railBar && !railEl.classList.contains('rail-thickness-hidden')) {
+                    railBar.style.display = 'block';
+                    railBar.style.opacity = '1';
+                    console.log('Rail bar confirmed visible for:', railEl.id);
+                }
+
+                // Additional debugging for troubleshooting
+                console.log('Rail final state:', {
+                    id: railEl.id,
+                    classes: railEl.className,
+                    hasRailBar: !!railBar,
+                    isHidden: railEl.classList.contains('rail-thickness-hidden'),
+                    railBarDisplay: railBar ? railBar.style.display : 'no bar',
+                    railBarOpacity: railBar ? railBar.style.opacity : 'no bar',
+                    position: `${railEl.style.left}, ${railEl.style.top}`,
+                    size: `${railEl.style.width}, ${railEl.style.height}`
+                });
             });
         } catch (err) {
             // ignore DOM errors

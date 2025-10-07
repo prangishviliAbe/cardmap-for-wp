@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.7.0
+Stable tag: 1.8.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,16 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 4.  Use the shortcode `[cardmap id="your_map_id"]` to display your map.
 
 == Changelog ==
+
+= 1.8.0 =
+*   New Feature: Added visible Undo/Redo buttons in the toolbar for easy access to history navigation.
+*   New Feature: Added Auto-Align button that proportionally distributes cards evenly within their current area.
+*   Enhancement: Dynamic connection anchors - connections to rails now move smoothly along the rail as you drag connected cards.
+*   Enhancement: Improved frontend connection rendering to match admin panel appearance exactly.
+*   Enhancement: Better anchor handling for rail connections with proper saved anchor support.
+*   Removed: Grid snap and ruler features removed for simplified interface.
+*   Fix: Connections now properly reach rails without gaps on the frontend.
+*   Fix: Connection styling now matches between admin panel and frontend display.
 
 = 1.7.0 =
 *   New Feature: Added comprehensive export/import functionality for plugin settings. Users can now backup their settings or transfer them between sites.

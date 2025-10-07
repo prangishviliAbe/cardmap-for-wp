@@ -174,20 +174,23 @@
 }
 
 /* Connector/jsPlumb Styles */
-.jtk-svg,
-.jtk-connector,
-svg.jtk-svg,
-svg .jtk-connector {
-    z-index: 100 !important;
+.cardmap-frontend-wrapper .jtk-svg,
+.cardmap-frontend-wrapper .jtk-connector,
+.cardmap-frontend-wrapper svg.jtk-svg,
+.cardmap-frontend-wrapper svg .jtk-connector {
+    z-index: 3000 !important;
     position: absolute !important;
     pointer-events: none !important;
     display: block !important;
 }
 
-.jtk-svg path,
-.jtk-connector path,
-.cardmap-connector path {
+.cardmap-frontend-wrapper .jtk-svg path,
+.cardmap-frontend-wrapper .jtk-connector path,
+.cardmap-frontend-wrapper .cardmap-connector path,
+.cardmap-frontend-wrapper svg .jtk-connector path {
     fill: none !important;
+    stroke: #A61832;
+    stroke-width: 2px;
     /* Default draw animation; specific animation classes can override */
     animation: cardmap-draw-line 1s ease-out forwards;
 }
@@ -291,14 +294,17 @@ svg .jtk-connector {
     position: absolute;
     /* container; the visible bar sits inside */
     border-radius: 4px;
+    z-index: 15; /* Below connectors but above background */
 }
 
 .cardmap-rail:not(.vertical) {
     height: 8px;
+    min-height: 8px;
 }
 
 .cardmap-rail.vertical {
     width: 8px;
+    min-width: 8px;
 }
 
 /* The inner visible bar that represents the rail thickness */
@@ -309,14 +315,17 @@ svg .jtk-connector {
     background-color: #A61832;
     border-radius: 4px;
     /* ensure rails are visible above background and nodes but beneath connectors */
-    z-index: 20;
+    z-index: 25;
     width: 100%;
     height: 100%;
+    display: block;
+    opacity: 1;
 }
 
 /* When hidden, make the bar transparent (we keep the rail element for hit tests) */
 .cardmap-rail.rail-thickness-hidden .rail-bar {
     background-color: transparent !important;
+    background-image: none !important;
 }
 
 /* Fullscreen */

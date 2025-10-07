@@ -48,6 +48,7 @@
             // timestamp to ignore click events immediately after dragging a rail
             this._lastRailDraggedAt = 0;
             this._lastEscapeAt = 0;
+            this._lastConnectionClickAt = 0;
             this._saveTimeout = null;
             this._resizeTimeout = null;
 
@@ -92,14 +93,11 @@
             this.initKeyboardShortcuts();
             this.loadInitialData();
 
-            // Initialize ruler if enabled (check if elements exist first)
-            if (this.rulerEnabled && this.editorWrapper) {
-                console.log('Initializing ruler on load...');
-                this.createRuler();
-                this.updateRuler();
-            } else if (this.rulerEnabled) {
-                console.warn('Ruler enabled but editor wrapper not found during initialization');
-            }
+            // Add direct double-click handler to SVG container as backup
+            this.initDirectConnectionHandlers();
+
+            // Show help tooltip for connection deletion
+            this.showConnectionHelp();
 
             // Add resize listener for fullscreen changes
             window.addEventListener('resize', this.handleWindowResize.bind(this));
@@ -116,6 +114,61 @@
             } catch (e) {
                 return defaultValue;
             }
+        }
+
+        /**
+         * Initialize direct connection event handlers as backup for jsPlumb events.
+         */
+        initDirectConnectionHandlers() {
+            // Add double-click handler directly to the editor container
+            this.editor.addEventListener('dblclick', (e) => {
+                // Check if the double-click was on a connection SVG element
+                if (e.target && (e.target.classList.contains('jtk-connector') || e.target.closest('.jtk-connector'))) {
+                    console.log('=== DIRECT DOUBLE-CLICK DETECTED ===');
+                    console.log('Target element:', e.target);
+                    console.log('Event coordinates:', { clientX: e.clientX, clientY: e.clientY });
+
+                    // Find the connection that was clicked
+                    const connections = this.instance.getAllConnections();
+                    let clickedConnection = null;
+
+                    for (const conn of connections) {
+                        try {
+                            const connEl = conn.canvas || (conn.getConnector && conn.getConnector().canvas);
+                            if (connEl && connEl.contains(e.target)) {
+                                clickedConnection = conn;
+                                break;
+                            }
+                        } catch (err) {
+                            // Ignore errors when checking connection elements
+                        }
+                    }
+
+                    if (clickedConnection) {
+                        console.log('Found clicked connection:', clickedConnection._cardmap_id);
+                        // Simulate the same deletion logic as the jsPlumb handler
+                        const connId = clickedConnection._cardmap_id;
+                        if (connId) {
+                            this.pendingDeletes.add(connId);
+                            this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
+
+                            try {
+                                this.instance.deleteConnection(clickedConnection);
+                                this.saveMapData();
+                                this.showToast('Connection deleted');
+                                console.log('=== DIRECT DOUBLE-CLICK DELETION SUCCESSFUL ===');
+                            } catch (err) {
+                                console.error('Error in direct double-click deletion:', err);
+                                this.showToast('Error deleting connection');
+                            }
+                        }
+                    } else {
+                        console.log('No connection found at click location');
+                    }
+                }
+            });
+
+            console.log('Direct connection handlers initialized');
         }
 
         /**
@@ -144,8 +197,42 @@
                 }
                 this.saveMapData();
             });
+
+            // Add hover effects for connections to indicate they can be double-clicked to delete
+            this.instance.bind("connectionMouseover", (conn, originalEvent) => {
+                try {
+                    const connEl = conn.canvas || (conn.getConnector && conn.getConnector().canvas);
+                    if (connEl) {
+                        connEl.style.cursor = 'pointer';
+                        connEl.classList.add('connection-hover');
+                    }
+                } catch (err) {
+                    console.warn('Error adding hover effect to connection:', err);
+                }
+            });
+
+            this.instance.bind("connectionMouseout", (conn, originalEvent) => {
+                try {
+                    const connEl = conn.canvas || (conn.getConnector && conn.getConnector().canvas);
+                    if (connEl) {
+                        connEl.style.cursor = '';
+                        connEl.classList.remove('connection-hover');
+                    }
+                } catch (err) {
+                    console.warn('Error removing hover effect from connection:', err);
+                }
+            });
             this.instance.bind('click', (conn, originalEvent) => {
                 console.debug('jsPlumb connection clicked', { deleteMode: this.deleteConnectionMode, connId: conn && conn._cardmap_id });
+
+                // Prevent single-click from interfering with double-click
+                const now = Date.now();
+                if (now - this._lastConnectionClickAt < 300) { // 300ms double-click window
+                    console.log('Ignoring single-click to allow double-click');
+                    return;
+                }
+                this._lastConnectionClickAt = now;
+
                 if (this.deleteConnectionMode) {
                     const connId = conn._cardmap_id;
                     if (connId) {
@@ -163,18 +250,68 @@
                 }
             });
 
-            // double-clicking a connection will break it immediately (user action)
+            // double-clicking a connection will delete it immediately (user action)
             this.instance.bind('dblclick', (conn, originalEvent) => {
                 try {
-                    const connId = conn && conn._cardmap_id;
-                    if (connId) {
-                        this.pendingDeletes.add(connId);
-                        this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
+                    console.log('=== DOUBLE-CLICK EVENT FIRED ===');
+                    console.log('Connection object:', conn);
+                    console.log('Connection ID:', conn?._cardmap_id);
+                    console.log('Original event:', originalEvent);
+
+                    // Prevent interference from single-click handlers
+                    if (originalEvent) {
+                        originalEvent.preventDefault();
+                        originalEvent.stopPropagation();
                     }
-                    try { this.instance.deleteConnection(conn); } catch (e) { try { conn.detach(); } catch (err) {} }
-                    this.saveMapData();
-                    this.showToast('Connection broken');
-                } catch (err) { console.error('Error breaking connection on dblclick', err); }
+
+                    const connId = conn && conn._cardmap_id;
+                    if (!connId) {
+                        console.warn('No connection ID found for deletion');
+                        this.showToast('Error: Connection ID not found');
+                        return;
+                    }
+
+                    console.log('Deleting connection:', connId);
+
+                    // Mark for deletion in our data
+                    this.pendingDeletes.add(connId);
+                    const originalCount = this.mapData.connections.length;
+                    this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
+                    const newCount = this.mapData.connections.length;
+                    console.log(`Filtered connections: ${originalCount} -> ${newCount}`);
+
+                    // Delete the connection from jsPlumb with better error handling
+                    let deleted = false;
+                    try {
+                        deleted = this.instance.deleteConnection(conn);
+                        if (deleted) {
+                            console.log('Connection deleted successfully via deleteConnection');
+                        } else {
+                            console.warn('deleteConnection returned false');
+                        }
+                    } catch (e) {
+                        console.warn('deleteConnection failed, trying detach:', e);
+                        try {
+                            conn.detach();
+                            deleted = true;
+                            console.log('Connection detached as fallback');
+                        } catch (detachErr) {
+                            console.error('Error detaching connection:', detachErr);
+                        }
+                    }
+
+                    if (deleted) {
+                        this.saveMapData();
+                        this.showToast('Connection deleted');
+                        console.log('=== DOUBLE-CLICK DELETION SUCCESSFUL ===');
+                    } else {
+                        console.error('Failed to delete connection - no deletion method worked');
+                        this.showToast('Error deleting connection');
+                    }
+                } catch (err) {
+                    console.error('Error in double-click handler:', err);
+                    this.showToast('Error deleting connection');
+                }
             });
         }
 
@@ -182,6 +319,8 @@
          * Sets up all DOM event listeners for the editor UI.
          */
         initEventListeners() {
+            document.getElementById('undo-action').addEventListener('click', this.undo.bind(this));
+            document.getElementById('redo-action').addEventListener('click', this.redo.bind(this));
             document.getElementById('add-node').addEventListener('click', this.addNode.bind(this));
             document.getElementById('add-rail').addEventListener('click', this.addRail.bind(this));
             // railSize input may be omitted if rail thickness is disabled in settings
@@ -213,9 +352,7 @@
             if (deleteConnBtn) deleteConnBtn.addEventListener('click', this.toggleDeleteConnectionMode.bind(this));
             document.getElementById('save-map').addEventListener('click', this.saveMapData.bind(this));
             document.getElementById('fullscreen-editor').addEventListener('click', this.toggleFullscreen.bind(this));
-            document.getElementById('toggle-grid').addEventListener('click', this.toggleGridSnap.bind(this));
-            document.getElementById('toggle-ruler').addEventListener('click', this.toggleRuler.bind(this));
-            // Alignment feature removed per request (buttons removed server-side)
+            document.getElementById('auto-align-cards').addEventListener('click', this.autoAlignCards.bind(this));
 
             this.editorWrapper.addEventListener('mousedown', this.handlePanStart.bind(this));
             this.editorWrapper.addEventListener('mouseup', this.handlePanEnd.bind(this));
@@ -225,7 +362,14 @@
             this.editorWrapper.addEventListener('wheel', this.handleZoom.bind(this));
             
             this.editorWrapper.addEventListener('click', (e) => {
-                if (e.target === this.editorWrapper || e.target === this.editor) {
+                // Handle ruler canvas clicks for connection creation
+                if (this.connectMode && this.rulerEnabled && e.target === this.rulerCanvas) {
+                    console.log('Ruler canvas clicked in connect mode - ignoring deselect');
+                    // Don't deselect nodes when clicking on ruler for connections
+                    return;
+                }
+
+                if (e.target === this.editorWrapper || e.target === this.editor || e.target === this.rulerCanvas) {
                     this.deselectAllNodes();
                 }
                 const railEl = e.target.closest('.cardmap-rail');
@@ -306,20 +450,6 @@
                 if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
                     e.preventDefault();
                     this.nudgeSelectedNodes(e.key, e.shiftKey ? 10 : 1); // Shift+arrow for larger movement
-                    return;
-                }
-
-                // G key - Toggle grid snap
-                if (e.key === 'g' || e.key === 'G') {
-                    e.preventDefault();
-                    this.toggleGridSnap();
-                    return;
-                }
-
-                // R key - Toggle ruler
-                if (e.key === 'r' || e.key === 'R') {
-                    e.preventDefault();
-                    this.toggleRuler();
                     return;
                 }
 
@@ -496,17 +626,8 @@
                 const nodeData = this.mapData.nodes.find(n => n.id === nodeId);
                 const nodeEl = document.getElementById(nodeId);
                 if (nodeData && nodeEl) {
-                    const newX = nodeData.x + deltaX;
-                    const newY = nodeData.y + deltaY;
-
-                    // Apply grid snapping if enabled
-                    if (this.snapToGrid) {
-                        nodeData.x = Math.round(newX / this.gridSize) * this.gridSize;
-                        nodeData.y = Math.round(newY / this.gridSize) * this.gridSize;
-                    } else {
-                        nodeData.x = newX;
-                        nodeData.y = newY;
-                    }
+                    nodeData.x = nodeData.x + deltaX;
+                    nodeData.y = nodeData.y + deltaY;
 
                     nodeEl.style.left = `${nodeData.x}px`;
                     nodeEl.style.top = `${nodeData.y}px`;
@@ -1245,23 +1366,70 @@
             const node = params.el;
             const draggedNode = this.mapData.nodes.find(n => n.id === node.id);
 
-            // If the node is on a rail, temporarily simplify anchors for smooth dragging
-            if (draggedNode && draggedNode.attachedRail) {
-                const rail = this.mapData.rails.find(r => r.id === draggedNode.attachedRail);
-                if (rail) {
-                    const connections = this.instance.getConnections({ source: node.id }).concat(this.instance.getConnections({ target: node.id }));
-                    const simpleAnchors = rail.orientation === 'vertical' ? ["LeftMiddle", "RightMiddle"] : ["TopCenter", "BottomCenter"];
-                    connections.forEach(conn => {
-                        try {
-                            if (conn.setAnchors) {
-                                conn.setAnchors(simpleAnchors);
+            // Update connections dynamically as the node moves
+            const connections = this.instance.getConnections({ source: node.id }).concat(this.instance.getConnections({ target: node.id }));
+            
+            connections.forEach(conn => {
+                try {
+                    const sourceEl = document.getElementById(conn.sourceId);
+                    const targetEl = document.getElementById(conn.targetId);
+                    
+                    if (!sourceEl || !targetEl) return;
+                    
+                    const sourceIsRail = sourceEl.classList.contains('cardmap-rail');
+                    const targetIsRail = targetEl.classList.contains('cardmap-rail');
+                    
+                    // If connected to a rail, calculate dynamic anchor position on the rail
+                    if (sourceIsRail || targetIsRail) {
+                        const railEl = sourceIsRail ? sourceEl : targetEl;
+                        const nodeEl = sourceIsRail ? targetEl : sourceEl;
+                        const railData = this.mapData.rails.find(r => r.id === railEl.id);
+                        
+                        if (railData) {
+                            // Calculate the best anchor point on the rail based on node position
+                            const nodeRect = nodeEl.getBoundingClientRect();
+                            const railRect = railEl.getBoundingClientRect();
+                            const editorRect = this.editor.getBoundingClientRect();
+                            
+                            // Convert to editor coordinates
+                            const nodeCenterX = (nodeRect.left + nodeRect.right) / 2 - editorRect.left;
+                            const nodeCenterY = (nodeRect.top + nodeRect.bottom) / 2 - editorRect.top;
+                            const railLeft = railRect.left - editorRect.left;
+                            const railTop = railRect.top - editorRect.top;
+                            
+                            let railAnchor;
+                            
+                            if (railData.orientation === 'vertical') {
+                                // For vertical rails, calculate Y position along the rail
+                                const relativeY = Math.max(0, Math.min(1, (nodeCenterY - railTop) / railRect.height));
+                                railAnchor = [0.5, relativeY, 0, 0]; // Center X, dynamic Y
+                            } else {
+                                // For horizontal rails, calculate X position along the rail
+                                const relativeX = Math.max(0, Math.min(1, (nodeCenterX - railLeft) / railRect.width));
+                                railAnchor = [relativeX, 0.5, 0, 0]; // Dynamic X, center Y
                             }
-                        } catch (e) {
-                            console.warn('Could not set anchors during drag:', e);
+                            
+                            // Determine which anchor to update (source or target)
+                            if (sourceIsRail) {
+                                const targetAnchor = this.getDirectionalAnchors(targetEl, sourceEl)[0];
+                                conn.setAnchors([railAnchor, targetAnchor]);
+                            } else {
+                                const sourceAnchor = this.getDirectionalAnchors(sourceEl, targetEl)[0];
+                                conn.setAnchors([sourceAnchor, railAnchor]);
+                            }
                         }
-                    });
+                    } else if (draggedNode && draggedNode.attachedRail) {
+                        // If the node is on a rail, use simplified anchors
+                        const rail = this.mapData.rails.find(r => r.id === draggedNode.attachedRail);
+                        if (rail) {
+                            const simpleAnchors = rail.orientation === 'vertical' ? ["LeftMiddle", "RightMiddle"] : ["TopCenter", "BottomCenter"];
+                            conn.setAnchors(simpleAnchors);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not update anchors during drag:', e);
                 }
-            }
+            });
 
             const rails = this.mapData.rails || [];
             let nearest = null;
@@ -1328,14 +1496,8 @@
         onNodeDragStop(params) {
             const draggedNode = this.mapData.nodes.find(n => n.id === params.el.id);
             if (draggedNode) {
-                // Apply grid snapping if enabled
-                if (this.snapToGrid) {
-                    draggedNode.x = Math.round(params.pos[0] / this.gridSize) * this.gridSize;
-                    draggedNode.y = Math.round(params.pos[1] / this.gridSize) * this.gridSize;
-                } else {
-                    draggedNode.x = params.pos[0];
-                    draggedNode.y = params.pos[1];
-                }
+                draggedNode.x = params.pos[0];
+                draggedNode.y = params.pos[1];
                 const rails = this.mapData.rails || [];
                 let snapped = null;
                 let bestDist = Infinity;
@@ -1637,15 +1799,38 @@
 
         /** Return a precise relative anchor array for a rail element given client coords */
         getPreciseRailAnchorArray(railEl, clientX, clientY) {
-            if (!railEl) return null;
-            const rect = railEl.getBoundingClientRect();
-            // compute relative coordinates inside element (0..1)
-            let relX = (clientX - rect.left) / rect.width;
-            let relY = (clientY - rect.top) / rect.height;
-            relX = Math.max(0, Math.min(1, relX));
-            relY = Math.max(0, Math.min(1, relY));
-            // jsPlumb accepts [x, y, ox, oy] anchor arrays where x,y are relative
-            return [relX, relY, 0, 0];
+            if (!railEl || !this.editorWrapper) return null;
+
+            try {
+                // Use the same coordinate transformation approach for consistency
+                const wrapperRect = this.editorWrapper.getBoundingClientRect();
+                const worldX = (clientX - wrapperRect.left - this.offsetX) / this.scale;
+                const worldY = (clientY - wrapperRect.top - this.offsetY) / this.scale;
+
+                // Get rail element position (already in world coordinates)
+                const elX = parseFloat(railEl.style.left) || 0;
+                const elY = parseFloat(railEl.style.top) || 0;
+
+                // Calculate relative position within rail element
+                let relX = (worldX - elX) / railEl.offsetWidth;
+                let relY = (worldY - elY) / railEl.offsetHeight;
+
+                // Clamp to element bounds
+                relX = Math.max(0, Math.min(1, relX));
+                relY = Math.max(0, Math.min(1, relY));
+
+                // jsPlumb accepts [x, y, ox, oy] anchor arrays where x,y are relative
+                return [relX, relY, 0, 0];
+            } catch (error) {
+                console.warn('Error in getPreciseRailAnchorArray:', error);
+                // Fallback to simple calculation
+                const rect = railEl.getBoundingClientRect();
+                let relX = (clientX - rect.left) / rect.width;
+                let relY = (clientY - rect.top) / rect.height;
+                relX = Math.max(0, Math.min(1, relX));
+                relY = Math.max(0, Math.min(1, relY));
+                return [relX, relY, 0, 0];
+            }
         }
 
         handleConnectMouseMove(e) {
@@ -1662,29 +1847,58 @@
             const railData = this.mapData.rails.find(r => r.id === railId);
             if (!railData) return;
 
-            const rect = railEl.getBoundingClientRect();
-            const localX = e.clientX - rect.left;
-            const localY = e.clientY - rect.top;
             const preview = railEl.querySelector('.rail-anchor-preview');
             if (!preview) return;
-            preview.style.display = 'block';
-            preview.style.position = 'absolute';
-            preview.style.width = '10px';
-            preview.style.height = '10px';
-            preview.style.background = '#fff';
-            preview.style.border = '2px solid #A61832';
-            preview.style.borderRadius = '50%';
-            preview.style.pointerEvents = 'none';
-            if (railData.orientation === 'vertical') {
-                preview.style.left = `${(rect.width/2) - 5}px`;
-                preview.style.top = `${localY - 5}px`;
-            } else {
-                preview.style.left = `${localX - 5}px`;
-                preview.style.top = `${(rect.height/2) - 5}px`;
-            }
 
-            // store last hover position for precise anchor use later
-            this._lastRailHover = { railId, clientX: e.clientX, clientY: e.clientY };
+            try {
+                // Use the same coordinate transformation for consistent preview positioning
+                const wrapperRect = this.editorWrapper.getBoundingClientRect();
+                const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
+                const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
+
+                // Get rail position in world coordinates
+                const railX = parseFloat(railEl.style.left) || 0;
+                const railY = parseFloat(railEl.style.top) || 0;
+
+                // Calculate position relative to rail element
+                const localX = worldX - railX;
+                const localY = worldY - railY;
+
+                preview.style.display = 'block';
+                preview.style.position = 'absolute';
+                preview.style.width = '10px';
+                preview.style.height = '10px';
+                preview.style.background = '#fff';
+                preview.style.border = '2px solid #A61832';
+                preview.style.borderRadius = '50%';
+                preview.style.pointerEvents = 'none';
+
+                if (railData.orientation === 'vertical') {
+                    preview.style.left = `${(railEl.offsetWidth/2) - 5}px`;
+                    preview.style.top = `${localY - 5}px`;
+                } else {
+                    preview.style.left = `${localX - 5}px`;
+                    preview.style.top = `${(railEl.offsetHeight/2) - 5}px`;
+                }
+
+                // store last hover position for precise anchor use later
+                this._lastRailHover = { railId, clientX: e.clientX, clientY: e.clientY };
+            } catch (error) {
+                console.warn('Error positioning rail anchor preview:', error);
+                // Fallback to simple positioning
+                const rect = railEl.getBoundingClientRect();
+                const localX = e.clientX - rect.left;
+                const localY = e.clientY - rect.top;
+
+                if (railData.orientation === 'vertical') {
+                    preview.style.left = `${(rect.width/2) - 5}px`;
+                    preview.style.top = `${localY - 5}px`;
+                } else {
+                    preview.style.left = `${localX - 5}px`;
+                    preview.style.top = `${(rect.height/2) - 5}px`;
+                }
+                preview.style.display = 'block';
+            }
         }
 
         /** Fallback default anchor for an element (node or rail) */
@@ -1723,63 +1937,88 @@
          * Handles node clicks when in "Connect Mode".
          */
         handleConnectionClick(e, node) {
-            if (!this.firstNode) {
-                this.firstNode = node;
-                this.firstAnchor = this.getPreciseAnchorFromEvent(e, node);
-                node.style.boxShadow = '0 0 0 3px rgba(166,24,50,0.5)';
-            } else if (this.firstNode !== node) {
-                const sourceId = this.firstNode.id;
-                const targetId = node.id;
-                
-                const exists = (this.mapData.connections || []).some(c => 
-                    !this.pendingDeletes.has(c.id) &&
-                    ((c.source === sourceId && c.target === targetId) || (c.source === targetId && c.target === sourceId))
-                );
+            try {
+                console.log('=== CONNECTION CLICK ===');
+                console.log('Target node:', node.id);
+                console.log('Click target:', e.target);
+                console.log('Ruler enabled:', this.rulerEnabled);
 
-                if (exists && !e.altKey) {
-                    this.showToast('Connection already exists. Hold Alt to add a parallel connection.');
+                if (!this.firstNode) {
+                    this.firstNode = node;
+                    this.firstAnchor = this.getPreciseAnchorFromEvent(e, node);
+                    console.log('First anchor calculated:', this.firstAnchor);
+                    node.style.boxShadow = '0 0 0 3px rgba(166,24,50,0.5)';
+                } else if (this.firstNode !== node) {
+                    const sourceId = this.firstNode.id;
+                    const targetId = node.id;
+
+                    const exists = (this.mapData.connections || []).some(c =>
+                        !this.pendingDeletes.has(c.id) &&
+                        ((c.source === sourceId && c.target === targetId) || (c.source === targetId && c.target === sourceId))
+                    );
+
+                    if (exists && !e.altKey) {
+                        this.showToast('Connection already exists. Hold Alt to add a parallel connection.');
+                        this.firstNode.style.boxShadow = '';
+                        this.firstNode = null;
+                        return;
+                    }
+
+                    // determine anchors, preferring precise coordinates
+                    let anchorA = null;
+                    let anchorB = null;
+
+                    console.log('Computing anchors between elements...');
+                    const [a, b] = this.computeAnchorsBetweenElements(this.firstNode, node, null, e);
+                    anchorA = this.firstAnchor || a;
+                    anchorB = b;
+
+                    console.log('Final anchors:', { anchorA, anchorB });
+
+                    const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
+                    const targetNodeData = this.mapData.nodes.find(n => n.id === targetId) || {};
+                    const sourceRailData = this.mapData.rails.find(r => r.id === sourceId) || {};
+                    const targetRailData = this.mapData.rails.find(r => r.id === targetId) || {};
+                    const connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || targetNodeData.connectionStyle || targetRailData.connectionStyle || this.config.lineStyle;
+
+                    console.log('Creating connection with style:', connStyle);
+                    const conn = this.instance.connect({
+                        source: sourceId,
+                        target: targetId,
+                        anchors: [anchorA, anchorB],
+                        ...this.getConnectorConfig(connStyle),
+                        cssClass: 'cardmap-connector'
+                    });
+
+                    const newId = `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+                    if (conn) {
+                        conn._cardmap_id = newId;
+                        try { conn.setParameter && conn.setParameter('user-driven', true); } catch(e) {}
+                    }
+                    const savedAnchors = [
+                        anchorA,
+                        (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
+                    ];
+                    this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
+
+                    // force an immediate repaint so anchors/paths are calculated correctly
+                    try { this.instance.repaintEverything(); } catch (e) {}
+
                     this.firstNode.style.boxShadow = '';
                     this.firstNode = null;
-                    return;
+                    this.firstAnchor = null;
                 }
 
-                // determine anchors, preferring precise rail hover position if available
-                let anchorA = null;
-                let anchorB = null;
-                const [a, b] = this.computeAnchorsBetweenElements(this.firstNode, node, null, e);
-                anchorA = this.firstAnchor || a;
-                anchorB = b;
-                
-                const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
-                const targetNodeData = this.mapData.nodes.find(n => n.id === targetId) || {};
-                const sourceRailData = this.mapData.rails.find(r => r.id === sourceId) || {};
-                const targetRailData = this.mapData.rails.find(r => r.id === targetId) || {};
-                const connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || targetNodeData.connectionStyle || targetRailData.connectionStyle || this.config.lineStyle;
-                const conn = this.instance.connect({
-                    source: sourceId,
-                    target: targetId,
-                    anchors: [anchorA, anchorB],
-                    ...this.getConnectorConfig(connStyle),
-                    cssClass: 'cardmap-connector'
-                });
-
-                const newId = `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
-                if (conn) {
-                    conn._cardmap_id = newId;
-                    try { conn.setParameter && conn.setParameter('user-driven', true); } catch(e) {}
+                console.log('=== CONNECTION CLICK COMPLETE ===');
+            } catch (error) {
+                console.error('Error in handleConnectionClick:', error);
+                this.showToast('Error creating connection: ' + error.message);
+                // Reset connection state on error
+                if (this.firstNode) {
+                    this.firstNode.style.boxShadow = '';
+                    this.firstNode = null;
+                    this.firstAnchor = null;
                 }
-                const savedAnchors = [
-                    anchorA,
-                    (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
-                ];
-                this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
-
-                // force an immediate repaint so anchors/paths are calculated correctly
-                try { this.instance.repaintEverything(); } catch (e) {}
-
-                this.firstNode.style.boxShadow = '';
-                this.firstNode = null;
-                this.firstAnchor = null;
             }
         }
 
@@ -2666,6 +2905,143 @@
         // Alignment and distribution features (manual align) removed per user request.
 
         /**
+         * Auto-align cards and connections proportionally within their current area.
+         * This function makes spacing more even without drastically moving cards.
+         */
+        autoAlignCards() {
+            this.saveToHistory('Auto-aligned cards');
+            
+            const nodes = this.mapData.nodes || [];
+            const rails = this.mapData.rails || [];
+            
+            if (nodes.length === 0) {
+                this.showToast('No cards to align');
+                return;
+            }
+
+            // Separate nodes into groups: attached to rails and free-floating
+            const railAttachedNodes = new Map(); // railId -> nodes[]
+            const freeNodes = [];
+            
+            nodes.forEach(n => {
+                if (n.attachedRail) {
+                    if (!railAttachedNodes.has(n.attachedRail)) {
+                        railAttachedNodes.set(n.attachedRail, []);
+                    }
+                    railAttachedNodes.get(n.attachedRail).push(n);
+                } else {
+                    freeNodes.push(n);
+                }
+            });
+            
+            // Align nodes attached to rails - distribute evenly along the rail
+            rails.forEach(rail => {
+                const attached = railAttachedNodes.get(rail.id) || [];
+                if (attached.length === 0) return;
+                
+                if (rail.orientation === 'vertical') {
+                    // Sort by current Y position
+                    attached.sort((a, b) => a.y - b.y);
+                    
+                    // Find the range they currently occupy
+                    const minY = Math.min(...attached.map(n => n.y));
+                    const maxY = Math.max(...attached.map(n => n.y));
+                    const range = maxY - minY;
+                    
+                    // Distribute evenly within that range (or use rail bounds if range is small)
+                    const useRange = range > 100 ? range : rail.height - 120;
+                    const spacing = attached.length > 1 ? useRange / (attached.length - 1) : 0;
+                    const startY = range > 100 ? minY : rail.y + 60;
+                    
+                    attached.forEach((n, index) => {
+                        // Keep X aligned to rail center
+                        n.x = rail.x - 120 + (rail.size || 8) / 2;
+                        // Distribute Y evenly
+                        n.y = startY + (spacing * index);
+                        
+                        const el = document.getElementById(n.id);
+                        if (el) {
+                            el.style.left = `${n.x}px`;
+                            el.style.top = `${n.y}px`;
+                        }
+                    });
+                } else {
+                    // Horizontal rail
+                    attached.sort((a, b) => a.x - b.x);
+                    
+                    // Find the range they currently occupy
+                    const minX = Math.min(...attached.map(n => n.x));
+                    const maxX = Math.max(...attached.map(n => n.x));
+                    const range = maxX - minX;
+                    
+                    // Distribute evenly within that range (or use rail bounds if range is small)
+                    const useRange = range > 100 ? range : rail.width - 120;
+                    const spacing = attached.length > 1 ? useRange / (attached.length - 1) : 0;
+                    const startX = range > 100 ? minX : rail.x + 60;
+                    
+                    attached.forEach((n, index) => {
+                        // Distribute X evenly
+                        n.x = startX + (spacing * index);
+                        // Keep Y aligned to rail center
+                        n.y = rail.y - 100 + (rail.size || 8) / 2;
+                        
+                        const el = document.getElementById(n.id);
+                        if (el) {
+                            el.style.left = `${n.x}px`;
+                            el.style.top = `${n.y}px`;
+                        }
+                    });
+                }
+            });
+            
+            // For free-floating nodes, just make spacing more even within their current area
+            if (freeNodes.length > 1) {
+                // Find bounding box of current positions
+                const minX = Math.min(...freeNodes.map(n => n.x));
+                const maxX = Math.max(...freeNodes.map(n => n.x));
+                const minY = Math.min(...freeNodes.map(n => n.y));
+                const maxY = Math.max(...freeNodes.map(n => n.y));
+                
+                // Sort by position (top-to-bottom, left-to-right)
+                freeNodes.sort((a, b) => {
+                    const rowDiff = Math.floor(a.y / 250) - Math.floor(b.y / 250);
+                    return rowDiff !== 0 ? rowDiff : a.x - b.x;
+                });
+                
+                // Calculate how many columns based on current spread
+                const width = maxX - minX;
+                const cols = Math.max(1, Math.ceil(Math.sqrt(freeNodes.length)));
+                const spacing = 300; // standard spacing
+                
+                freeNodes.forEach((n, index) => {
+                    const col = index % cols;
+                    const row = Math.floor(index / cols);
+                    
+                    // Keep within the current general area
+                    n.x = minX + (col * spacing);
+                    n.y = minY + (row * spacing);
+                    
+                    const el = document.getElementById(n.id);
+                    if (el) {
+                        el.style.left = `${n.x}px`;
+                        el.style.top = `${n.y}px`;
+                    }
+                });
+            }
+            
+            // Update all connections to use optimal anchors
+            this.updateConnectionsAfterMove(nodes.map(n => n.id));
+            
+            // Repaint everything
+            this.instance.repaintEverything();
+            
+            // Save the new layout
+            this.saveMapData();
+            
+            this.showToast(`Auto-aligned ${nodes.length} card(s)`);
+        }
+
+        /**
          * Auto-arrange nodes when the map first loads. Tries to keep nodes
          * that share a rail aligned, and lays out the rest in a grid while
          * keeping a safe margin from rails.
@@ -2857,6 +3233,20 @@
         }
 
         /**
+         * Show help tooltip for connection deletion.
+         */
+        showConnectionHelp() {
+            // Show a one-time help message about double-clicking connections
+            const helpShown = localStorage.getItem('cardmap-connection-help-shown');
+            if (!helpShown) {
+                setTimeout(() => {
+                    this.showToast('💡 Tip: Double-click connection lines to delete them', 5000);
+                    localStorage.setItem('cardmap-connection-help-shown', 'true');
+                }, 2000); // Show after 2 seconds
+            }
+        }
+
+        /**
          * Gets the jsPlumb connector configuration for a given style name.
          */
         getConnectorConfig(style) {
@@ -2894,44 +3284,94 @@
          * Calculates a precise anchor position based on a click event.
          */
         getPreciseAnchorFromEvent(e, el) {
-            // Prefer using the element's bounding rect and client coordinates
-            // so the result matches what the user clicked visually, even when
-            // the editor is panned/scaled.
-            if (!el || !e || typeof e.clientX !== 'number') return "Continuous";
-            try {
-                const rect = el.getBoundingClientRect();
-                const localX = e.clientX - rect.left;
-                const localY = e.clientY - rect.top;
-                const x = localX / rect.width;
-                const y = localY / rect.height;
+            if (!el || !e || typeof e.clientX !== 'number' || !this.editorWrapper) {
+                return "Continuous";
+            }
 
-                // If click is outside the element bounds, fallback to Continuous
-                if (x < 0 || x > 1 || y < 0 || y > 1) return "Continuous";
+            try {
+                // Use the same coordinate transformation approach for consistency
+                // Convert client coordinates to editor world coordinates
+                const wrapperRect = this.editorWrapper.getBoundingClientRect();
+                const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
+                const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
+
+                // Get target element position (already in world coordinates)
+                const elX = parseFloat(el.style.left) || 0;
+                const elY = parseFloat(el.style.top) || 0;
+
+                // Calculate relative position within element
+                const x_in_el = worldX - elX;
+                const y_in_el = worldY - elY;
+
+                // Check if click is within element bounds
+                if (x_in_el < 0 || y_in_el < 0 || x_in_el > el.offsetWidth || y_in_el > el.offsetHeight) {
+                    return "Continuous";
+                }
+
+                const x = x_in_el / el.offsetWidth;
+                const y = y_in_el / el.offsetHeight;
 
                 const topDist = y, bottomDist = 1 - y, leftDist = x, rightDist = 1 - x;
                 const min = Math.min(topDist, bottomDist, leftDist, rightDist);
+
                 if (min === topDist) return "TopCenter";
                 if (min === bottomDist) return "BottomCenter";
                 if (min === leftDist) return "LeftMiddle";
                 return "RightMiddle";
             } catch (err) {
-                // fallback to previous world-coordinate approach if anything goes wrong
+                console.warn('Error in getPreciseAnchorFromEvent:', err);
+                return "Continuous";
+            }
+        }
+
+        /**
+         * Calculates precise anchor position when clicking on ruler canvas.
+         * Accounts for ruler canvas positioning and editor transformations.
+         */
+        getPreciseAnchorFromRulerEvent(e, el) {
+            if (!el || !e || !this.rulerCanvas || !this.editorWrapper) {
+                console.warn('Missing elements for ruler coordinate calculation');
+                return "Continuous";
+            }
+
+            try {
+                // Get the editor wrapper's bounding rect for coordinate transformation
                 const wrapperRect = this.editorWrapper.getBoundingClientRect();
+
+                // Convert client coordinates to editor world coordinates
+                // This accounts for the current pan and zoom state
                 const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
                 const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
+
+                // Get target element position (already in world coordinates)
                 const elX = parseFloat(el.style.left) || 0;
                 const elY = parseFloat(el.style.top) || 0;
+
+                // Calculate relative position within element
                 const x_in_el = worldX - elX;
                 const y_in_el = worldY - elY;
+
+                // Check if click is within element bounds
+                if (x_in_el < 0 || y_in_el < 0 || x_in_el > el.offsetWidth || y_in_el > el.offsetHeight) {
+                    return "Continuous";
+                }
+
                 const x = x_in_el / el.offsetWidth;
                 const y = y_in_el / el.offsetHeight;
-                if (y < 0 || y > 1) return "Continuous";
+
                 const topDist = y, bottomDist = 1 - y, leftDist = x, rightDist = 1 - x;
                 const min = Math.min(topDist, bottomDist, leftDist, rightDist);
-                if (min === topDist) return "TopCenter";
-                if (min === bottomDist) return "BottomCenter";
-                if (min === leftDist) return "LeftMiddle";
-                return "RightMiddle";
+
+                let result;
+                if (min === topDist) result = "TopCenter";
+                else if (min === bottomDist) result = "BottomCenter";
+                else if (min === leftDist) result = "LeftMiddle";
+                else result = "RightMiddle";
+
+                return result;
+            } catch (error) {
+                console.error('Error in getPreciseAnchorFromRulerEvent:', error);
+                return "Continuous";
             }
         }
 

@@ -111,6 +111,9 @@ function cardmap_editor_callback( $post ) {
 
     ?>
     <div id="cardmap-toolbar" style="margin-bottom:10px;">
+        <button type="button" class="button" id="undo-action" title="Undo (Ctrl+Z)">↶ Undo</button>
+        <button type="button" class="button" id="redo-action" title="Redo (Ctrl+Y)">↷ Redo</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 8px;vertical-align:middle;"></span>
         <button type="button" class="button" id="add-node">+ Add Card</button>
         <button type="button" class="button" id="add-rail">+ Add Rail</button>
         <?php if ( get_option( 'cardmap_show_rail_thickness', 1 ) ) : ?>
@@ -121,12 +124,11 @@ function cardmap_editor_callback( $post ) {
             <option value="vertical">Vertical</option>
         </select>
         <button type="button" class="button" id="connect-mode">🔗 Connect</button>
-    <button type="button" class="button" id="delete-node">❌ Delete Node</button>
-    <button type="button" class="button" id="delete-connection">✂️ Delete Link</button>
-    <button type="button" class="button" id="delete-rail">🧨 Delete Rail</button>
-    <button type="button" class="button button-secondary" id="toggle-grid">⊞ Grid</button>
-    <button type="button" class="button button-secondary" id="toggle-ruler">📏 Ruler</button>
-    <button type="button" class="button button-secondary" id="fullscreen-editor">⛶ Fullscreen</button>
+        <button type="button" class="button" id="delete-node">❌ Delete Node</button>
+        <button type="button" class="button" id="delete-connection">✂️ Delete Link</button>
+        <button type="button" class="button" id="delete-rail">🧨 Delete Rail</button>
+        <button type="button" class="button button-secondary" id="auto-align-cards">📐 Auto-Align</button>
+        <button type="button" class="button button-secondary" id="fullscreen-editor">⛶ Fullscreen</button>
         <button type="button" class="button button-primary" id="save-map">💾 Save</button>
     </div>
 

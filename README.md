@@ -38,6 +38,14 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.6.2 (2025-10-07)
+
+- **Fixed:** Connection style selection now updates visually in real-time. Previously, selecting different connection styles (straight, bezier, dashed, etc.) from the dropdown had no visual effect on existing connections.
+- **Technical:** Removed CSS `!important` declarations that were preventing JavaScript from updating connection styles dynamically.
+- **Enhanced:** Added proper repaint calls and improved error handling for connection style changes.
+- **Improved:** Added user feedback via toast notifications when connection styles are updated.
+- **Debugging:** Enhanced console logging to help identify connection style issues in the future.
+
 ### v1.5.0 (2025-10-03)
 
 - Added rail appearance controls in the admin editor: rail style (solid/dashed/dotted), color picker, and thickness.

@@ -38,6 +38,11 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.8.1 (2025-10-07)
+
+- Improvement: Moved fullscreen link generation from frontend to admin panel for cleaner user experience.
+- Feature: Added automatic fullscreen mode when accessing cardmap links with fullscreen parameter.
+
 ### v1.8.0 (2025-10-07)
 
 - **New Feature:** Added visible Undo/Redo buttons (↶ ↷) in the toolbar for easy access to history navigation.

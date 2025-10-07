@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Check for URL parameters to auto-enter fullscreen
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoCardmapId = urlParams.get('cardmap_id');
+    const autoFullscreen = urlParams.get('fullscreen') === '1';
+
     // The cardmap_frontend_data is now an object where keys are map IDs.
     if (typeof cardmap_frontend_data === 'undefined' || Object.keys(cardmap_frontend_data).length === 0) {
         return;
@@ -8,6 +13,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const mapId = wrapper.dataset.mapId;
         if (!mapId || !cardmap_frontend_data[mapId]) {
             return;
+        }
+
+        // Auto-enter fullscreen if URL parameters match this map
+        if (autoCardmapId && autoCardmapId === mapId && autoFullscreen) {
+            setTimeout(() => {
+                wrapper.requestFullscreen().catch(err => {
+                    console.warn('Auto-fullscreen failed:', err);
+                });
+            }, 100); // Small delay to ensure everything is loaded
         }
 
         const mapConfig = cardmap_frontend_data[mapId];
@@ -491,6 +505,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+
 
         document.addEventListener('fullscreenchange', () => {
             if (document.fullscreenElement === wrapper) {

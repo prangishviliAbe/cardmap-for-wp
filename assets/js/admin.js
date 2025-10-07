@@ -353,6 +353,44 @@
             document.getElementById('save-map').addEventListener('click', this.saveMapData.bind(this));
             document.getElementById('fullscreen-editor').addEventListener('click', this.toggleFullscreen.bind(this));
             document.getElementById('auto-align-cards').addEventListener('click', this.autoAlignCards.bind(this));
+            document.getElementById('generate-fullscreen-link').addEventListener('click', this.showFullscreenLinkModal.bind(this));
+            
+            // Fullscreen link modal handlers
+            const modal = document.getElementById('fullscreen-link-modal');
+            const closeBtn = document.getElementById('close-fullscreen-modal');
+            const copyBtn = document.getElementById('copy-fullscreen-link');
+            const openBtn = document.getElementById('open-fullscreen-link');
+            
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                });
+            }
+            
+            if (copyBtn) {
+                copyBtn.addEventListener('click', () => {
+                    const input = document.getElementById('fullscreen-link-input');
+                    input.select();
+                    document.execCommand('copy');
+                    this.showToast('Link copied to clipboard!');
+                });
+            }
+            
+            if (openBtn) {
+                openBtn.addEventListener('click', () => {
+                    const link = document.getElementById('fullscreen-link-input').value;
+                    window.open(link, '_blank');
+                });
+            }
+            
+            // Close modal when clicking outside
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            }
 
             this.editorWrapper.addEventListener('mousedown', this.handlePanStart.bind(this));
             this.editorWrapper.addEventListener('mouseup', this.handlePanEnd.bind(this));
@@ -2736,6 +2774,28 @@
             } else {
                 this.editorWrapper.requestFullscreen();
             }
+        }
+
+        /**
+         * Shows the fullscreen link modal with the current map's URL.
+         */
+        showFullscreenLinkModal() {
+            const modal = document.getElementById('fullscreen-link-modal');
+            const input = document.getElementById('fullscreen-link-input');
+
+            if (!modal || !input) {
+                this.showToast('Error: Link modal not found');
+                return;
+            }
+
+            // Generate the fullscreen URL
+            const baseUrl = window.location.origin + window.location.pathname;
+            const fullscreenUrl = `${baseUrl}?cardmap_id=${this.postId}&fullscreen=1`;
+
+            input.value = fullscreenUrl;
+            modal.style.display = 'flex';
+
+            this.showToast('Fullscreen link generated!');
         }
 
         /**

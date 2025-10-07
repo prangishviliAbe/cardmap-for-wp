@@ -223,3 +223,42 @@ svg .jtk-connector path {
     background-color: rgba(166, 24, 50, 0.1);
     border-color: #A61832;
 }
+
+/* Ruler overlay styles */
+#cardmap-editor.ruler-enabled {
+    position: relative;
+}
+
+#cardmap-ruler-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.3;
+}
+
+#cardmap-editor.ruler-enabled #cardmap-ruler-canvas {
+    display: block;
+}
+
+/* Ruler button styling */
+#toggle-ruler {
+    position: relative;
+}
+
+#toggle-ruler.ruler-active {
+    background-color: #A61832;
+    color: white;
+}
+
+#toggle-ruler.ruler-active::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+}

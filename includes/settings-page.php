@@ -34,6 +34,9 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_show_rail_thickness', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_frontend_view', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_hover_effect', [ 'type' => 'string', 'default' => 'lift' ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_enable_ruler', [ 'type' => 'boolean', 'default' => false ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_ruler_color', [ 'type' => 'string', 'default' => '#A61832' ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_ruler_opacity', [ 'type' => 'integer', 'default' => 30 ] );
 });
 
 /**
@@ -274,6 +277,26 @@ function cardmap_settings_page() {
                                 </label>
                             </div>
                             <p class="description">Toggle whether the rail thickness (the visible bar) is shown in the editor and on the frontend.</p>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <label for="cardmap_enable_ruler" class="setting-title">Enable Ruler Overlay</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_enable_ruler" name="cardmap_enable_ruler" value="1" <?php checked(1, get_option('cardmap_enable_ruler', 0) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Show a ruler overlay in the editor to help align elements precisely.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_ruler_color" class="setting-title">Ruler Color</label>
+                            <input type="color" id="cardmap_ruler_color" name="cardmap_ruler_color" value="<?php echo esc_attr( get_option('cardmap_ruler_color', '#A61832') ); ?>">
+                            <p class="description">Color of the ruler lines in the editor.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_ruler_opacity" class="setting-title">Ruler Opacity (%)</label>
+                            <input type="number" id="cardmap_ruler_opacity" name="cardmap_ruler_opacity" min="10" max="100" value="<?php echo esc_attr( get_option('cardmap_ruler_opacity', 30) ); ?>">
+                            <p class="description">Opacity of the ruler overlay (10-100%). Lower values are less intrusive.</p>
                         </div>
                     </div>
                 </div>

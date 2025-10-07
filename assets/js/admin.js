@@ -21,7 +21,10 @@
                 lineColor: cardmap_admin_data.line_color,
                 lineThickness: cardmap_admin_data.line_thickness,
                 showRailThickness: !!cardmap_admin_data.show_rail_thickness,
-                nodeStyles: this.parseJson(cardmap_admin_data.node_styles, {})
+                nodeStyles: this.parseJson(cardmap_admin_data.node_styles, {}),
+                rulerEnabled: !!cardmap_admin_data.ruler_enabled,
+                rulerColor: cardmap_admin_data.ruler_color || '#A61832',
+                rulerOpacity: (cardmap_admin_data.ruler_opacity || 30) / 100
             };
 
             // Editor state
@@ -56,6 +59,12 @@
             // Grid system
             this.gridSize = 20;
             this.snapToGrid = true;
+
+            // Ruler system
+            this.rulerEnabled = this.config.rulerEnabled;
+            this.rulerColor = this.config.rulerColor;
+            this.rulerOpacity = this.config.rulerOpacity;
+            this.rulerCanvas = null;
             
             // Pan & Zoom state
             this.scale = 1;
@@ -81,6 +90,12 @@
             this.initEventListeners();
             this.initKeyboardShortcuts();
             this.loadInitialData();
+
+            // Initialize ruler if enabled
+            if (this.rulerEnabled) {
+                this.createRuler();
+                this.updateRuler();
+            }
         }
 
         /**
@@ -192,6 +207,7 @@
             document.getElementById('save-map').addEventListener('click', this.saveMapData.bind(this));
             document.getElementById('fullscreen-editor').addEventListener('click', this.toggleFullscreen.bind(this));
             document.getElementById('toggle-grid').addEventListener('click', this.toggleGridSnap.bind(this));
+            document.getElementById('toggle-ruler').addEventListener('click', this.toggleRuler.bind(this));
             // Alignment feature removed per request (buttons removed server-side)
 
             this.editorWrapper.addEventListener('mousedown', this.handlePanStart.bind(this));
@@ -290,6 +306,13 @@
                 if (e.key === 'g' || e.key === 'G') {
                     e.preventDefault();
                     this.toggleGridSnap();
+                    return;
+                }
+
+                // R key - Toggle ruler
+                if (e.key === 'r' || e.key === 'R') {
+                    e.preventDefault();
+                    this.toggleRuler();
                     return;
                 }
 
@@ -500,6 +523,162 @@
             // If turning on grid snap, snap all selected nodes to grid
             if (this.snapToGrid && this.selectedNodes.size > 0) {
                 this.snapSelectedNodesToGrid();
+            }
+        }
+
+        /**
+         * Toggles ruler overlay functionality.
+         */
+        toggleRuler() {
+            this.rulerEnabled = !this.rulerEnabled;
+            this.showToast(`Ruler ${this.rulerEnabled ? 'enabled' : 'disabled'}`);
+
+            // Update visual indicator
+            this.editor.classList.toggle('ruler-enabled', this.rulerEnabled);
+
+            // Update button visual state
+            const rulerBtn = document.getElementById('toggle-ruler');
+            if (rulerBtn) {
+                rulerBtn.classList.toggle('ruler-active', this.rulerEnabled);
+            }
+
+            if (this.rulerEnabled) {
+                this.createRuler();
+                this.updateRuler();
+            } else {
+                this.removeRuler();
+            }
+        }
+
+        /**
+         * Creates the ruler overlay canvas.
+         */
+        createRuler() {
+            if (this.rulerCanvas) {
+                this.rulerCanvas.remove();
+            }
+
+            this.rulerCanvas = document.createElement('canvas');
+            this.rulerCanvas.id = 'cardmap-ruler-canvas';
+            this.rulerCanvas.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                pointer-events: none;
+                z-index: 1000;
+                opacity: ${this.rulerOpacity};
+            `;
+
+            this.editor.appendChild(this.rulerCanvas);
+            this.updateRulerCanvasSize();
+        }
+
+        /**
+         * Removes the ruler overlay.
+         */
+        removeRuler() {
+            if (this.rulerCanvas) {
+                this.rulerCanvas.remove();
+                this.rulerCanvas = null;
+            }
+        }
+
+        /**
+         * Updates the ruler canvas size to match the editor.
+         */
+        updateRulerCanvasSize() {
+            if (!this.rulerCanvas) return;
+
+            const rect = this.editor.getBoundingClientRect();
+            this.rulerCanvas.width = rect.width;
+            this.rulerCanvas.height = rect.height;
+        }
+
+        /**
+         * Updates the ruler display.
+         */
+        updateRuler() {
+            if (!this.rulerEnabled || !this.rulerCanvas) return;
+
+            this.updateRulerCanvasSize();
+            this.drawRuler();
+        }
+
+        /**
+         * Draws the ruler lines on the canvas.
+         */
+        drawRuler() {
+            if (!this.rulerCanvas) return;
+
+            const ctx = this.rulerCanvas.getContext('2d');
+            const width = this.rulerCanvas.width;
+            const height = this.rulerCanvas.height;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Set ruler properties
+            ctx.strokeStyle = this.rulerColor;
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([]);
+
+            // Draw vertical lines (every 50px)
+            for (let x = 0; x < width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+
+                // Draw measurement labels for major lines (every 100px)
+                if (x % 100 === 0 && x > 0) {
+                    ctx.fillStyle = this.rulerColor;
+                    ctx.font = '10px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(x.toString(), x, 12);
+                }
+            }
+
+            // Draw horizontal lines (every 50px)
+            for (let y = 0; y < height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+
+                // Draw measurement labels for major lines (every 100px)
+                if (y % 100 === 0 && y > 0) {
+                    ctx.fillStyle = this.rulerColor;
+                    ctx.font = '10px monospace';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(y.toString(), 25, y - 2);
+                }
+            }
+
+            // Draw corner ruler markers
+            ctx.strokeStyle = this.rulerColor;
+            ctx.lineWidth = 2;
+
+            // Top-left corner marker
+            ctx.strokeRect(0, 0, 20, 20);
+
+            // Draw crosshairs at origin
+            ctx.beginPath();
+            ctx.moveTo(0, 10);
+            ctx.lineTo(20, 10);
+            ctx.moveTo(10, 0);
+            ctx.lineTo(10, 20);
+            ctx.stroke();
+        }
+
+        /**
+         * Updates ruler settings from plugin options.
+         */
+        updateRulerSettings() {
+            this.rulerColor = cardmap_admin_data.ruler_color || '#A61832';
+            this.rulerOpacity = (cardmap_admin_data.ruler_opacity || 30) / 100;
+
+            if (this.rulerEnabled) {
+                this.updateRuler();
             }
         }
 
@@ -2292,6 +2471,11 @@
         updateTransform() {
             this.editor.style.transform = `translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale})`;
             this.instance.setZoom(this.scale);
+
+            // Update ruler if enabled
+            if (this.rulerEnabled) {
+                this.updateRuler();
+            }
         }
 
         // Alignment and distribution features (manual align) removed per user request.

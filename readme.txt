@@ -36,6 +36,9 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 *   Export: Download all plugin settings as a JSON file for backup or migration purposes.
 *   Import: Upload and restore settings from a previously exported JSON file.
 *   User-Friendly: Added intuitive UI controls in the settings page with progress feedback and error handling.
+*   New Feature: Added ruler overlay functionality in the editor for precise element alignment.
+*   Ruler: Toggle-able ruler overlay with customizable color and opacity for accurate positioning.
+*   Keyboard Shortcut: Press 'R' key to quickly toggle ruler on/off.
 
 = 1.6.2 =
 *   Fixed: Connection style selection now updates visually in real-time. Previously, selecting different connection styles (straight, bezier, dashed, etc.) from the dropdown had no visual effect on existing connections.

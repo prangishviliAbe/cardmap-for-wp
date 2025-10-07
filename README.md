@@ -38,6 +38,19 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.8.0 (2025-10-07)
+
+- **New Feature:** Added visible Undo/Redo buttons (↶ ↷) in the toolbar for easy access to history navigation.
+- **New Feature:** Added Auto-Align button (📐) that proportionally distributes cards evenly within their current area.
+- **Enhancement:** Dynamic connection anchors - connections to rails now move smoothly along the rail as you drag connected cards.
+- **Enhancement:** Improved frontend connection rendering to match admin panel appearance exactly.
+- **Enhancement:** Better anchor handling for rail connections with proper saved anchor support.
+- **Enhancement:** Connections now properly process saved precise anchors from the admin panel.
+- **Removed:** Grid snap and ruler features removed for simplified, cleaner interface.
+- **Fix:** Connections now properly reach rails without gaps on the frontend.
+- **Fix:** Connection styling now matches perfectly between admin panel and frontend display.
+- **Fix:** Added initialization delays to ensure rails are fully set up before connections are created.
+
 ### v1.7.0 (2025-10-07)
 
 - **New Feature:** Added comprehensive export/import functionality for plugin settings. Users can now backup their settings or transfer them between sites.

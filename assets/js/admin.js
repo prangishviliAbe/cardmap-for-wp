@@ -111,6 +111,38 @@
                 }
                 this.saveMapData();
             });
+            this.instance.bind('click', (conn, originalEvent) => {
+                console.debug('jsPlumb connection clicked', { deleteMode: this.deleteConnectionMode, connId: conn && conn._cardmap_id });
+                if (this.deleteConnectionMode) {
+                    const connId = conn._cardmap_id;
+                    if (connId) {
+                        this.pendingDeletes.add(connId);
+                        // remove from mapData
+                        this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
+                        // remove connection from jsPlumb canvas
+                        try { this.instance.deleteConnection(conn); } catch (e) { try { conn.detach(); } catch (err) {} }
+                        // update UI classes for remaining connections
+                        this.updateDeleteConnectionUI();
+                        // save changes
+                        this.saveMapData();
+                        this.showToast('Connection deleted');
+                    }
+                }
+            });
+
+            // double-clicking a connection will break it immediately (user action)
+            this.instance.bind('dblclick', (conn, originalEvent) => {
+                try {
+                    const connId = conn && conn._cardmap_id;
+                    if (connId) {
+                        this.pendingDeletes.add(connId);
+                        this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
+                    }
+                    try { this.instance.deleteConnection(conn); } catch (e) { try { conn.detach(); } catch (err) {} }
+                    this.saveMapData();
+                    this.showToast('Connection broken');
+                } catch (err) { console.error('Error breaking connection on dblclick', err); }
+            });
         }
 
         /**
@@ -200,25 +232,7 @@
             const deleteRailBtn = document.getElementById('delete-rail');
             if (deleteRailBtn) deleteRailBtn.addEventListener('click', this.toggleDeleteRailMode.bind(this));
 
-            // connection click handler: if in delete-connection mode, delete clicked connection
-            this.instance.bind('click', (conn, originalEvent) => {
-                console.debug('jsPlumb connection clicked', { deleteMode: this.deleteConnectionMode, connId: conn && conn._cardmap_id });
-                if (this.deleteConnectionMode) {
-                    const connId = conn._cardmap_id;
-                    if (connId) {
-                        this.pendingDeletes.add(connId);
-                        // remove from mapData
-                        this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
-                        // remove connection from jsPlumb canvas
-                        try { this.instance.deleteConnection(conn); } catch (e) { try { conn.detach(); } catch (err) {} }
-                        // update UI classes for remaining connections
-                        this.updateDeleteConnectionUI();
-                        // save changes
-                        this.saveMapData();
-                        this.showToast('Connection deleted');
-                    }
-                }
-            });
+            // note: connection click/dblclick handlers are registered in initJsPlumb()
         }
 
         /**
@@ -1537,11 +1551,11 @@
             if (railData && this.railSizeInput) {
                 this.railSizeInput.value = railData.size || 8;
             }
-            // Show the rail settings panel (if present) when a rail is selected
-            const settings = el && el.querySelector('.rail-settings');
-            if (settings) {
-                this.positionRailSettings(el, settings, railData);
-                settings.style.display = 'block';
+            // Do NOT show settings on single-click; settings are shown only after a second quick click
+            // leave any rail-settings visibility to the double-click handler in onRailClick
+            if (el && !this.railSettingsPinned) {
+                const s = el.querySelector('.rail-settings');
+                if (s) s.style.display = 'none';
             }
         }
 

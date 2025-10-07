@@ -194,3 +194,32 @@ svg .jtk-connector path {
     font-size: 14px;
     font-weight: 500;
 }
+
+/* Grid system for snap-to-grid functionality */
+#cardmap-editor.grid-snap-enabled {
+    background-image:
+        linear-gradient(rgba(166, 24, 50, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(166, 24, 50, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 0;
+}
+
+/* Grid indicator in toolbar */
+.grid-indicator {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background-image:
+        linear-gradient(rgba(166, 24, 50, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(166, 24, 50, 0.3) 1px, transparent 1px);
+    background-size: 8px 8px;
+    border: 1px solid #ddd;
+    border-radius: 2px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.grid-indicator.active {
+    background-color: rgba(166, 24, 50, 0.1);
+    border-color: #A61832;
+}

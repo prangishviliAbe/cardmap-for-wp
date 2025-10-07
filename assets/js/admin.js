@@ -46,6 +46,16 @@
             this._lastRailDraggedAt = 0;
             this._lastEscapeAt = 0;
             this._saveTimeout = null;
+
+            // History and undo/redo system
+            this.historyStack = [];
+            this.historyIndex = -1;
+            this.maxHistorySize = 50;
+            this.isUndoRedoOperation = false;
+
+            // Grid system
+            this.gridSize = 20;
+            this.snapToGrid = true;
             
             // Pan & Zoom state
             this.scale = 1;
@@ -69,6 +79,7 @@
         init() {
             this.initJsPlumb();
             this.initEventListeners();
+            this.initKeyboardShortcuts();
             this.loadInitialData();
         }
 
@@ -180,6 +191,7 @@
             if (deleteConnBtn) deleteConnBtn.addEventListener('click', this.toggleDeleteConnectionMode.bind(this));
             document.getElementById('save-map').addEventListener('click', this.saveMapData.bind(this));
             document.getElementById('fullscreen-editor').addEventListener('click', this.toggleFullscreen.bind(this));
+            document.getElementById('toggle-grid').addEventListener('click', this.toggleGridSnap.bind(this));
             // Alignment feature removed per request (buttons removed server-side)
 
             this.editorWrapper.addEventListener('mousedown', this.handlePanStart.bind(this));
@@ -233,6 +245,279 @@
             if (deleteRailBtn) deleteRailBtn.addEventListener('click', this.toggleDeleteRailMode.bind(this));
 
             // note: connection click/dblclick handlers are registered in initJsPlumb()
+        }
+
+        /**
+         * Initializes keyboard shortcuts for the editor.
+         */
+        initKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Don't interfere with input fields or contenteditable elements
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' ||
+                    e.target.contentEditable === 'true') {
+                    return;
+                }
+
+                // Ctrl+Z - Undo
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.undo();
+                    return;
+                }
+
+                // Ctrl+Y - Redo
+                if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                    e.preventDefault();
+                    this.redo();
+                    return;
+                }
+
+                // Delete key - Delete selected nodes
+                if (e.key === 'Delete' && this.selectedNodes.size > 0) {
+                    e.preventDefault();
+                    this.deleteSelectedNodes();
+                    return;
+                }
+
+                // Arrow keys - Nudge selected nodes
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    e.preventDefault();
+                    this.nudgeSelectedNodes(e.key, e.shiftKey ? 10 : 1); // Shift+arrow for larger movement
+                    return;
+                }
+
+                // G key - Toggle grid snap
+                if (e.key === 'g' || e.key === 'G') {
+                    e.preventDefault();
+                    this.toggleGridSnap();
+                    return;
+                }
+
+                // Escape key - Deselect all
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.deselectAllNodes();
+                    this.connectMode = false;
+                    this.deleteMode = false;
+                    this.deleteRailMode = false;
+                    this.deleteConnectionMode = false;
+                    document.getElementById('connect-mode').classList.remove('button-primary');
+                    document.getElementById('delete-node').classList.remove('button-primary');
+                    this.editor.style.cursor = 'grab';
+                    return;
+                }
+            });
+        }
+
+        /**
+         * Saves current state to history for undo/redo functionality.
+         */
+        saveToHistory(action = 'Unknown action') {
+            if (this.isUndoRedoOperation) return; // Don't save history during undo/redo operations
+
+            // Create a deep copy of current state
+            const state = {
+                nodes: JSON.parse(JSON.stringify(this.mapData.nodes || [])),
+                connections: JSON.parse(JSON.stringify(this.mapData.connections || [])),
+                rails: JSON.parse(JSON.stringify(this.mapData.rails || [])),
+                action: action,
+                timestamp: Date.now()
+            };
+
+            // Remove any history after current index (when user made new changes after undo)
+            if (this.historyIndex < this.historyStack.length - 1) {
+                this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
+            }
+
+            // Add new state
+            this.historyStack.push(state);
+            this.historyIndex++;
+
+            // Limit history size
+            if (this.historyStack.length > this.maxHistorySize) {
+                this.historyStack.shift();
+                this.historyIndex--;
+            }
+
+            console.log(`History saved: ${action} (stack size: ${this.historyStack.length})`);
+        }
+
+        /**
+         * Restores the editor state from history.
+         */
+        restoreFromHistory(state) {
+            this.isUndoRedoOperation = true;
+
+            try {
+                // Clear current elements
+                this.instance.reset();
+
+                // Restore nodes
+                this.mapData.nodes = JSON.parse(JSON.stringify(state.nodes));
+                state.nodes.forEach(node => this.renderNode(node));
+
+                // Restore rails
+                this.mapData.rails = JSON.parse(JSON.stringify(state.rails));
+                state.rails.forEach(rail => this.renderRail(rail));
+
+                // Restore connections
+                this.mapData.connections = JSON.parse(JSON.stringify(state.connections));
+                state.connections.forEach(conn => {
+                    if (!conn || !conn.source || !conn.target) return;
+
+                    const sourceEl = document.getElementById(conn.source);
+                    const targetEl = document.getElementById(conn.target);
+                    if (!sourceEl || !targetEl) return;
+
+                    const config = this.getConnectorConfig(conn.style || 'straight-with-arrows');
+                    const connection = this.instance.connect({
+                        source: conn.source,
+                        target: conn.target,
+                        anchors: conn.anchors || this.computeAnchorsBetweenElements(sourceEl, targetEl),
+                        ...config,
+                        cssClass: 'cardmap-connector'
+                    });
+
+                    if (connection) {
+                        connection._cardmap_id = conn.id || `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+                    }
+                });
+
+                this.instance.repaintEverything();
+                console.log(`Restored state: ${state.action} from ${new Date(state.timestamp).toLocaleTimeString()}`);
+
+            } catch (error) {
+                console.error('Error restoring from history:', error);
+                this.showToast('Error restoring state');
+            } finally {
+                this.isUndoRedoOperation = false;
+            }
+        }
+
+        /**
+         * Undo the last action.
+         */
+        undo() {
+            if (this.historyIndex > 0) {
+                const previousState = this.historyStack[this.historyIndex - 1];
+                this.historyIndex--;
+                this.restoreFromHistory(previousState);
+                this.showToast(`Undid: ${previousState.action}`);
+            } else {
+                this.showToast('Nothing to undo');
+            }
+        }
+
+        /**
+         * Redo the next action.
+         */
+        redo() {
+            if (this.historyIndex < this.historyStack.length - 1) {
+                const nextState = this.historyStack[this.historyIndex + 1];
+                this.historyIndex++;
+                this.restoreFromHistory(nextState);
+                this.showToast(`Redid: ${nextState.action}`);
+            } else {
+                this.showToast('Nothing to redo');
+            }
+        }
+
+        /**
+         * Deletes all selected nodes.
+         */
+        deleteSelectedNodes() {
+            if (this.selectedNodes.size === 0) return;
+
+            this.saveToHistory(`Deleted ${this.selectedNodes.size} node(s)`);
+
+            this.selectedNodes.forEach(nodeId => {
+                const nodeEl = document.getElementById(nodeId);
+                if (nodeEl) {
+                    this.instance.remove(nodeEl);
+                    this.mapData.nodes = this.mapData.nodes.filter(n => n.id !== nodeId);
+                    this.mapData.connections = (this.mapData.connections || []).filter(c =>
+                        c.source !== nodeId && c.target !== nodeId
+                    );
+                }
+            });
+
+            this.selectedNodes.clear();
+            this.saveMapData();
+            this.showToast(`Deleted ${this.selectedNodes.size} node(s)`);
+        }
+
+        /**
+         * Nudges selected nodes by a given amount.
+         */
+        nudgeSelectedNodes(direction, distance) {
+            if (this.selectedNodes.size === 0) return;
+
+            this.saveToHistory(`Nudged ${this.selectedNodes.size} node(s)`);
+
+            let deltaX = 0, deltaY = 0;
+            switch (direction) {
+                case 'ArrowUp': deltaY = -distance; break;
+                case 'ArrowDown': deltaY = distance; break;
+                case 'ArrowLeft': deltaX = -distance; break;
+                case 'ArrowRight': deltaX = distance; break;
+            }
+
+            this.selectedNodes.forEach(nodeId => {
+                const nodeData = this.mapData.nodes.find(n => n.id === nodeId);
+                const nodeEl = document.getElementById(nodeId);
+                if (nodeData && nodeEl) {
+                    const newX = nodeData.x + deltaX;
+                    const newY = nodeData.y + deltaY;
+
+                    // Apply grid snapping if enabled
+                    if (this.snapToGrid) {
+                        nodeData.x = Math.round(newX / this.gridSize) * this.gridSize;
+                        nodeData.y = Math.round(newY / this.gridSize) * this.gridSize;
+                    } else {
+                        nodeData.x = newX;
+                        nodeData.y = newY;
+                    }
+
+                    nodeEl.style.left = `${nodeData.x}px`;
+                    nodeEl.style.top = `${nodeData.y}px`;
+                }
+            });
+
+            this.instance.repaintEverything();
+            this.saveMapData();
+        }
+
+        /**
+         * Toggles grid snap functionality.
+         */
+        toggleGridSnap() {
+            this.snapToGrid = !this.snapToGrid;
+            this.showToast(`Grid snap ${this.snapToGrid ? 'enabled' : 'disabled'}`);
+
+            // Update visual indicator
+            this.editor.classList.toggle('grid-snap-enabled', this.snapToGrid);
+
+            // If turning on grid snap, snap all selected nodes to grid
+            if (this.snapToGrid && this.selectedNodes.size > 0) {
+                this.snapSelectedNodesToGrid();
+            }
+        }
+
+        /**
+         * Snaps selected nodes to the grid.
+         */
+        snapSelectedNodesToGrid() {
+            this.selectedNodes.forEach(nodeId => {
+                const nodeData = this.mapData.nodes.find(n => n.id === nodeId);
+                const nodeEl = document.getElementById(nodeId);
+                if (nodeData && nodeEl) {
+                    nodeData.x = Math.round(nodeData.x / this.gridSize) * this.gridSize;
+                    nodeData.y = Math.round(nodeData.y / this.gridSize) * this.gridSize;
+                    nodeEl.style.left = `${nodeData.x}px`;
+                    nodeEl.style.top = `${nodeData.y}px`;
+                }
+            });
+            this.instance.repaintEverything();
         }
 
         /**
@@ -661,8 +946,14 @@
         onNodeDragStop(params) {
             const draggedNode = this.mapData.nodes.find(n => n.id === params.el.id);
             if (draggedNode) {
-                draggedNode.x = params.pos[0];
-                draggedNode.y = params.pos[1];
+                // Apply grid snapping if enabled
+                if (this.snapToGrid) {
+                    draggedNode.x = Math.round(params.pos[0] / this.gridSize) * this.gridSize;
+                    draggedNode.y = Math.round(params.pos[1] / this.gridSize) * this.gridSize;
+                } else {
+                    draggedNode.x = params.pos[0];
+                    draggedNode.y = params.pos[1];
+                }
                 const rails = this.mapData.rails || [];
                 let snapped = null;
                 let bestDist = Infinity;
@@ -1114,6 +1405,7 @@
          * Deletes a node and its connections.
          */
         deleteNode(node) {
+            this.saveToHistory(`Deleted node: ${node.id}`);
             this.instance.remove(node);
             this.mapData.nodes = this.mapData.nodes.filter(n => n.id !== node.id);
             this.mapData.connections = (this.mapData.connections || []).filter(c => c.source !== node.id && c.target !== node.id);
@@ -1127,6 +1419,7 @@
             const newNode = { id, x: 100, y: 100, text: 'New Card', caption: 'Caption', image: '', link: '', target: '_self', style: 'default' };
             this.mapData.nodes.push(newNode);
             this.renderNode(newNode);
+            this.saveToHistory('Added node');
         }
 
         /**
@@ -1627,6 +1920,7 @@
 
             this.mapData.rails.push(rail);
             this.renderRail(rail);
+            this.saveToHistory('Added rail');
             this.saveMapData();
         }
 
@@ -1651,6 +1945,7 @@
             // remove rail data
             this.mapData.rails = (this.mapData.rails || []).filter(x => x.id !== railId);
             // save map after deletion
+            this.saveToHistory(`Deleted rail: ${railId}`);
             this.saveMapData();
         }
 
@@ -1807,6 +2102,9 @@
          * Collects data and sends it to the server to be saved.
          */
         saveMapData() {
+            // Save to history before making changes
+            this.saveToHistory('Modified map data');
+
             // Update mapData from the DOM before saving
             this.mapData.nodes.forEach(nodeData => {
                 const el = document.getElementById(nodeData.id);

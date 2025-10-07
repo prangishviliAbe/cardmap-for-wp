@@ -124,6 +124,7 @@ function cardmap_editor_callback( $post ) {
     <button type="button" class="button" id="delete-node">❌ Delete Node</button>
     <button type="button" class="button" id="delete-connection">✂️ Delete Link</button>
     <button type="button" class="button" id="delete-rail">🧨 Delete Rail</button>
+        <button type="button" class="button button-secondary" id="toggle-grid">⊞ Grid</button>
         <button type="button" class="button button-secondary" id="fullscreen-editor">⛶ Fullscreen</button>
         <button type="button" class="button button-primary" id="save-map">💾 Save</button>
     </div>

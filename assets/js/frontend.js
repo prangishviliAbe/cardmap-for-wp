@@ -308,7 +308,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
 
                         if (sourceEl && targetEl) {
-                            const connStyle = c.style || 'normal';
+                            // Get connection style with proper priority: connection's own style > source's style > target's style > global default
+                            let connStyle = c.style;
+                            if (!connStyle) {
+                                // Try to get from mapData source/target node connectionStyle
+                                const sourceNodeData = mapData.nodes?.find(n => n.id === c.source) || {};
+                                const targetNodeData = mapData.nodes?.find(n => n.id === c.target) || {};
+                                const sourceRailData = mapData.rails?.find(r => r.id === c.source) || {};
+                                const targetRailData = mapData.rails?.find(r => r.id === c.target) || {};
+                                connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || 
+                                           targetNodeData.connectionStyle || targetRailData.connectionStyle || 
+                                           mapConfig.line_style || 'normal';
+                            }
                             let config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness, c.rail_size);
 
                             // If the connection is attached to a rail that has a visual appearance,

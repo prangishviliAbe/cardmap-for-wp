@@ -223,7 +223,14 @@
                 }
             });
             this.instance.bind('click', (conn, originalEvent) => {
-                console.debug('jsPlumb connection clicked', { deleteMode: this.deleteConnectionMode, connId: conn && conn._cardmap_id });
+                console.debug('jsPlump connection clicked', { deleteMode: this.deleteConnectionMode, connId: conn && conn._cardmap_id });
+
+                // Handle right-click for connection context menu
+                if (originalEvent && originalEvent.button === 2) {
+                    originalEvent.preventDefault();
+                    this.showConnectionContextMenu(conn, originalEvent);
+                    return;
+                }
 
                 // Prevent single-click from interfering with double-click
                 const now = Date.now();
@@ -243,7 +250,7 @@
                         // Save to history
                         this.saveToHistory(`Deleted connection ${connId}`);
                         
-                        // remove connection from jsPlumb canvas
+                        // remove connection from jsPlump canvas
                         try { this.instance.deleteConnection(conn); } catch (e) { try { conn.detach(); } catch (err) {} }
                         // update UI classes for remaining connections
                         this.updateDeleteConnectionUI();
@@ -476,6 +483,15 @@
             // Alignment controls removed
             const deleteRailBtn = document.getElementById('delete-rail');
             if (deleteRailBtn) deleteRailBtn.addEventListener('click', this.toggleDeleteRailMode.bind(this));
+
+            // Prevent default context menu on editor wrapper to allow connection context menu
+            this.editorWrapper.addEventListener('contextmenu', (e) => {
+                // Only prevent if this is likely a connection right-click
+                const target = e.target;
+                if (target && (target.tagName === 'svg' || target.closest('svg') || target.classList.contains('_jsPlumb_connector'))) {
+                    e.preventDefault();
+                }
+            });
 
             // note: connection click/dblclick handlers are registered in initJsPlumb()
         }
@@ -3649,6 +3665,144 @@
             if (l2 === 0) return { x: x1, y: y1 };
             const t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
             return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
+        }
+
+        /**
+         * Show context menu for individual connection styling
+         */
+        showConnectionContextMenu(connection, event) {
+            // Remove any existing context menu
+            this.hideConnectionContextMenu();
+
+            const connId = connection._cardmap_id;
+            if (!connId) return;
+
+            // Find connection data
+            const connData = this.mapData.connections.find(c => c.id === connId);
+            if (!connData) return;
+
+            // Create context menu
+            const menu = document.createElement('div');
+            menu.className = 'connection-context-menu';
+            menu.style.cssText = `
+                position: fixed;
+                left: ${event.clientX}px;
+                top: ${event.clientY}px;
+                background: white;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                padding: 8px;
+                z-index: 10000;
+                min-width: 200px;
+                font-size: 13px;
+            `;
+
+            const currentStyle = connData.style || 'normal';
+            
+            menu.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 8px; color: #333;">Connection Style</div>
+                <select class="connection-style-select" style="width: 100%; margin-bottom: 8px;">
+                    ${Object.keys(this.config.availableLineStyles).map(k => 
+                        `<option value="${k}" ${k === currentStyle ? 'selected' : ''}>${this.config.availableLineStyles[k]}</option>`
+                    ).join('')}
+                </select>
+                <div style="text-align: right;">
+                    <button class="apply-connection-style" style="background: #0073aa; color: white; border: none; padding: 4px 12px; border-radius: 3px; cursor: pointer; margin-right: 4px;">Apply</button>
+                    <button class="cancel-connection-style" style="background: #ddd; color: #333; border: none; padding: 4px 12px; border-radius: 3px; cursor: pointer;">Cancel</button>
+                </div>
+            `;
+
+            document.body.appendChild(menu);
+            this.currentConnectionMenu = { menu, connection, connData };
+
+            // Add event listeners
+            menu.querySelector('.apply-connection-style').addEventListener('click', () => {
+                const newStyle = menu.querySelector('.connection-style-select').value;
+                this.applyConnectionStyle(connection, connData, newStyle);
+                this.hideConnectionContextMenu();
+            });
+
+            menu.querySelector('.cancel-connection-style').addEventListener('click', () => {
+                this.hideConnectionContextMenu();
+            });
+
+            // Close menu when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', this.hideConnectionContextMenuOnOutsideClick.bind(this), { once: true });
+            }, 10);
+        }
+
+        /**
+         * Hide connection context menu
+         */
+        hideConnectionContextMenu() {
+            if (this.currentConnectionMenu) {
+                this.currentConnectionMenu.menu.remove();
+                this.currentConnectionMenu = null;
+            }
+        }
+
+        /**
+         * Hide context menu when clicking outside
+         */
+        hideConnectionContextMenuOnOutsideClick(event) {
+            if (this.currentConnectionMenu && !this.currentConnectionMenu.menu.contains(event.target)) {
+                this.hideConnectionContextMenu();
+            }
+        }
+
+        /**
+         * Apply new style to individual connection
+         */
+        applyConnectionStyle(connection, connData, newStyle) {
+            try {
+                console.log('Applying individual style to connection:', connData.id, 'New style:', newStyle);
+                
+                // Update connection data
+                connData.style = newStyle;
+                
+                // Apply visual changes to the connection
+                const config = this.getConnectorConfig(newStyle);
+                
+                // Update paint style
+                if (connection.setPaintStyle && config.paintStyle) {
+                    connection.setPaintStyle(config.paintStyle);
+                }
+                
+                // Update connector type
+                if (connection.setConnector && config.connector) {
+                    connection.setConnector(config.connector);
+                }
+                
+                // Update overlays (arrows, etc.)
+                if (connection.removeAllOverlays) {
+                    connection.removeAllOverlays();
+                }
+                if (config.overlays && Array.isArray(config.overlays)) {
+                    config.overlays.forEach(overlay => {
+                        if (connection.addOverlay) {
+                            connection.addOverlay(overlay);
+                        }
+                    });
+                }
+                
+                // Force repaint
+                this.instance.repaintEverything();
+                
+                // Save changes
+                this.saveMapData();
+                
+                // Save to history
+                this.saveToHistory(`Changed connection style to ${this.config.availableLineStyles[newStyle]}`);
+                
+                // Show feedback
+                this.showToast(`Connection style changed to: ${this.config.availableLineStyles[newStyle]}`);
+                
+            } catch (error) {
+                console.error('Error applying connection style:', error);
+                this.showToast('Error applying connection style');
+            }
         }
     }
 

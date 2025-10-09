@@ -38,6 +38,18 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.10.0 (2025-10-10)
+
+- **🎨 Individual Connection Styling:** Revolutionary new feature allowing each connection to have its own independent style settings, separate from card settings.
+- **🖱️ Right-Click Context Menu:** Intuitive right-click interface on connections to instantly change their style (normal, dashed, dotted, arrows, etc.).
+- **🎯 Smart Priority System:** Complete implementation of connection style priority: individual connection > source node > target node > global default.
+- **✨ Enhanced User Experience:** Immediate visual feedback when changing connection styles with real-time preview.
+- **🔧 Fixed Style Application:** Resolved issues where connection style changes in the panel weren't taking effect properly.
+- **📋 Improved Data Structure:** Connection data now properly stores and manages individual style properties.
+- **⚡ Performance Optimized:** Streamlined style rendering and repaint operations for better responsiveness.
+- **🎨 Professional UI:** Clean, contextual menu design that integrates seamlessly with the existing interface.
+- **🌐 Full Compatibility:** Both admin editor and frontend display now fully support individual connection styling.
+
 ### v1.9.1 (2025-10-09)
 
 - **🐛 Critical Bug Fix:** Fixed connection style rendering issue where normal/solid lines were incorrectly displayed with dashed styles on the frontend.

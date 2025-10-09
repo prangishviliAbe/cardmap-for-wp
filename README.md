@@ -38,6 +38,18 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.9.0 (2025-10-09)
+
+- **🎯 Enhanced History System:** Complete overhaul of undo/redo functionality with proper state management and UI feedback.
+- **📋 Interactive History Panel:** New history dropdown showing all actions with timestamps and the ability to jump to any point in history.
+- **🔄 Smart History Tracking:** Automatic history saving for all major actions including node creation, connection creation, deletions, and modifications.
+- **⚡ Improved Performance:** Better connection rendering with reduced gaps and improved SVG positioning accuracy.
+- **🎨 Better UI/UX:** Disabled state indicators for undo/redo buttons, better visual feedback, and cleaner interface.
+- **🔧 Fixed Rail Connections:** Resolved issues with frontend connection gaps and improved rail-to-node connection accuracy.
+- **⌨️ Keyboard Shortcuts:** Enhanced Ctrl+Z (undo) and Ctrl+Y (redo) support with proper state management.
+- **💾 Persistent History:** History state properly maintained across editor sessions with smart cleanup.
+- **🚀 Performance Optimizations:** Reduced unnecessary repaints and improved connection calculation speed.
+
 ### v1.8.3 (2025-10-09)
 
 - **Major Enhancement:** Completely redesigned connection precision system for pixel-perfect accuracy.

@@ -1785,7 +1785,8 @@
                 if (!this.firstNode) {
                 // Use rail element as firstNode
                 this.firstNode = railEl;
-                this.firstAnchor = this.getRailAnchorFromEvent(e, railEl, railData);
+                // Use the same coordinate system as nodes for consistency
+                this.firstAnchor = this.getPreciseAnchorFromEvent(e, railEl);
                 railEl.style.boxShadow = '0 0 0 3px rgba(166,24,50,0.5)';
             } else if (this.firstNode !== railEl) {
                 const sourceId = this.firstNode.id;
@@ -1829,7 +1830,7 @@
                 }
                 // store anchors; convert precise arrays to a serializable representation
                 const savedAnchors = [
-                    anchorA,
+                    (Array.isArray(anchorA) ? { type: 'precise', value: anchorA } : anchorA),
                     (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
                 ];
                 this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
@@ -1862,12 +1863,38 @@
             if (!railEl) return null;
 
             try {
-                // Get rail element's bounding rectangle in screen coordinates
-                const railRect = railEl.getBoundingClientRect();
+                // Convert client coordinates to world coordinates using the same method as other functions
+                const worldCoords = this.screenToWorld(clientX, clientY);
+                if (!worldCoords) {
+                    throw new Error('Failed to convert screen coordinates to world coordinates');
+                }
+                
+                // Get the rail data to get its world position and dimensions
+                const railId = railEl.id;
+                const railData = this.mapData.rails.find(r => r.id === railId);
+                if (!railData) {
+                    console.warn('Rail data not found for element:', railId);
+                    return [0.5, 0.5, 0, 0];
+                }
 
-                // Calculate relative position within rail element
-                let relX = (clientX - railRect.left) / railRect.width;
-                let relY = (clientY - railRect.top) / railRect.height;
+                // Validate required rail data properties
+                if (typeof railData.x !== 'number' || typeof railData.y !== 'number') {
+                    throw new Error(`Invalid rail position: x=${railData.x}, y=${railData.y}`);
+                }
+
+                // Get rail dimensions with fallbacks
+                const railWidth = railData.width || 
+                    (railData.orientation === 'vertical' ? (railData.size || 8) : 300);
+                const railHeight = railData.height || 
+                    (railData.orientation === 'horizontal' ? (railData.size || 8) : 300);
+
+                if (railWidth <= 0 || railHeight <= 0) {
+                    throw new Error(`Invalid rail dimensions: width=${railWidth}, height=${railHeight}`);
+                }
+
+                // Calculate position relative to rail's world position
+                let relX = (worldCoords.x - railData.x) / railWidth;
+                let relY = (worldCoords.y - railData.y) / railHeight;
 
                 // Clamp to element bounds
                 relX = Math.max(0, Math.min(1, relX));
@@ -1876,7 +1903,14 @@
                 // jsPlumb accepts [x, y, ox, oy] anchor arrays where x,y are relative (0-1)
                 return [relX, relY, 0, 0];
             } catch (error) {
-                console.warn('Error in getPreciseRailAnchorArray:', error);
+                console.error('Error in getPreciseRailAnchorArray:', {
+                    error: error.message,
+                    railEl: railEl?.id,
+                    clientX, 
+                    clientY,
+                    railData: railData ? {id: railData.id, x: railData.x, y: railData.y, orientation: railData.orientation} : 'null',
+                    worldCoords: worldCoords
+                });
                 return [0.5, 0.5, 0, 0]; // Fallback to center of rail
             }
         }
@@ -2034,7 +2068,7 @@
                         try { conn.setParameter && conn.setParameter('user-driven', true); } catch(e) {}
                     }
                     const savedAnchors = [
-                        anchorA,
+                        (Array.isArray(anchorA) ? { type: 'precise', value: anchorA } : anchorA),
                         (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
                     ];
                     this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
@@ -3223,7 +3257,6 @@
             try {
                 // Get the element's bounding rectangle in screen coordinates
                 const elRect = el.getBoundingClientRect();
-                const wrapperRect = this.editorWrapper.getBoundingClientRect();
 
                 // Convert click coordinates to be relative to the element
                 const relativeX = e.clientX - elRect.left;
@@ -3234,21 +3267,34 @@
                     return "Continuous";
                 }
 
-                // Calculate relative position within element (0-1)
+                // For rails, use precise positioning
+                if (el.classList && el.classList.contains('cardmap-rail')) {
+                    const x = Math.max(0, Math.min(1, relativeX / elRect.width));
+                    const y = Math.max(0, Math.min(1, relativeY / elRect.height));
+                    return [x, y, 0, 0];
+                }
+
+                // For nodes (cards), snap to nearest edge for consistent spacing
                 const x = relativeX / elRect.width;
                 const y = relativeY / elRect.height;
 
-                // Determine which edge is closest to the click point
+                // Calculate distances to each edge
                 const topDist = y;
                 const bottomDist = 1 - y;
                 const leftDist = x;
                 const rightDist = 1 - x;
-                const min = Math.min(topDist, bottomDist, leftDist, rightDist);
+                const minDist = Math.min(topDist, bottomDist, leftDist, rightDist);
 
-                if (min === topDist) return "TopCenter";
-                if (min === bottomDist) return "BottomCenter";
-                if (min === leftDist) return "LeftMiddle";
-                return "RightMiddle";
+                // Snap to the nearest edge with consistent positioning
+                if (minDist === topDist) {
+                    return "TopCenter";
+                } else if (minDist === bottomDist) {
+                    return "BottomCenter";
+                } else if (minDist === leftDist) {
+                    return "LeftMiddle";
+                } else {
+                    return "RightMiddle";
+                }
             } catch (err) {
                 console.warn('Error in getPreciseAnchorFromEvent:', err);
                 return "Continuous";
@@ -3317,13 +3363,9 @@
                 if (a && a !== 'Continuous') anchorA = a;
             }
             if (targetEvent) {
-                // if target is a rail and we have a last hover, prefer precise rail array
-                if (targetEl && targetEl.classList && targetEl.classList.contains('cardmap-rail') && this._lastRailHover && this._lastRailHover.railId === targetEl.id) {
-                    anchorB = this.getPreciseRailAnchorArray(targetEl, this._lastRailHover.clientX, this._lastRailHover.clientY);
-                } else {
-                    const b = this.getPreciseAnchorFromEvent(targetEvent, targetEl);
-                    if (b && b !== 'Continuous') anchorB = b;
-                }
+                // Use precise anchor from event for all elements (nodes and rails)
+                const b = this.getPreciseAnchorFromEvent(targetEvent, targetEl);
+                if (b && b !== 'Continuous') anchorB = b;
             }
 
             // fallback to directional anchors if any side is missing

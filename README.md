@@ -38,6 +38,15 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.8.3 (2025-10-09)
+
+- **Major Enhancement:** Completely redesigned connection precision system for pixel-perfect accuracy.
+- **Smart Anchoring:** Connections to cards now automatically snap to the nearest edge center (top, bottom, left, right) for perfect alignment regardless of where you click.
+- **Precise Rail Connections:** Connections to rails maintain exact pixel positioning where you click for maximum flexibility.
+- **Unified Coordinate System:** Fixed inconsistencies between node-to-rail and rail-to-node connections ensuring both directions work perfectly.
+- **Improved User Experience:** Eliminated pixel-level positioning errors on cards while maintaining precise control on rails.
+- **Technical:** Completely rewrote anchor calculation functions with unified coordinate handling and better error management.
+
 ### v1.8.2 (2025-10-09)
 
 - **Fix:** Improved clicking precision for rail connections - connections now anchor exactly where you click instead of connecting to a different location.

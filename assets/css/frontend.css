@@ -181,8 +181,10 @@
 .cardmap-frontend-wrapper svg .jtk-connector {
     z-index: 3000 !important;
     position: absolute !important;
-    pointer-events: none !important;
+    pointer-events: auto !important;
     display: block !important;
+    cursor: pointer !important;
+    transition: opacity 0.2s ease !important;
 }
 
 .cardmap-frontend-wrapper .jtk-svg path,
@@ -194,6 +196,41 @@
     stroke-width: 2px;
     /* Default draw animation; specific animation classes can override */
     animation: cardmap-draw-line 1s ease-out forwards;
+    transition: stroke-width 0.2s ease, stroke-opacity 0.2s ease;
+}
+
+/* Hover effect for interactive connections */
+.cardmap-frontend-wrapper .jtk-svg:hover path,
+.cardmap-frontend-wrapper .jtk-connector:hover path,
+.cardmap-frontend-wrapper svg.jtk-svg:hover .jtk-connector path {
+    stroke-width: 3px !important;
+    stroke-opacity: 0.8 !important;
+    filter: drop-shadow(0 0 3px rgba(166, 24, 50, 0.5));
+}
+
+/* Tooltip for connection reversal hint */
+.cardmap-frontend-wrapper .jtk-svg::after,
+.cardmap-frontend-wrapper .jtk-connector::after {
+    content: "Click to reverse";
+    position: absolute;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10001;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.cardmap-frontend-wrapper .jtk-svg:hover::after,
+.cardmap-frontend-wrapper .jtk-connector:hover::after {
+    opacity: 1;
 }
 
 @keyframes cardmap-draw-line {

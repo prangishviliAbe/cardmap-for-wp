@@ -91,20 +91,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function getDirectionalAnchorsFrontend(sourceEl, targetEl) {
-            if (!sourceEl || !targetEl) return ["Continuous", "Continuous"];
+            if (!sourceEl || !targetEl) return ["RightMiddle", "LeftMiddle"];
+            
             const s = sourceEl.getBoundingClientRect();
             const t = targetEl.getBoundingClientRect();
-            const dx = (t.left + t.right) / 2 - (s.left + s.right) / 2;
-            const dy = (t.top + t.bottom) / 2 - (s.top + s.bottom) / 2;
-            return Math.abs(dx) > Math.abs(dy)
-                ? (dx > 0 ? ["RightMiddle", "LeftMiddle"] : ["LeftMiddle", "RightMiddle"])
-                : (dy > 0 ? ["BottomCenter", "TopCenter"] : ["TopCenter", "BottomCenter"]);
+            
+            // Calculate center points
+            const sourceCenterX = s.left + s.width / 2;
+            const sourceCenterY = s.top + s.height / 2;
+            const targetCenterX = t.left + t.width / 2;
+            const targetCenterY = t.top + t.height / 2;
+            
+            const dx = targetCenterX - sourceCenterX;
+            const dy = targetCenterY - sourceCenterY;
+            
+            // Use cardinal directions only for consistent edge snapping
+            // Determine primary direction based on which distance is greater
+            if (Math.abs(dx) > Math.abs(dy)) {
+                // Horizontal connection is primary
+                if (dx > 0) {
+                    // Target is to the right
+                    return ["RightMiddle", "LeftMiddle"];
+                } else {
+                    // Target is to the left
+                    return ["LeftMiddle", "RightMiddle"];
+                }
+            } else {
+                // Vertical connection is primary
+                if (dy > 0) {
+                    // Target is below
+                    return ["BottomCenter", "TopCenter"];
+                } else {
+                    // Target is above
+                    return ["TopCenter", "BottomCenter"];
+                }
+            }
         }
 
         const instance = jsPlumb.getInstance({
             Container: panZoomContainer,
-            ConnectionsDetachable: false
+            ConnectionsDetachable: false,
+            Anchors: ["TopLeft", "TopCenter", "TopRight", "LeftMiddle", "RightMiddle", "BottomLeft", "BottomCenter", "BottomRight"]
         });
+        
+        // Ensure the container has proper positioning for accurate calculations
+        if (!panZoomContainer.style.position) {
+            panZoomContainer.style.position = 'relative';
+        }
 
         // Initialize rails as jsPlumb endpoints first
         const rails = panZoomContainer.querySelectorAll('.cardmap-rail');
@@ -118,15 +151,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 console.log('Initializing rail as jsPlumb endpoint:', railEl.id, railEl);
 
+                // Use Continuous anchors for rails to allow connections at any point
+                // Also ensure the rail element has proper dimensions and positioning
+                const railRect = railEl.getBoundingClientRect();
+                console.log('Rail dimensions:', {
+                    id: railEl.id,
+                    width: railRect.width,
+                    height: railRect.height,
+                    left: railRect.left,
+                    top: railRect.top
+                });
+
                 instance.makeSource(railEl, {
-                    anchor: ["Continuous"],
-                    endpoint: "Blank",
-                    maxConnections: -1
+                    anchor: "Continuous",
+                    endpoint: "Blank", 
+                    maxConnections: -1,
+                    allowLoopback: false,
+                    connectorStyle: { strokeWidth: 2, stroke: '#A61832' }
                 });
                 instance.makeTarget(railEl, {
-                    anchor: ["Continuous"],
+                    anchor: "Continuous",
                     endpoint: "Blank",
-                    maxConnections: -1
+                    maxConnections: -1,
+                    allowLoopback: false,
+                    connectorStyle: { strokeWidth: 2, stroke: '#A61832' }
                 });
                 console.log('Rail initialized as jsPlumb endpoint:', railEl.id);
             } catch (err) {
@@ -134,8 +182,108 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        // Function to reverse a connection
+        function reverseConnection(connection, connectionData, index) {
+            if (!connection || !connectionData) return;
+
+            // Store original data
+            const originalSource = connectionData.source;
+            const originalTarget = connectionData.target;
+            const originalAnchors = connectionData.anchors;
+            const originalStyle = connectionData.style;
+
+            // Swap source and target in the data
+            connectionData.source = originalTarget;
+            connectionData.target = originalSource;
+
+            // Reverse anchors if they exist
+            if (Array.isArray(originalAnchors) && originalAnchors.length >= 2) {
+                connectionData.anchors = [originalAnchors[1], originalAnchors[0]];
+            }
+
+            // Handle arrow direction for specific connection styles
+            if (originalStyle) {
+                switch (originalStyle) {
+                    case 'straight-with-arrows':
+                        // Keep the same style - arrows will automatically point to the new target
+                        break;
+                    case 'flowchart-with-arrows':
+                        // Keep the same style - arrows will automatically point to the new target
+                        break;
+                    default:
+                        // For non-arrow styles, no special handling needed
+                        break;
+                }
+            }
+
+            // Find the DOM elements
+            const sourceEl = panZoomContainer.querySelector('#' + connectionData.source);
+            const targetEl = panZoomContainer.querySelector('#' + connectionData.target);
+
+            if (!sourceEl || !targetEl) {
+                console.error('Cannot reverse connection: elements not found', {
+                    source: connectionData.source,
+                    target: connectionData.target
+                });
+                return;
+            }
+
+            // Update the connection with new source and target
+            try {
+                connection.setSource(sourceEl);
+                connection.setTarget(targetEl);
+
+                // Update anchors if they were changed
+                if (connectionData.anchors) {
+                    connection.setAnchors(connectionData.anchors);
+                }
+
+                // Update overlays (arrows) to point in the correct direction
+                if (originalStyle && (originalStyle.includes('arrows'))) {
+                    // Remove existing overlays and add new ones pointing to the target
+                    connection.removeAllOverlays();
+
+                    // Add arrow overlay pointing to the new target (location 1 = end of connection)
+                    const arrowOverlay = ["Arrow", { width: 10, length: 10, location: 1 }];
+                    connection.addOverlay(arrowOverlay);
+                }
+
+                console.log('Connection reversed successfully:', {
+                    from: `${originalSource} -> ${originalTarget}`,
+                    to: `${connectionData.source} -> ${connectionData.target}`,
+                    style: originalStyle
+                });
+
+                // Force repaint to show changes
+                setTimeout(() => {
+                    instance.repaintEverything();
+                }, 50);
+
+            } catch (error) {
+                console.error('Error reversing connection:', error);
+                // Revert changes if there was an error
+                connectionData.source = originalSource;
+                connectionData.target = originalTarget;
+                connectionData.anchors = originalAnchors;
+                connectionData.style = originalStyle;
+            }
+        }
+
         // Create connections after a short delay to ensure rails are fully initialized
         setTimeout(() => {
+            // Ensure all elements are properly managed by jsPlumb before creating connections
+            const allElements = panZoomContainer.querySelectorAll('.cardmap-node, .cardmap-rail');
+            allElements.forEach(el => {
+                if (el.id) {
+                    try {
+                        instance.manage(el);
+                        console.log('Element managed by jsPlumb:', el.id, el.classList.toString());
+                    } catch (err) {
+                        console.warn('Error managing element:', el.id, err);
+                    }
+                }
+            });
+            
             instance.batch(() => {
                 if (mapData.connections) {
                     mapData.connections.forEach((c, index) => {
@@ -214,12 +362,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                 });
                                 console.log('Using saved anchors for connection:', anchors);
                             } else if (sourceIsRail || targetIsRail) {
-                                // For rail connections without saved anchors, use Continuous
-                                anchors = ["Continuous", "Continuous"];
-                                console.log('Using Continuous anchors for rail connection');
+                                // For rail connections, prefer saved precise anchors, fallback to Continuous
+                                if (sourceIsRail && targetIsRail) {
+                                    // Rail to rail - use continuous for both to allow flexible positioning
+                                    anchors = ["Continuous", "Continuous"];
+                                } else if (sourceIsRail) {
+                                    // Rail to node - continuous for rail (allows precise positioning), directional for node
+                                    const targetAnchor = getDirectionalAnchorsFrontend(targetEl, sourceEl)[0];
+                                    anchors = ["Continuous", targetAnchor];
+                                } else {
+                                    // Node to rail - directional for node, continuous for rail (allows precise positioning)
+                                    const sourceAnchor = getDirectionalAnchorsFrontend(sourceEl, targetEl)[0];
+                                    anchors = [sourceAnchor, "Continuous"];
+                                }
+                                console.log('Using anchors for rail connection:', anchors, 'sourceIsRail:', sourceIsRail, 'targetIsRail:', targetIsRail);
                             } else {
                                 // For node-to-node connections, compute directional anchors
-                                anchors = getDirectionalAnchorsFrontend(sourceEl, targetEl) || ["Continuous", "Continuous"];
+                                anchors = getDirectionalAnchorsFrontend(sourceEl, targetEl) || ["RightMiddle", "LeftMiddle"];
                                 console.log('Using computed directional anchors:', anchors);
                             }
 
@@ -230,7 +389,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 style: c.style,
                                 sourceIsRail: sourceIsRail,
                                 targetIsRail: targetIsRail,
-                                config: config
+                                config: config,
+                                sourceElRect: sourceEl.getBoundingClientRect(),
+                                targetElRect: targetEl.getBoundingClientRect()
                             });
 
                             try {
@@ -239,11 +400,68 @@ document.addEventListener('DOMContentLoaded', function() {
                                     target: targetEl,
                                     anchors: anchors,
                                     ...config,
-                                    endpoint: "Blank"
+                                    endpoint: "Blank",
+                                    detachable: false,
+                                    reattach: true
                                 });
 
                                 if (connection) {
                                     console.log('Connection created successfully:', c.id || 'no-id');
+                                    
+                                    // Only do minimal repainting to avoid disrupting precise positioning
+                                    setTimeout(() => {
+                                        try {
+                                            // Only repaint if there are obvious positioning issues
+                                            const connector = connection.getConnector && connection.getConnector();
+                                            if (connector && connector.canvas) {
+                                                const svg = connector.canvas;
+                                                const left = parseFloat(svg.style.left) || 0;
+                                                const top = parseFloat(svg.style.top) || 0;
+                                                
+                                                // Only intervene if SVG has extreme negative positioning (indicating a real problem)
+                                                if (left < -100 || top < -100) {
+                                                    console.log('Fixing extreme SVG positioning:', { left, top });
+                                                    connection.repaint();
+                                                }
+                                            }
+                                        } catch (repaintErr) {
+                                            console.warn('Error in minimal repaint check:', repaintErr);
+                                        }
+                                    }, 10);
+
+                                    // Add click handler for connection reversal
+                                    connection.bind('click', function(e) {
+                                        // Prevent event bubbling
+                                        e.stopPropagation();
+
+                                        console.log('Connection clicked for reversal:', {
+                                            connectionId: c.id,
+                                            source: c.source,
+                                            target: c.target,
+                                            index: index
+                                        });
+
+                                        // Show confirmation dialog with connection details
+                                        const sourceTitle = document.querySelector('#' + c.source + ' .card-title')?.textContent || c.source;
+                                        const targetTitle = document.querySelector('#' + c.target + ' .card-title')?.textContent || c.target;
+
+                                        const confirmMessage = `Reverse connection direction?\n\nCurrent: ${sourceTitle} → ${targetTitle}\nNew: ${targetTitle} → ${sourceTitle}`;
+
+                                        // Show confirmation dialog
+                                        if (confirm(confirmMessage)) {
+                                            reverseConnection(connection, c, index);
+                                        }
+                                    });
+
+                                    // Add visual indicator for clickable connections
+                                    const connector = connection.getConnector && connection.getConnector();
+                                    if (connector && connector.canvas) {
+                                        const svg = connector.canvas;
+                                        if (svg) {
+                                            svg.style.cursor = 'pointer';
+                                            svg.title = 'Click to reverse connection direction';
+                                        }
+                                    }
 
                                     // Apply animation if enabled
                                     if (mapConfig.enable_animation) {
@@ -295,6 +513,38 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 instance.repaintEverything();
                 console.log('Repainted all connections');
+                
+                // Only do additional fixes if there are actual positioning problems
+                setTimeout(() => {
+                    const allConnections = instance.getAllConnections();
+                    let problemConnections = 0;
+                    
+                    allConnections.forEach(conn => {
+                        try {
+                            const connector = conn.getConnector && conn.getConnector();
+                            if (connector && connector.canvas) {
+                                const svg = connector.canvas;
+                                const left = parseFloat(svg.style.left) || 0;
+                                const top = parseFloat(svg.style.top) || 0;
+                                
+                                // Only fix connections with extreme positioning issues
+                                if (left < -50 || top < -50) {
+                                    conn.repaint();
+                                    problemConnections++;
+                                    console.log('Fixed problematic connection positioning:', { left, top });
+                                }
+                            }
+                        } catch (err) {
+                            console.warn('Error checking connection positioning:', err);
+                        }
+                    });
+                    
+                    if (problemConnections > 0) {
+                        console.log(`Fixed ${problemConnections} connections with positioning issues`);
+                    } else {
+                        console.log('No connection positioning issues detected');
+                    }
+                }, 50);
             }, 100);
         }, 50);
 
@@ -455,6 +705,59 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Ensure rail has proper positioning and is visible in the container
                 if (!railEl.style.left) railEl.style.left = '0px';
                 if (!railEl.style.top) railEl.style.top = '0px';
+                
+                // Ensure the rail element has proper dimensions for connection anchoring
+                const railData = mapData.rails ? mapData.rails.find(r => r.id === railEl.id) : null;
+                if (railData) {
+                    // Make sure the rail's DOM position matches its data position
+                    if (railData.x !== undefined) railEl.style.left = railData.x + 'px';
+                    if (railData.y !== undefined) railEl.style.top = railData.y + 'px';
+                    if (railData.width !== undefined) railEl.style.width = railData.width + 'px';
+                    if (railData.height !== undefined) railEl.style.height = railData.height + 'px';
+                    
+                    // Ensure minimum dimensions for proper connection anchoring
+                    const currentWidth = parseInt(railEl.style.width) || railEl.offsetWidth;
+                    const currentHeight = parseInt(railEl.style.height) || railEl.offsetHeight;
+                    
+                    if (currentWidth < 1) {
+                        railEl.style.width = (railData.size || 3) + 'px';
+                        console.log('Fixed rail width for:', railEl.id);
+                    }
+                    if (currentHeight < 1) {
+                        railEl.style.height = (railData.size || 3) + 'px';
+                        console.log('Fixed rail height for:', railEl.id);
+                    }
+                    
+                    // Ensure proper positioning for jsPlumb calculations
+                    railEl.style.position = 'absolute';
+                    
+                    // For vertical rails, ensure they have proper width
+                    if (railData.orientation === 'vertical') {
+                        const railSize = railData.size || 3;
+                        railEl.style.width = railSize + 'px';
+                        if (!railEl.style.height || parseInt(railEl.style.height) < 10) {
+                            railEl.style.height = (railData.height || 100) + 'px';
+                        }
+                    }
+                    // For horizontal rails, ensure they have proper height
+                    else if (railData.orientation === 'horizontal') {
+                        const railSize = railData.size || 3;
+                        railEl.style.height = railSize + 'px';
+                        if (!railEl.style.width || parseInt(railEl.style.width) < 10) {
+                            railEl.style.width = (railData.width || 100) + 'px';
+                        }
+                    }
+                    
+                    // Force layout recalculation
+                    railEl.offsetHeight; // Trigger reflow
+                    
+                    console.log('Rail position synchronized:', {
+                        id: railEl.id,
+                        dataPos: { x: railData.x, y: railData.y, w: railData.width, h: railData.height },
+                        domPos: { left: railEl.style.left, top: railEl.style.top, width: railEl.style.width, height: railEl.style.height },
+                        actualBounds: railEl.getBoundingClientRect()
+                    });
+                }
 
                 // Final check - ensure rail bar is visible unless explicitly hidden
                 const railBar = railEl.querySelector('.rail-bar');

@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.8.2
+Stable tag: 1.9.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,85 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 4.  Use the shortcode `[cardmap id="your_map_id"]` to display your map.
 
 == Changelog ==
+
+= 1.9.0 =
+*   🎯 Major Enhancement: Completely revamped connection system for accurate positioning
+*   ⚡ Fixed: Rail connections now attach exactly where cursor is positioned
+*   🔄 Enhanced: Card connections automatically snap to nearest edge (top, right, bottom, left)
+*   📋 New Feature: Advanced History Panel with visual timeline and jump-to-any-point functionality
+*   ↩️ Improved: Undo/Redo system now properly tracks all actions including connections
+*   🎨 Enhanced: Better anchor point calculation for more natural connection routing
+*   🔧 Fixed: SVG positioning issues that caused connection gaps
+*   💡 Added: History dropdown with timestamps and action descriptions
+*   🚀 Performance: Optimized connection rendering and validation
+*   ✨ UI: New history management interface with clear/jump functionality
+
+= 1.8.13 =
+*   Fix: Fixed map background scaling issue during zoom operations
+*   Enhancement: Background pattern now properly follows zoom transformations
+*   Enhancement: Consistent background display in both normal and fullscreen modes
+*   Enhancement: Improved background-size and background-repeat properties for better scaling
+
+= 1.8.12 =
+*   Localization: Added Georgian language support for fullscreen prompt interface
+*   Enhancement: სრულეკრანიანი რეჟიმი - Full Georgian localization for better user experience
+*   Enhancement: ქართული ინტერფეისი - Complete Georgian interface for fullscreen features
+
+= 1.8.11 =
+*   Fix: Removed console logging for cleaner user experience and consistent behavior
+*   Enhancement: Eliminated inconsistent double-click fullscreen behavior
+*   Enhancement: Silent operation for all map interactions and fullscreen features
+*   Enhancement: Improved overall stability and predictability
+
+= 1.8.10 =
+*   Enhancement: Implemented beautiful user prompt for URL parameter fullscreen activation
+*   Enhancement: Elegant gradient design with smooth animations and professional styling
+*   Enhancement: Clear user instructions with one-click fullscreen activation
+*   Enhancement: Smart prompt management with localStorage preference memory
+*   Enhancement: Improved user experience with auto-dismiss and error handling
+
+= 1.8.9 =
+*   Enhancement: Implemented multi-method automatic fullscreen activation with multiple fallback techniques
+*   Enhancement: Added requestIdleCallback, synthetic mouse events, and page visibility API approaches
+*   Enhancement: Improved browser compatibility with staggered activation timing
+*   Enhancement: Robust error handling for various browser security restrictions
+
+= 1.8.8 =
+*   Enhancement: Completely silent automatic fullscreen activation for URL parameters
+*   Enhancement: Removed all prompts and messages for seamless fullscreen experience
+*   Enhancement: Faster activation timing (300ms delay) for immediate fullscreen
+*   Enhancement: No console output or user feedback during automatic fullscreen
+
+= 1.8.7 =
+*   Enhancement: Implemented automatic fullscreen activation for URL parameters using synthetic user gesture workaround
+*   Enhancement: Bypassed browser security restrictions while maintaining compliance
+*   Enhancement: Seamless fullscreen experience when accessing maps via direct URLs with fullscreen parameter
+
+= 1.8.6 =
+*   Fix: Prevented automatic fullscreen activation without explicit user consent
+*   Enhancement: Added user preference memory to avoid repeated prompts
+*   Enhancement: Improved prompt timing and dismissal options
+*   Enhancement: Better integration between URL parameters and user interaction
+
+= 1.8.5 =
+*   Fix: Resolved browser security restriction preventing auto-fullscreen from URL parameters
+*   Enhancement: Added prominent user-friendly prompt when fullscreen is requested via URL parameters
+*   Enhancement: Beautiful animated fullscreen prompt with clear instructions
+*   Enhancement: Improved user experience for fullscreen activation workflow
+
+= 1.8.4 =
+*   Fix: Improved URL parameter handling for auto-fullscreen functionality
+*   Enhancement: Added retry mechanism for auto-fullscreen when page loads slowly
+*   Enhancement: Better debugging and logging for fullscreen issues
+*   Enhancement: User-friendly notifications when auto-fullscreen fails
+*   Enhancement: Multiple timed attempts to ensure fullscreen activation
+
+= 1.8.3 =
+*   Fix: Improved fullscreen functionality with better error handling and browser compatibility
+*   Enhancement: Added comprehensive logging for fullscreen debugging
+*   Enhancement: Better user feedback when fullscreen fails with helpful error messages
+*   Enhancement: Enhanced CSS styling for fullscreen mode with proper viewport handling
+*   Enhancement: Added visual feedback for fullscreen button state changes
 
 = 1.8.2 =
 *   Fix: Improved clicking precision for rail connections - connections now anchor exactly where you click instead of connecting to a different location.

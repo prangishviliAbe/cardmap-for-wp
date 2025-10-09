@@ -111,8 +111,18 @@ function cardmap_editor_callback( $post ) {
 
     ?>
     <div id="cardmap-toolbar" style="margin-bottom:10px;">
-        <button type="button" class="button" id="undo-action" title="Undo (Ctrl+Z)">↶ Undo</button>
-        <button type="button" class="button" id="redo-action" title="Redo (Ctrl+Y)">↷ Redo</button>
+        <button type="button" class="button" id="undo-action" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+        <button type="button" class="button" id="redo-action" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+        <div class="cardmap-history-dropdown" style="display:inline-block;position:relative;margin-left:5px;">
+            <button type="button" class="button" id="history-toggle" title="Show History">📋 History</button>
+            <div id="history-panel" class="cardmap-history-panel" style="display:none;">
+                <div class="history-header">Action History</div>
+                <div id="history-list" class="history-list"></div>
+                <div class="history-footer">
+                    <button type="button" class="button button-small" id="clear-history">Clear History</button>
+                </div>
+            </div>
+        </div>
         <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 8px;vertical-align:middle;"></span>
         <button type="button" class="button" id="add-node">+ Add Card</button>
         <button type="button" class="button" id="add-rail">+ Add Rail</button>

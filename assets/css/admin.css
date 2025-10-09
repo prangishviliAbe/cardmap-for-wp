@@ -283,6 +283,115 @@ svg .jtk-connector path {
     border-radius: 50%;
 }
 
+/* History Panel Styles */
+.cardmap-history-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.cardmap-history-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 300px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    z-index: 10000;
+    max-height: 400px;
+    overflow: hidden;
+}
+
+.history-header {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.history-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.history-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-item:hover {
+    background-color: #f8f9fa;
+}
+
+.history-item.current {
+    background-color: #e3f2fd;
+    border-left: 3px solid #2196f3;
+}
+
+.history-item.future {
+    opacity: 0.6;
+    color: #999;
+}
+
+.history-item-content {
+    flex: 1;
+}
+
+.history-item-action {
+    font-weight: 500;
+    color: #333;
+    font-size: 13px;
+}
+
+.history-item-time {
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+}
+
+.history-item-index {
+    background: #ddd;
+    color: #666;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 20px;
+    text-align: center;
+}
+
+.history-item.current .history-item-index {
+    background: #2196f3;
+    color: white;
+}
+
+.history-footer {
+    background: #f8f9fa;
+    padding: 10px 15px;
+    border-top: 1px solid #eee;
+    text-align: center;
+}
+
+.history-empty {
+    padding: 20px 15px;
+    text-align: center;
+    color: #999;
+    font-style: italic;
+}
+
+/* Disabled button styles */
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Fullscreen Link Modal Styles */
 .fullscreen-link-modal {
     position: fixed;

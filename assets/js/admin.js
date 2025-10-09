@@ -239,6 +239,10 @@
                         this.pendingDeletes.add(connId);
                         // remove from mapData
                         this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
+                        
+                        // Save to history
+                        this.saveToHistory(`Deleted connection ${connId}`);
+                        
                         // remove connection from jsPlumb canvas
                         try { this.instance.deleteConnection(conn); } catch (e) { try { conn.detach(); } catch (err) {} }
                         // update UI classes for remaining connections
@@ -279,6 +283,9 @@
                     this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
                     const newCount = this.mapData.connections.length;
                     console.log(`Filtered connections: ${originalCount} -> ${newCount}`);
+
+                    // Save to history
+                    this.saveToHistory(`Deleted connection ${connId}`);
 
                     // Delete the connection from jsPlumb with better error handling
                     let deleted = false;
@@ -321,6 +328,8 @@
         initEventListeners() {
             document.getElementById('undo-action').addEventListener('click', this.undo.bind(this));
             document.getElementById('redo-action').addEventListener('click', this.redo.bind(this));
+            document.getElementById('history-toggle').addEventListener('click', this.toggleHistoryPanel.bind(this));
+            document.getElementById('clear-history').addEventListener('click', this.clearHistory.bind(this));
             document.getElementById('add-node').addEventListener('click', this.addNode.bind(this));
             document.getElementById('add-rail').addEventListener('click', this.addRail.bind(this));
             // railSize input may be omitted if rail thickness is disabled in settings
@@ -557,6 +566,7 @@
             }
 
             console.log(`History saved: ${action} (stack size: ${this.historyStack.length})`);
+            this.updateHistoryUI();
         }
 
         /**
@@ -616,10 +626,11 @@
          */
         undo() {
             if (this.historyIndex > 0) {
-                const previousState = this.historyStack[this.historyIndex - 1];
                 this.historyIndex--;
+                const previousState = this.historyStack[this.historyIndex];
                 this.restoreFromHistory(previousState);
                 this.showToast(`Undid: ${previousState.action}`);
+                this.updateHistoryUI();
             } else {
                 this.showToast('Nothing to undo');
             }
@@ -630,12 +641,131 @@
          */
         redo() {
             if (this.historyIndex < this.historyStack.length - 1) {
-                const nextState = this.historyStack[this.historyIndex + 1];
                 this.historyIndex++;
+                const nextState = this.historyStack[this.historyIndex];
                 this.restoreFromHistory(nextState);
                 this.showToast(`Redid: ${nextState.action}`);
+                this.updateHistoryUI();
             } else {
                 this.showToast('Nothing to redo');
+            }
+        }
+
+        /**
+         * Updates the undo/redo button states and history panel.
+         */
+        updateHistoryUI() {
+            const undoBtn = document.getElementById('undo-action');
+            const redoBtn = document.getElementById('redo-action');
+            
+            // Update button states
+            undoBtn.disabled = this.historyIndex <= 0;
+            redoBtn.disabled = this.historyIndex >= this.historyStack.length - 1;
+            
+            // Update history panel if it's visible
+            const historyPanel = document.getElementById('history-panel');
+            if (historyPanel && historyPanel.style.display !== 'none') {
+                this.updateHistoryPanel();
+            }
+        }
+
+        /**
+         * Toggles the history panel visibility.
+         */
+        toggleHistoryPanel() {
+            const historyPanel = document.getElementById('history-panel');
+            if (historyPanel.style.display === 'none' || historyPanel.style.display === '') {
+                historyPanel.style.display = 'block';
+                this.updateHistoryPanel();
+                
+                // Close panel when clicking outside
+                setTimeout(() => {
+                    document.addEventListener('click', this.closeHistoryPanelOutside.bind(this));
+                }, 100);
+            } else {
+                historyPanel.style.display = 'none';
+                document.removeEventListener('click', this.closeHistoryPanelOutside.bind(this));
+            }
+        }
+
+        /**
+         * Closes history panel when clicking outside.
+         */
+        closeHistoryPanelOutside(e) {
+            const historyDropdown = e.target.closest('.cardmap-history-dropdown');
+            if (!historyDropdown) {
+                const historyPanel = document.getElementById('history-panel');
+                historyPanel.style.display = 'none';
+                document.removeEventListener('click', this.closeHistoryPanelOutside.bind(this));
+            }
+        }
+
+        /**
+         * Updates the history panel content.
+         */
+        updateHistoryPanel() {
+            const historyList = document.getElementById('history-list');
+            
+            if (this.historyStack.length === 0) {
+                historyList.innerHTML = '<div class="history-empty">No history available</div>';
+                return;
+            }
+
+            let html = '';
+            this.historyStack.forEach((state, index) => {
+                const isCurrent = index === this.historyIndex;
+                const isFuture = index > this.historyIndex;
+                const time = new Date(state.timestamp).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                html += `
+                    <div class="history-item ${isCurrent ? 'current' : ''} ${isFuture ? 'future' : ''}" 
+                         data-index="${index}">
+                        <div class="history-item-content">
+                            <div class="history-item-action">${state.action}</div>
+                            <div class="history-item-time">${time}</div>
+                        </div>
+                        <div class="history-item-index">${index + 1}</div>
+                    </div>
+                `;
+            });
+            
+            historyList.innerHTML = html;
+            
+            // Add click handlers for history items
+            historyList.querySelectorAll('.history-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const targetIndex = parseInt(e.currentTarget.dataset.index);
+                    this.goToHistoryIndex(targetIndex);
+                });
+            });
+        }
+
+        /**
+         * Go to a specific history index.
+         */
+        goToHistoryIndex(targetIndex) {
+            if (targetIndex < 0 || targetIndex >= this.historyStack.length) return;
+            
+            this.historyIndex = targetIndex;
+            const state = this.historyStack[targetIndex];
+            this.restoreFromHistory(state);
+            this.showToast(`Jumped to: ${state.action}`);
+            this.updateHistoryUI();
+        }
+
+        /**
+         * Clears the entire history.
+         */
+        clearHistory() {
+            if (confirm('Are you sure you want to clear the entire history? This cannot be undone.')) {
+                this.historyStack = [];
+                this.historyIndex = -1;
+                this.updateHistoryUI();
+                this.showToast('History cleared');
+                document.getElementById('history-panel').style.display = 'none';
             }
         }
 
@@ -1171,6 +1301,12 @@
                     }
                 });
             });
+            
+            // Save initial state to history after loading
+            setTimeout(() => {
+                this.saveToHistory('Initial state');
+                this.updateHistoryUI();
+            }, 200);
         }
 
         /**
@@ -1835,6 +1971,9 @@
                 ];
                 this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
 
+                // Save to history
+                this.saveToHistory(`Connected ${sourceId} to ${targetId}`);
+
                 // force an immediate repaint so anchors/paths are calculated correctly
                 try { this.instance.repaintEverything(); } catch (e) {}
 
@@ -1847,15 +1986,36 @@
         /** Choose a reasonable anchor for a rail based on click position and orientation */
         getRailAnchorFromEvent(e, railEl, railData) {
             if (!railData || !railEl) return null;
+            
+            try {
+                // Use precise anchor calculation for exact positioning on rails
+                const preciseAnchor = this.getPreciseRailAnchorArray(railEl, e.clientX, e.clientY);
+                if (preciseAnchor && Array.isArray(preciseAnchor)) {
+                    return preciseAnchor;
+                }
+            } catch (err) {
+                console.warn('Failed to get precise rail anchor, falling back to positional:', err);
+            }
+            
+            // Fallback to positional anchoring
             const rect = railEl.getBoundingClientRect();
             const localX = e.clientX - rect.left;
             const localY = e.clientY - rect.top;
+            
             if (railData.orientation === 'vertical') {
-                // left or right depending on click side
-                return (localX < rect.width/2) ? 'LeftMiddle' : 'RightMiddle';
+                // For vertical rails, choose side based on click position but keep Y precise
+                const relY = Math.max(0, Math.min(1, localY / rect.height));
+                return localX < rect.width/2 ? [0, relY, 0, 0] : [1, relY, 0, 0];
+            } else if (railData.orientation === 'horizontal') {
+                // For horizontal rails, choose top/bottom based on click but keep X precise  
+                const relX = Math.max(0, Math.min(1, localX / rect.width));
+                return localY < rect.height/2 ? [relX, 0, 0, 0] : [relX, 1, 0, 0];
             }
-            // horizontal or diagonal: top or bottom
-            return (localY < rect.height/2) ? 'TopCenter' : 'BottomCenter';
+            
+            // For diagonal or unknown orientation, use precise positioning
+            const relX = Math.max(0, Math.min(1, localX / rect.width));
+            const relY = Math.max(0, Math.min(1, localY / rect.height));
+            return [relX, relY, 0, 0];
         }
 
         /** Return a precise relative anchor array for a rail element given client coords */
@@ -1901,6 +2061,7 @@
                 relY = Math.max(0, Math.min(1, relY));
 
                 // jsPlumb accepts [x, y, ox, oy] anchor arrays where x,y are relative (0-1)
+                console.log(`Precise rail anchor for ${railId}: [${relX.toFixed(3)}, ${relY.toFixed(3)}] at world (${worldCoords.x.toFixed(1)}, ${worldCoords.y.toFixed(1)}) rail pos (${railData.x}, ${railData.y})`);
                 return [relX, relY, 0, 0];
             } catch (error) {
                 console.error('Error in getPreciseRailAnchorArray:', {
@@ -1975,14 +2136,25 @@
 
         /** Fallback default anchor for an element (node or rail) */
         getDefaultAnchorForElement(el) {
-            if (!el) return 'Continuous';
+            if (!el) return 'RightMiddle';
+            
             if (el.classList.contains('cardmap-rail')) {
-                // approximate based on orientation class
-                if (el.classList.contains('vertical')) return 'LeftMiddle';
-                return 'TopCenter';
+                const railData = this.mapData.rails.find(r => r.id === el.id);
+                if (railData) {
+                    // Use appropriate anchor based on rail orientation
+                    if (railData.orientation === 'vertical') {
+                        return 'RightMiddle';
+                    } else if (railData.orientation === 'horizontal') {
+                        return 'BottomCenter';
+                    }
+                }
+                // Fallback based on class if no data found
+                if (el.classList.contains('vertical')) return 'RightMiddle';
+                return 'BottomCenter';
             }
-            // fallback to top/left heuristics
-            return 'Continuous';
+            
+            // For cards/nodes, use right side as default (most common connection direction)
+            return 'RightMiddle';
         }
 
         /**
@@ -2072,6 +2244,9 @@
                         (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
                     ];
                     this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
+
+                    // Save to history
+                    this.saveToHistory(`Connected ${sourceId} to ${targetId}`);
 
                     // force an immediate repaint so anchors/paths are calculated correctly
                     try { this.instance.repaintEverything(); } catch (e) {}
@@ -3234,20 +3409,48 @@
 
         /**
          * Determines the best anchor points based on the relative positions of two elements.
+         * Always uses cardinal directions (top, right, bottom, left) for consistent edge snapping.
          */
         getDirectionalAnchors(sourceNode, targetNode) {
             const s = sourceNode.getBoundingClientRect();
             const t = targetNode.getBoundingClientRect();
-            const dx = (t.left + t.right) / 2 - (s.left + s.right) / 2;
-            const dy = (t.top + t.bottom) / 2 - (s.top + s.bottom) / 2;
-            // Use explicit anchor names with center/middle to keep consistency
-            return Math.abs(dx) > Math.abs(dy)
-                ? (dx > 0 ? ["RightMiddle", "LeftMiddle"] : ["LeftMiddle", "RightMiddle"])
-                : (dy > 0 ? ["BottomCenter", "TopCenter"] : ["TopCenter", "BottomCenter"]);
+            
+            // Calculate center points
+            const sourceCenterX = s.left + s.width / 2;
+            const sourceCenterY = s.top + s.height / 2;
+            const targetCenterX = t.left + t.width / 2;
+            const targetCenterY = t.top + t.height / 2;
+            
+            const dx = targetCenterX - sourceCenterX;
+            const dy = targetCenterY - sourceCenterY;
+            
+            // Use cardinal directions only for consistent edge snapping
+            // Determine primary direction based on which distance is greater
+            if (Math.abs(dx) > Math.abs(dy)) {
+                // Horizontal connection is primary
+                if (dx > 0) {
+                    // Target is to the right
+                    return ["RightMiddle", "LeftMiddle"];
+                } else {
+                    // Target is to the left
+                    return ["LeftMiddle", "RightMiddle"];
+                }
+            } else {
+                // Vertical connection is primary
+                if (dy > 0) {
+                    // Target is below
+                    return ["BottomCenter", "TopCenter"];
+                } else {
+                    // Target is above
+                    return ["TopCenter", "BottomCenter"];
+                }
+            }
         }
 
         /**
-         * Calculates a precise anchor position based on a click event.
+         * Calculates anchor position based on a click event.
+         * For rails, this ensures connections attach exactly where clicked.
+         * For cards, snaps to the nearest edge for consistent positioning.
          */
         getPreciseAnchorFromEvent(e, el) {
             if (!el || !e || typeof e.clientX !== 'number' || !this.editorWrapper) {
@@ -3255,46 +3458,91 @@
             }
 
             try {
+                const isRail = el.classList.contains('cardmap-rail');
+                
                 // Get the element's bounding rectangle in screen coordinates
                 const elRect = el.getBoundingClientRect();
-
+                
+                // Account for any pan/zoom transformations in the editor
+                const editorRect = this.editor.getBoundingClientRect();
+                const editorStyle = window.getComputedStyle(this.editor);
+                const transform = editorStyle.transform;
+                
                 // Convert click coordinates to be relative to the element
-                const relativeX = e.clientX - elRect.left;
-                const relativeY = e.clientY - elRect.top;
+                let relativeX = e.clientX - elRect.left;
+                let relativeY = e.clientY - elRect.top;
+                
+                // Apply inverse transformation if editor is transformed
+                if (transform && transform !== 'none') {
+                    // Parse transform matrix and apply inverse
+                    const matrix = new DOMMatrix(transform);
+                    if (matrix.a !== 0 && matrix.d !== 0) {
+                        const scale = matrix.a; // Assuming uniform scaling
+                        relativeX = relativeX / scale;
+                        relativeY = relativeY / scale;
+                    }
+                }
 
-                // Check if click is within element bounds
-                if (relativeX < 0 || relativeY < 0 || relativeX > elRect.width || relativeY > elRect.height) {
+                // Check if click is within element bounds (with small tolerance for edge cases)
+                const tolerance = 10; // Increased tolerance for better edge detection
+                if (relativeX < -tolerance || relativeY < -tolerance || 
+                    relativeX > elRect.width + tolerance || relativeY > elRect.height + tolerance) {
+                    console.warn('Click outside element bounds, using fallback');
                     return "Continuous";
                 }
 
-                // For rails, use precise positioning
-                if (el.classList && el.classList.contains('cardmap-rail')) {
-                    const x = Math.max(0, Math.min(1, relativeX / elRect.width));
-                    const y = Math.max(0, Math.min(1, relativeY / elRect.height));
+                // For rails, keep precise positioning
+                if (isRail) {
+                    let x = Math.max(0, Math.min(1, relativeX / elRect.width));
+                    let y = Math.max(0, Math.min(1, relativeY / elRect.height));
+                    
+                    const railData = this.mapData.rails.find(r => r.id === el.id);
+                    if (railData) {
+                        if (railData.orientation === 'vertical') {
+                            // For vertical rails, connections should typically be on the sides
+                            x = relativeX < elRect.width / 2 ? 0 : 1;
+                            // Keep y position precise along the rail length
+                        } else if (railData.orientation === 'horizontal') {
+                            // For horizontal rails, connections should typically be on top/bottom
+                            y = relativeY < elRect.height / 2 ? 0 : 1;
+                            // Keep x position precise along the rail length
+                        }
+                        // For diagonal rails, keep both x and y precise
+                    }
+                    
+                    console.log(`Precise rail anchor for ${el.id}: [${x.toFixed(3)}, ${y.toFixed(3)}]`);
                     return [x, y, 0, 0];
                 }
 
-                // For nodes (cards), snap to nearest edge for consistent spacing
-                const x = relativeX / elRect.width;
-                const y = relativeY / elRect.height;
-
+                // For cards, snap to the nearest edge for consistent positioning
                 // Calculate distances to each edge
-                const topDist = y;
-                const bottomDist = 1 - y;
-                const leftDist = x;
-                const rightDist = 1 - x;
-                const minDist = Math.min(topDist, bottomDist, leftDist, rightDist);
-
-                // Snap to the nearest edge with consistent positioning
-                if (minDist === topDist) {
-                    return "TopCenter";
-                } else if (minDist === bottomDist) {
-                    return "BottomCenter";
-                } else if (minDist === leftDist) {
-                    return "LeftMiddle";
+                const distanceToTop = relativeY;
+                const distanceToBottom = elRect.height - relativeY;
+                const distanceToLeft = relativeX;
+                const distanceToRight = elRect.width - relativeX;
+                
+                // Find the closest edge with a small bias towards horizontal connections
+                const horizontalBias = 0.9; // Slight preference for left/right connections
+                const minDistance = Math.min(
+                    distanceToTop, 
+                    distanceToBottom, 
+                    distanceToLeft * horizontalBias, 
+                    distanceToRight * horizontalBias
+                );
+                
+                let anchorName;
+                if (minDistance === distanceToTop) {
+                    anchorName = "TopCenter";
+                } else if (minDistance === distanceToBottom) {
+                    anchorName = "BottomCenter";
+                } else if (minDistance === distanceToLeft * horizontalBias) {
+                    anchorName = "LeftMiddle";
                 } else {
-                    return "RightMiddle";
+                    anchorName = "RightMiddle";
                 }
+
+                console.log(`Card anchor for ${el.id}: ${anchorName} (distances: T:${distanceToTop.toFixed(1)}, B:${distanceToBottom.toFixed(1)}, L:${distanceToLeft.toFixed(1)}, R:${distanceToRight.toFixed(1)})`);
+                return anchorName;
             } catch (err) {
                 console.warn('Error in getPreciseAnchorFromEvent:', err);
                 return "Continuous";

@@ -38,6 +38,15 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.9.1 (2025-10-09)
+
+- **🐛 Critical Bug Fix:** Fixed connection style rendering issue where normal/solid lines were incorrectly displayed with dashed styles on the frontend.
+- **✨ New Connection Style:** Added 'Normal' connection style option for clean solid lines without arrows, providing better visual clarity.
+- **🎯 Enhanced Consistency:** Improved consistency between admin editor and frontend connection style rendering for all line types.
+- **🔧 Better Defaults:** Updated default connection style handling to properly support normal, dashed, dotted, and arrow styles.
+- **📋 Improved Compatibility:** Enhanced connection style fallback behavior for existing maps to ensure proper rendering.
+- **⚡ Performance:** Optimized connection style configuration for faster rendering and better user experience.
+
 ### v1.9.0 (2025-10-09)
 
 - **🎯 Enhanced History System:** Complete overhaul of undo/redo functionality with proper state management and UI feedback.

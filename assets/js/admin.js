@@ -596,7 +596,7 @@
                     const targetEl = document.getElementById(conn.target);
                     if (!sourceEl || !targetEl) return;
 
-                    const config = this.getConnectorConfig(conn.style || 'straight-with-arrows');
+                    const config = this.getConnectorConfig(conn.style || 'normal');
                     const connection = this.instance.connect({
                         source: conn.source,
                         target: conn.target,
@@ -1273,7 +1273,7 @@
                         const targetNodeData = this.mapData.nodes.find(n => n.id === c.target) || {};
                         const sourceRailData = this.mapData.rails.find(r => r.id === c.source) || {};
                         const targetRailData = this.mapData.rails.find(r => r.id === c.target) || {};
-                        connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || targetNodeData.connectionStyle || targetRailData.connectionStyle || this.config.lineStyle || 'straight';
+                        connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || targetNodeData.connectionStyle || targetRailData.connectionStyle || this.config.lineStyle || 'normal';
                     }
                     const config = this.getConnectorConfig(connStyle);
                     
@@ -3394,8 +3394,9 @@
             const baseConfig = { stroke: this.config.lineColor, strokeWidth: this.config.lineThickness };
             const overlays = [["Arrow", { width: 10, length: 10, location: 1 }]];
             const styles = {
-                'bezier': { connector: ["Bezier", { curviness: 50 }], overlays: [] },
+                'normal': { connector: ["Straight"], overlays: [] },
                 'straight': { connector: ["Straight"], overlays: [] },
+                'bezier': { connector: ["Bezier", { curviness: 50 }], overlays: [] },
                 'flowchart': { connector: ["Flowchart"], overlays: [] },
                 'state-machine': { connector: ["StateMachine", { curviness: 20 }], overlays: [] },
                 'straight-with-arrows': { connector: ["Straight"], overlays: overlays },
@@ -3403,7 +3404,8 @@
                 'dashed': { paintStyle: { ...baseConfig, dashstyle: "4 2" }, overlays: [] },
                 'dotted': { paintStyle: { ...baseConfig, dashstyle: "1 1" }, overlays: [] }
             };
-            const config = styles[style] || styles['straight-with-arrows'];
+            // Default to straight line without arrows for unknown styles
+            const config = styles[style] || styles['straight'];
             return { ...config, paintStyle: config.paintStyle || baseConfig };
         }
 

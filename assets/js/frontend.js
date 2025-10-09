@@ -59,11 +59,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const dottedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "1 1" };
 
             switch (style) {
+                case 'normal':
+                case 'straight':
+                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: [] };
                 case 'bezier':
                 case 'rounded-bezier':
                     return { connector: ["Bezier", {curviness: 50}], paintStyle: baseConfig, overlays: [] };
-                case 'straight':
-                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: [] };
                 case 'flowchart':
                     return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: [] };
                 case 'state-machine':
@@ -86,7 +87,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         overlays: []
                     };
                 default:
-                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: overlays };
+                    // Default to straight line without arrows for normal/unknown styles
+                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: [] };
             }
         }
 
@@ -306,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
 
                         if (sourceEl && targetEl) {
-                            const connStyle = c.style || 'straight-with-arrows';
+                            const connStyle = c.style || 'normal';
                             let config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness, c.rail_size);
 
                             // If the connection is attached to a rail that has a visual appearance,

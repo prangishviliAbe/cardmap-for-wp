@@ -331,11 +331,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
                             // If the connection is attached to a rail that has a visual appearance,
                             // try to make the connector visually match the rail (color/thickness/dash).
+                            // BUT only if the connection doesn't have its own individual style
                             try {
                                 const sourceIsRail = sourceEl.classList && sourceEl.classList.contains('cardmap-rail');
                                 const targetIsRail = targetEl.classList && targetEl.classList.contains('cardmap-rail');
                                 const railEl = sourceIsRail ? sourceEl : (targetIsRail ? targetEl : null);
-                                if (railEl) {
+                                
+                                // Only apply rail styling if connection doesn't have its own individual style
+                                if (railEl && !c.style) {
+                                    console.log('Applying rail styling to connection without individual style');
                                     const railStyle = railEl.dataset.railStyle || railEl.getAttribute('data-rail-style') || '';
                                     const railColor = railEl.dataset.railColor || railEl.getAttribute('data-rail-color') || mapConfig.line_color;
                                     const railSize = parseInt(railEl.dataset.railSize || railEl.getAttribute('data-rail-size') || c.rail_size || mapConfig.line_thickness, 10) || mapConfig.line_thickness;
@@ -360,6 +364,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     }
 
                                     config = overridden;
+                                } else if (c.style) {
+                                    console.log('Preserving individual connection style:', c.style, 'ignoring rail appearance');
                                 }
                             } catch (err) {
                                 // ignore and use default config
@@ -414,6 +420,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 targetElRect: targetEl.getBoundingClientRect()
                             });
 
+                            console.log('Final config before creating connection:', config);
+                            console.log('Final paintStyle:', config.paintStyle);
+                            
                             try {
                                 const connection = instance.connect({
                                     source: sourceEl,

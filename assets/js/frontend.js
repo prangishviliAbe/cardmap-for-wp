@@ -310,6 +310,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (sourceEl && targetEl) {
                             // Get connection style with proper priority: connection's own style > source's style > target's style > global default
                             let connStyle = c.style;
+                            console.log('=== FRONTEND CONNECTION STYLING ===');
+                            console.log('Connection data:', c);
+                            console.log('Connection individual style (c.style):', c.style);
+                            
                             if (!connStyle) {
                                 // Try to get from mapData source/target node connectionStyle
                                 const sourceNodeData = mapData.nodes?.find(n => n.id === c.source) || {};
@@ -319,8 +323,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || 
                                            targetNodeData.connectionStyle || targetRailData.connectionStyle || 
                                            mapConfig.line_style || 'normal';
+                                console.log('Fallback connection style from nodes/rails:', connStyle);
                             }
+                            console.log('Final connection style to use:', connStyle, 'for connection:', c.id);
                             let config = getConnectorConfig(connStyle, mapConfig.line_color, mapConfig.line_thickness, c.rail_size);
+                            console.log('Generated frontend config:', config);
 
                             // If the connection is attached to a rail that has a visual appearance,
                             // try to make the connector visually match the rail (color/thickness/dash).

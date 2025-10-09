@@ -195,6 +195,10 @@
                 if (originalEvent) {
                     info.connection.setParameter("user-driven", true);
                 }
+                
+                // Add context menu event to new connections
+                this.addConnectionContextMenu(info.connection);
+                
                 this.saveMapData();
             });
 
@@ -223,14 +227,7 @@
                 }
             });
             this.instance.bind('click', (conn, originalEvent) => {
-                console.debug('jsPlump connection clicked', { deleteMode: this.deleteConnectionMode, connId: conn && conn._cardmap_id });
-
-                // Handle right-click for connection context menu
-                if (originalEvent && originalEvent.button === 2) {
-                    originalEvent.preventDefault();
-                    this.showConnectionContextMenu(conn, originalEvent);
-                    return;
-                }
+                console.debug('jsPlumb connection clicked', { deleteMode: this.deleteConnectionMode, connId: conn && conn._cardmap_id });
 
                 // Prevent single-click from interfering with double-click
                 const now = Date.now();
@@ -623,6 +620,7 @@
 
                     if (connection) {
                         connection._cardmap_id = conn.id || `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+                        this.addConnectionContextMenu(connection);
                     }
                 });
 
@@ -1314,6 +1312,7 @@
                     });
                     if (conn) {
                         conn._cardmap_id = c.id || `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+                        this.addConnectionContextMenu(conn);
                     }
                 });
             });
@@ -1978,6 +1977,7 @@
                 const newId = `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
                 if (conn) {
                     conn._cardmap_id = newId;
+                    this.addConnectionContextMenu(conn);
                     try { conn.setParameter && conn.setParameter('user-driven', true); } catch(e) {}
                 }
                 // store anchors; convert precise arrays to a serializable representation
@@ -2253,6 +2253,7 @@
                     const newId = `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
                     if (conn) {
                         conn._cardmap_id = newId;
+                        this.addConnectionContextMenu(conn);
                         try { conn.setParameter && conn.setParameter('user-driven', true); } catch(e) {}
                     }
                     const savedAnchors = [
@@ -3668,18 +3669,45 @@
         }
 
         /**
+         * Add context menu event to a connection
+         */
+        addConnectionContextMenu(connection) {
+            const connEl = connection.canvas || (connection.getConnector && connection.getConnector().canvas);
+            if (connEl) {
+                connEl.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    this.showConnectionContextMenu(connection, e);
+                });
+            }
+        }
+
+        /**
          * Show context menu for individual connection styling
          */
         showConnectionContextMenu(connection, event) {
+            console.log('=== SHOWING CONNECTION CONTEXT MENU ===');
+            console.log('Connection:', connection);
+            console.log('Event:', event);
+            console.log('Connection ID:', connection._cardmap_id);
+            
             // Remove any existing context menu
             this.hideConnectionContextMenu();
 
             const connId = connection._cardmap_id;
-            if (!connId) return;
+            if (!connId) {
+                console.error('No connection ID found');
+                return;
+            }
 
             // Find connection data
             const connData = this.mapData.connections.find(c => c.id === connId);
-            if (!connData) return;
+            if (!connData) {
+                console.error('No connection data found for ID:', connId);
+                console.log('Available connections:', this.mapData.connections);
+                return;
+            }
+            
+            console.log('Connection data found:', connData);
 
             // Create context menu
             const menu = document.createElement('div');
@@ -3757,21 +3785,40 @@
          */
         applyConnectionStyle(connection, connData, newStyle) {
             try {
-                console.log('Applying individual style to connection:', connData.id, 'New style:', newStyle);
+                console.log('=== APPLYING CONNECTION STYLE ===');
+                console.log('Connection:', connection);
+                console.log('Connection Data:', connData);
+                console.log('New Style:', newStyle);
+                console.log('Connection methods:', {
+                    setPaintStyle: typeof connection.setPaintStyle,
+                    setConnector: typeof connection.setConnector,
+                    removeAllOverlays: typeof connection.removeAllOverlays,
+                    addOverlay: typeof connection.addOverlay
+                });
                 
                 // Update connection data
                 connData.style = newStyle;
                 
                 // Apply visual changes to the connection
                 const config = this.getConnectorConfig(newStyle);
+                console.log('Generated config:', config);
                 
-                // Update paint style
-                if (connection.setPaintStyle && config.paintStyle) {
-                    connection.setPaintStyle(config.paintStyle);
+                // Update paint style - try different approaches
+                if (config.paintStyle) {
+                    console.log('Applying paint style:', config.paintStyle);
+                    if (connection.setPaintStyle) {
+                        connection.setPaintStyle(config.paintStyle);
+                    }
+                    // Also try setting on connector directly
+                    const connector = connection.getConnector && connection.getConnector();
+                    if (connector && connector.setPaintStyle) {
+                        connector.setPaintStyle(config.paintStyle);
+                    }
                 }
                 
                 // Update connector type
-                if (connection.setConnector && config.connector) {
+                if (config.connector && connection.setConnector) {
+                    console.log('Setting connector:', config.connector);
                     connection.setConnector(config.connector);
                 }
                 
@@ -3780,6 +3827,7 @@
                     connection.removeAllOverlays();
                 }
                 if (config.overlays && Array.isArray(config.overlays)) {
+                    console.log('Adding overlays:', config.overlays);
                     config.overlays.forEach(overlay => {
                         if (connection.addOverlay) {
                             connection.addOverlay(overlay);
@@ -3787,7 +3835,9 @@
                     });
                 }
                 
-                // Force repaint
+                // Force repaint multiple ways
+                console.log('Forcing repaint...');
+                if (connection.repaint) connection.repaint();
                 this.instance.repaintEverything();
                 
                 // Save changes
@@ -3798,6 +3848,8 @@
                 
                 // Show feedback
                 this.showToast(`Connection style changed to: ${this.config.availableLineStyles[newStyle]}`);
+                
+                console.log('=== STYLE APPLICATION COMPLETE ===');
                 
             } catch (error) {
                 console.error('Error applying connection style:', error);

@@ -3685,29 +3685,15 @@
          * Show context menu for individual connection styling
          */
         showConnectionContextMenu(connection, event) {
-            console.log('=== SHOWING CONNECTION CONTEXT MENU ===');
-            console.log('Connection:', connection);
-            console.log('Event:', event);
-            console.log('Connection ID:', connection._cardmap_id);
-            
             // Remove any existing context menu
             this.hideConnectionContextMenu();
 
             const connId = connection._cardmap_id;
-            if (!connId) {
-                console.error('No connection ID found');
-                return;
-            }
+            if (!connId) return;
 
             // Find connection data
             const connData = this.mapData.connections.find(c => c.id === connId);
-            if (!connData) {
-                console.error('No connection data found for ID:', connId);
-                console.log('Available connections:', this.mapData.connections);
-                return;
-            }
-            
-            console.log('Connection data found:', connData);
+            if (!connData) return;
 
             // Create context menu
             const menu = document.createElement('div');
@@ -3785,40 +3771,19 @@
          */
         applyConnectionStyle(connection, connData, newStyle) {
             try {
-                console.log('=== APPLYING CONNECTION STYLE ===');
-                console.log('Connection:', connection);
-                console.log('Connection Data:', connData);
-                console.log('New Style:', newStyle);
-                console.log('Connection methods:', {
-                    setPaintStyle: typeof connection.setPaintStyle,
-                    setConnector: typeof connection.setConnector,
-                    removeAllOverlays: typeof connection.removeAllOverlays,
-                    addOverlay: typeof connection.addOverlay
-                });
-                
                 // Update connection data
                 connData.style = newStyle;
                 
                 // Apply visual changes to the connection
                 const config = this.getConnectorConfig(newStyle);
-                console.log('Generated config:', config);
                 
-                // Update paint style - try different approaches
-                if (config.paintStyle) {
-                    console.log('Applying paint style:', config.paintStyle);
-                    if (connection.setPaintStyle) {
-                        connection.setPaintStyle(config.paintStyle);
-                    }
-                    // Also try setting on connector directly
-                    const connector = connection.getConnector && connection.getConnector();
-                    if (connector && connector.setPaintStyle) {
-                        connector.setPaintStyle(config.paintStyle);
-                    }
+                // Update paint style
+                if (config.paintStyle && connection.setPaintStyle) {
+                    connection.setPaintStyle(config.paintStyle);
                 }
                 
                 // Update connector type
                 if (config.connector && connection.setConnector) {
-                    console.log('Setting connector:', config.connector);
                     connection.setConnector(config.connector);
                 }
                 
@@ -3827,7 +3792,6 @@
                     connection.removeAllOverlays();
                 }
                 if (config.overlays && Array.isArray(config.overlays)) {
-                    console.log('Adding overlays:', config.overlays);
                     config.overlays.forEach(overlay => {
                         if (connection.addOverlay) {
                             connection.addOverlay(overlay);
@@ -3835,8 +3799,7 @@
                     });
                 }
                 
-                // Force repaint multiple ways
-                console.log('Forcing repaint...');
+                // Force repaint
                 if (connection.repaint) connection.repaint();
                 this.instance.repaintEverything();
                 
@@ -3848,8 +3811,6 @@
                 
                 // Show feedback
                 this.showToast(`Connection style changed to: ${this.config.availableLineStyles[newStyle]}`);
-                
-                console.log('=== STYLE APPLICATION COMPLETE ===');
                 
             } catch (error) {
                 console.error('Error applying connection style:', error);

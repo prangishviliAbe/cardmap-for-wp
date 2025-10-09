@@ -1494,8 +1494,8 @@
             let bestDist = Infinity;
             const elLeft = parseFloat(node.style.left) || 0;
             const elTop = parseFloat(node.style.top) || 0;
-            const elCenterX = elLeft + (node.offsetWidth || 240) / 2;
-            const elCenterY = elTop + (node.offsetHeight || 150) / 2;
+            const elCenterX = elLeft + (node.offsetWidth || 192) / 2;
+            const elCenterY = elTop + (node.offsetHeight || 240) / 2;
 
             for (const r of rails) {
                 const railTop = r.y;
@@ -1564,7 +1564,7 @@
                     const railTop = r.y;
                     const railBottom = r.y + r.height;
                     if (r.orientation === 'vertical') {
-                        const nodeCenterY = draggedNode.y + (params.el.offsetHeight || 150) / 2;
+                        const nodeCenterY = draggedNode.y + (params.el.offsetHeight || 240) / 2;
                         if (nodeCenterY >= railTop && nodeCenterY <= railBottom) {
                             const railCenterX = r.x + ((r.width || r.size || this.RAIL_HEIGHT) / 2);
                             const dx = Math.abs(draggedNode.x - railCenterX);
@@ -1580,7 +1580,7 @@
                             snapped = r;
                         }
                     } else { // horizontal
-                        const nodeCenterX = draggedNode.x + (params.el.offsetWidth || 240) / 2;
+                        const nodeCenterX = draggedNode.x + (params.el.offsetWidth || 192) / 2;
                         const railLeft = r.x;
                         const railRight = r.x + (r.width || 0);
                         if (nodeCenterX >= railLeft && nodeCenterX <= railRight) {
@@ -1726,6 +1726,9 @@
 
         /** Convert screen event to world coordinates inside the editor */
         getWorldCoordsFromEvent(e) {
+            if (!this.editorWrapper) {
+                return { x: e.clientX, y: e.clientY };
+            }
             const wrapperRect = this.editorWrapper.getBoundingClientRect();
             const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
             const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
@@ -1857,37 +1860,25 @@
 
         /** Return a precise relative anchor array for a rail element given client coords */
         getPreciseRailAnchorArray(railEl, clientX, clientY) {
-            if (!railEl || !this.editorWrapper) return null;
+            if (!railEl) return null;
 
             try {
-                // Use the same coordinate transformation approach for consistency
-                const wrapperRect = this.editorWrapper.getBoundingClientRect();
-                const worldX = (clientX - wrapperRect.left - this.offsetX) / this.scale;
-                const worldY = (clientY - wrapperRect.top - this.offsetY) / this.scale;
-
-                // Get rail element position (already in world coordinates)
-                const elX = parseFloat(railEl.style.left) || 0;
-                const elY = parseFloat(railEl.style.top) || 0;
+                // Get rail element's bounding rectangle in screen coordinates
+                const railRect = railEl.getBoundingClientRect();
 
                 // Calculate relative position within rail element
-                let relX = (worldX - elX) / railEl.offsetWidth;
-                let relY = (worldY - elY) / railEl.offsetHeight;
+                let relX = (clientX - railRect.left) / railRect.width;
+                let relY = (clientY - railRect.top) / railRect.height;
 
                 // Clamp to element bounds
                 relX = Math.max(0, Math.min(1, relX));
                 relY = Math.max(0, Math.min(1, relY));
 
-                // jsPlumb accepts [x, y, ox, oy] anchor arrays where x,y are relative
+                // jsPlumb accepts [x, y, ox, oy] anchor arrays where x,y are relative (0-1)
                 return [relX, relY, 0, 0];
             } catch (error) {
                 console.warn('Error in getPreciseRailAnchorArray:', error);
-                // Fallback to simple calculation
-                const rect = railEl.getBoundingClientRect();
-                let relX = (clientX - rect.left) / rect.width;
-                let relY = (clientY - rect.top) / rect.height;
-                relX = Math.max(0, Math.min(1, relX));
-                relY = Math.max(0, Math.min(1, relY));
-                return [relX, relY, 0, 0];
+                return [0.5, 0.5, 0, 0]; // Fallback to center of rail
             }
         }
 
@@ -1909,18 +1900,12 @@
             if (!preview) return;
 
             try {
-                // Use the same coordinate transformation for consistent preview positioning
-                const wrapperRect = this.editorWrapper.getBoundingClientRect();
-                const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
-                const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
-
-                // Get rail position in world coordinates
-                const railX = parseFloat(railEl.style.left) || 0;
-                const railY = parseFloat(railEl.style.top) || 0;
+                // Get rail element's bounding rectangle in screen coordinates
+                const railRect = railEl.getBoundingClientRect();
 
                 // Calculate position relative to rail element
-                const localX = worldX - railX;
-                const localY = worldY - railY;
+                const localX = e.clientX - railRect.left;
+                const localY = e.clientY - railRect.top;
 
                 preview.style.display = 'block';
                 preview.style.position = 'absolute';
@@ -1932,28 +1917,24 @@
                 preview.style.pointerEvents = 'none';
 
                 if (railData.orientation === 'vertical') {
-                    preview.style.left = `${(railEl.offsetWidth/2) - 5}px`;
+                    preview.style.left = `${(railRect.width/2) - 5}px`;
                     preview.style.top = `${localY - 5}px`;
                 } else {
                     preview.style.left = `${localX - 5}px`;
-                    preview.style.top = `${(railEl.offsetHeight/2) - 5}px`;
+                    preview.style.top = `${(railRect.height/2) - 5}px`;
                 }
 
                 // store last hover position for precise anchor use later
                 this._lastRailHover = { railId, clientX: e.clientX, clientY: e.clientY };
             } catch (error) {
                 console.warn('Error positioning rail anchor preview:', error);
-                // Fallback to simple positioning
-                const rect = railEl.getBoundingClientRect();
-                const localX = e.clientX - rect.left;
-                const localY = e.clientY - rect.top;
-
+                // Fallback positioning
                 if (railData.orientation === 'vertical') {
-                    preview.style.left = `${(rect.width/2) - 5}px`;
-                    preview.style.top = `${localY - 5}px`;
+                    preview.style.left = `${(railEl.offsetWidth/2) - 5}px`;
+                    preview.style.top = '50%';
                 } else {
-                    preview.style.left = `${localX - 5}px`;
-                    preview.style.top = `${(rect.height/2) - 5}px`;
+                    preview.style.left = '50%';
+                    preview.style.top = `${(railEl.offsetHeight/2) - 5}px`;
                 }
                 preview.style.display = 'block';
             }
@@ -3153,21 +3134,21 @@
                     // Stack vertically along the rail's Y range, centered on rail.x
                     let y = rail.y + margin;
                     attached.forEach(n => {
-                        n.x = rail.x - ( (document.getElementById(n.id)?.offsetWidth || 200) / 2 ) + (rail.size || this.RAIL_HEIGHT) / 2;
+                        n.x = rail.x - ( (document.getElementById(n.id)?.offsetWidth || 192) / 2 ) + (rail.size || this.RAIL_HEIGHT) / 2;
                         n.y = y;
                         const el = document.getElementById(n.id);
                         if (el) { el.style.left = `${n.x}px`; el.style.top = `${n.y}px`; }
-                        y += (document.getElementById(n.id)?.offsetHeight || 120) + margin;
+                        y += (document.getElementById(n.id)?.offsetHeight || 240) + margin;
                     });
                 } else {
                     // horizontal or diagonal -> lay out left to right along rail.x..x+width
                     let x = rail.x + margin;
                     attached.forEach(n => {
                         n.x = x;
-                        n.y = rail.y - ( (document.getElementById(n.id)?.offsetHeight || 120) / 2 ) + (rail.size || this.RAIL_HEIGHT) / 2;
+                        n.y = rail.y - ( (document.getElementById(n.id)?.offsetHeight || 240) / 2 ) + (rail.size || this.RAIL_HEIGHT) / 2;
                         const el = document.getElementById(n.id);
                         if (el) { el.style.left = `${n.x}px`; el.style.top = `${n.y}px`; }
-                        x += (document.getElementById(n.id)?.offsetWidth || 200) + margin;
+                        x += (document.getElementById(n.id)?.offsetWidth || 192) + margin;
                     });
                 }
             });
@@ -3189,8 +3170,8 @@
 
             unattached.forEach(n => {
                 const el = document.getElementById(n.id);
-                const w = el ? el.offsetWidth : 200;
-                const h = el ? el.offsetHeight : 120;
+                const w = el ? el.offsetWidth : 192;
+                const h = el ? el.offsetHeight : 240;
 
                 if (x + w + margin > containerW) {
                     x = startX;
@@ -3377,29 +3358,28 @@
             }
 
             try {
-                // Use the same coordinate transformation approach for consistency
-                // Convert client coordinates to editor world coordinates
+                // Get the element's bounding rectangle in screen coordinates
+                const elRect = el.getBoundingClientRect();
                 const wrapperRect = this.editorWrapper.getBoundingClientRect();
-                const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
-                const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
 
-                // Get target element position (already in world coordinates)
-                const elX = parseFloat(el.style.left) || 0;
-                const elY = parseFloat(el.style.top) || 0;
-
-                // Calculate relative position within element
-                const x_in_el = worldX - elX;
-                const y_in_el = worldY - elY;
+                // Convert click coordinates to be relative to the element
+                const relativeX = e.clientX - elRect.left;
+                const relativeY = e.clientY - elRect.top;
 
                 // Check if click is within element bounds
-                if (x_in_el < 0 || y_in_el < 0 || x_in_el > el.offsetWidth || y_in_el > el.offsetHeight) {
+                if (relativeX < 0 || relativeY < 0 || relativeX > elRect.width || relativeY > elRect.height) {
                     return "Continuous";
                 }
 
-                const x = x_in_el / el.offsetWidth;
-                const y = y_in_el / el.offsetHeight;
+                // Calculate relative position within element (0-1)
+                const x = relativeX / elRect.width;
+                const y = relativeY / elRect.height;
 
-                const topDist = y, bottomDist = 1 - y, leftDist = x, rightDist = 1 - x;
+                // Determine which edge is closest to the click point
+                const topDist = y;
+                const bottomDist = 1 - y;
+                const leftDist = x;
+                const rightDist = 1 - x;
                 const min = Math.min(topDist, bottomDist, leftDist, rightDist);
 
                 if (min === topDist) return "TopCenter";
@@ -3414,40 +3394,36 @@
 
         /**
          * Calculates precise anchor position when clicking on ruler canvas.
-         * Accounts for ruler canvas positioning and editor transformations.
+         * Uses direct element coordinates for accurate positioning.
          */
         getPreciseAnchorFromRulerEvent(e, el) {
-            if (!el || !e || !this.rulerCanvas || !this.editorWrapper) {
+            if (!el || !e) {
                 console.warn('Missing elements for ruler coordinate calculation');
                 return "Continuous";
             }
 
             try {
-                // Get the editor wrapper's bounding rect for coordinate transformation
-                const wrapperRect = this.editorWrapper.getBoundingClientRect();
+                // Get the element's bounding rectangle in screen coordinates
+                const elRect = el.getBoundingClientRect();
 
-                // Convert client coordinates to editor world coordinates
-                // This accounts for the current pan and zoom state
-                const worldX = (e.clientX - wrapperRect.left - this.offsetX) / this.scale;
-                const worldY = (e.clientY - wrapperRect.top - this.offsetY) / this.scale;
-
-                // Get target element position (already in world coordinates)
-                const elX = parseFloat(el.style.left) || 0;
-                const elY = parseFloat(el.style.top) || 0;
-
-                // Calculate relative position within element
-                const x_in_el = worldX - elX;
-                const y_in_el = worldY - elY;
+                // Convert click coordinates to be relative to the element
+                const relativeX = e.clientX - elRect.left;
+                const relativeY = e.clientY - elRect.top;
 
                 // Check if click is within element bounds
-                if (x_in_el < 0 || y_in_el < 0 || x_in_el > el.offsetWidth || y_in_el > el.offsetHeight) {
+                if (relativeX < 0 || relativeY < 0 || relativeX > elRect.width || relativeY > elRect.height) {
                     return "Continuous";
                 }
 
-                const x = x_in_el / el.offsetWidth;
-                const y = y_in_el / el.offsetHeight;
+                // Calculate relative position within element (0-1)
+                const x = relativeX / elRect.width;
+                const y = relativeY / elRect.height;
 
-                const topDist = y, bottomDist = 1 - y, leftDist = x, rightDist = 1 - x;
+                // Determine which edge is closest to the click point
+                const topDist = y;
+                const bottomDist = 1 - y;
+                const leftDist = x;
+                const rightDist = 1 - x;
                 const min = Math.min(topDist, bottomDist, leftDist, rightDist);
 
                 let result;

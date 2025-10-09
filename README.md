@@ -38,6 +38,12 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.8.2 (2025-10-09)
+
+- **Fix:** Improved clicking precision for rail connections - connections now anchor exactly where you click instead of connecting to a different location.
+- **Enhancement:** Updated default card size to 192px × 240px for better visual balance and consistency.
+- **Technical:** Fixed coordinate transformation logic in anchor calculation functions for more accurate positioning.
+
 ### v1.8.1 (2025-10-07)
 
 - Improvement: Moved fullscreen link generation from frontend to admin panel for cleaner user experience.

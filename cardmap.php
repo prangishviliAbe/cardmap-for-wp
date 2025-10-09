@@ -2,7 +2,7 @@
 /*
 Plugin Name: Card Map Builder Pro
 Description: Draggable card maps with images, captions, links, connections, admin editor + settings, and frontend shortcode with zoom/pan/fullscreen.
-Version: 1.8.1
+Version: 1.8.2
 Author: Abe Prangishvili
 */
 

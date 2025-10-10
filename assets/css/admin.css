@@ -454,8 +454,42 @@ svg .jtk-connector path {
 
 .fullscreen-link-modal-body p {
     color: #666;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     line-height: 1.5;
+}
+
+#fullscreen-link-instructions {
+    background: #f0f6ff;
+    border-left: 3px solid #2271b1;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+#fullscreen-link-instructions p {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+}
+
+#fullscreen-link-instructions ol {
+    margin: 10px 0;
+    padding-left: 20px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+#fullscreen-link-instructions li {
+    margin-bottom: 8px;
+}
+
+#fullscreen-link-instructions code {
+    background: #fff;
+    padding: 2px 6px;
+    border: 1px solid #d0d0d0;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #d63638;
 }
 
 .fullscreen-link-input-container {

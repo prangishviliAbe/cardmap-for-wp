@@ -157,7 +157,9 @@ function cardmap_editor_callback( $post ) {
                 <button type="button" id="close-fullscreen-modal" class="fullscreen-link-modal-close">&times;</button>
             </div>
             <div class="fullscreen-link-modal-body">
-                <p>Share this link to display your map in fullscreen mode:</p>
+                <div id="fullscreen-link-instructions">
+                    <p>Share this link to display your map in fullscreen mode:</p>
+                </div>
                 <div class="fullscreen-link-input-container">
                     <input type="text" id="fullscreen-link-input" class="fullscreen-link-input" readonly />
                     <button type="button" id="copy-fullscreen-link" class="button button-primary">📋 Copy</button>

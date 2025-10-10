@@ -3152,26 +3152,40 @@
         showFullscreenLinkModal() {
             const modal = document.getElementById('fullscreen-link-modal');
             const input = document.getElementById('fullscreen-link-input');
+            const instructionsEl = document.getElementById('fullscreen-link-instructions');
 
             if (!modal || !input) {
                 this.showToast('Error: Link modal not found');
                 return;
             }
 
-            // Generate the frontend URL properly
+            // Generate the fullscreen link with proper parameters
+            // The link should work on any page where the cardmap shortcode is displayed
             const currentUrl = new URL(window.location.href);
-            const siteUrl = new URL(currentUrl.origin);
-
-            // Remove admin path and go to frontend
-            const frontendUrl = new URL(siteUrl);
-            frontendUrl.searchParams.set('cardmap_id', this.postId);
-            frontendUrl.searchParams.set('fullscreen', '1');
-
-            input.value = frontendUrl.toString();
+            const siteUrl = currentUrl.origin;
+            
+            // Create URL with parameters that the frontend will detect
+            const fullscreenLink = `${siteUrl}/?cardmap_id=${this.postId}&fullscreen=1`;
+            
+            input.value = fullscreenLink;
+            
+            // Update instructions to be more helpful
+            if (instructionsEl) {
+                instructionsEl.innerHTML = `
+                    <p><strong>How to use this link:</strong></p>
+                    <ol style="text-align: left; margin: 10px 0; padding-left: 20px;">
+                        <li>Add the cardmap shortcode <code>[cardmap id="${this.postId}"]</code> to any page/post</li>
+                        <li>Append the parameters below to that page's URL</li>
+                        <li>Example: <code>yoursite.com/your-page/?cardmap_id=${this.postId}&fullscreen=1</code></li>
+                    </ol>
+                    <p style="margin-top: 10px;"><strong>Or copy this direct link (works if shortcode is on homepage):</strong></p>
+                `;
+            }
+            
             modal.style.display = 'flex';
 
             // Focus on input for easy copying
-            setTimeout(() => input.focus(), 100);
+            setTimeout(() => input.select(), 100);
 
             this.showToast('Fullscreen link generated!');
         }

@@ -1,6 +1,6 @@
-![CardMap for WP Banner](assets/images/banner.png)
+![Card Map Builder Pro](assets/cover.png)
 
-# CardMap for WP
+# Card Map Builder Pro
 
 A WordPress plugin for creating interactive, node-based maps with connections. Built with jsPlumb, this plugin allows you to visually design and display complex diagrams, flowcharts, or maps on your WordPress site using a simple shortcode.
 

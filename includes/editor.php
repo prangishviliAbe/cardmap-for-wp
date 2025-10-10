@@ -141,35 +141,11 @@ function cardmap_editor_callback( $post ) {
         <button type="button" class="button button-secondary" id="auto-align-cards" title="Automatically align cards that are close to each other">⚡ Auto-Align</button>
         <?php endif; ?>
         <button type="button" class="button button-secondary" id="fullscreen-editor">⛶ Fullscreen</button>
-        <button type="button" class="button button-secondary" id="generate-fullscreen-link">🔗 Get Fullscreen Link</button>
         <button type="button" class="button button-primary" id="save-map">💾 Save</button>
     </div>
 
     <div id="cardmap-editor-wrapper" style="width:100%;height:520px;border:1px solid #ddd;position:relative;overflow:hidden;background:#fafafa; cursor:grab;">
         <div id="cardmap-editor" style="position:relative;width:1200px;height:1000px;"></div>
-    </div>
-
-    <!-- Fullscreen Link Popup Modal -->
-    <div id="fullscreen-link-modal" class="fullscreen-link-modal" style="display:none;">
-        <div class="fullscreen-link-modal-content">
-            <div class="fullscreen-link-modal-header">
-                <h2>🔗 Fullscreen Map Link</h2>
-                <button type="button" id="close-fullscreen-modal" class="fullscreen-link-modal-close">&times;</button>
-            </div>
-            <div class="fullscreen-link-modal-body">
-                <div id="fullscreen-link-instructions">
-                    <p>Share this link to display your map in fullscreen mode:</p>
-                </div>
-                <div class="fullscreen-link-input-container">
-                    <input type="text" id="fullscreen-link-input" class="fullscreen-link-input" readonly />
-                    <button type="button" id="copy-fullscreen-link" class="button button-primary">📋 Copy</button>
-                </div>
-                <div class="fullscreen-link-modal-actions">
-                    <button type="button" id="open-fullscreen-link" class="button button-secondary">🚀 Open in New Tab</button>
-                    <button type="button" id="close-fullscreen-modal-footer" class="button">Close</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <input type="hidden" id="cardmap_post_id" value="<?php echo esc_attr( $post->ID ); ?>">

@@ -365,64 +365,6 @@
             if (deleteConnBtn) deleteConnBtn.addEventListener('click', this.toggleDeleteConnectionMode.bind(this));
             document.getElementById('save-map').addEventListener('click', this.saveMapData.bind(this));
             document.getElementById('fullscreen-editor').addEventListener('click', this.toggleFullscreen.bind(this));
-            document.getElementById('generate-fullscreen-link').addEventListener('click', this.showFullscreenLinkModal.bind(this));
-            
-            // Fullscreen link modal handlers
-            const modal = document.getElementById('fullscreen-link-modal');
-            const closeBtn = document.getElementById('close-fullscreen-modal');
-            const closeBtnFooter = document.getElementById('close-fullscreen-modal-footer');
-            const copyBtn = document.getElementById('copy-fullscreen-link');
-            const openBtn = document.getElementById('open-fullscreen-link');
-
-            const closeModal = () => {
-                if (modal) {
-                    modal.style.display = 'none';
-                }
-            };
-
-            if (closeBtn) {
-                closeBtn.addEventListener('click', closeModal);
-            }
-
-            if (closeBtnFooter) {
-                closeBtnFooter.addEventListener('click', closeModal);
-            }
-
-            if (copyBtn) {
-                copyBtn.addEventListener('click', () => {
-                    const input = document.getElementById('fullscreen-link-input');
-                    if (input) {
-                        input.select();
-                        input.setSelectionRange(0, 99999); // For mobile devices
-
-                        try {
-                            document.execCommand('copy');
-                            this.showToast('Link copied to clipboard!');
-                        } catch (err) {
-                            console.error('Failed to copy link:', err);
-                            this.showToast('Failed to copy link');
-                        }
-                    }
-                });
-            }
-
-            if (openBtn) {
-                openBtn.addEventListener('click', () => {
-                    const input = document.getElementById('fullscreen-link-input');
-                    if (input && input.value) {
-                        window.open(input.value, '_blank');
-                    }
-                });
-            }
-
-            // Close modal when clicking outside
-            if (modal) {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) {
-                        closeModal();
-                    }
-                });
-            }
 
             this.editorWrapper.addEventListener('mousedown', this.handlePanStart.bind(this));
             this.editorWrapper.addEventListener('mouseup', this.handlePanEnd.bind(this));
@@ -3144,50 +3086,6 @@
             } else {
                 this.editorWrapper.requestFullscreen();
             }
-        }
-
-        /**
-         * Shows the fullscreen link modal with the current map's URL.
-         */
-        showFullscreenLinkModal() {
-            const modal = document.getElementById('fullscreen-link-modal');
-            const input = document.getElementById('fullscreen-link-input');
-            const instructionsEl = document.getElementById('fullscreen-link-instructions');
-
-            if (!modal || !input) {
-                this.showToast('Error: Link modal not found');
-                return;
-            }
-
-            // Generate the fullscreen link with proper parameters
-            // The link should work on any page where the cardmap shortcode is displayed
-            const currentUrl = new URL(window.location.href);
-            const siteUrl = currentUrl.origin;
-            
-            // Create URL with parameters that the frontend will detect
-            const fullscreenLink = `${siteUrl}/?cardmap_id=${this.postId}&fullscreen=1`;
-            
-            input.value = fullscreenLink;
-            
-            // Update instructions to be more helpful
-            if (instructionsEl) {
-                instructionsEl.innerHTML = `
-                    <p><strong>How to use this link:</strong></p>
-                    <ol style="text-align: left; margin: 10px 0; padding-left: 20px;">
-                        <li>Add the cardmap shortcode <code>[cardmap id="${this.postId}"]</code> to any page/post</li>
-                        <li>Append the parameters below to that page's URL</li>
-                        <li>Example: <code>yoursite.com/your-page/?cardmap_id=${this.postId}&fullscreen=1</code></li>
-                    </ol>
-                    <p style="margin-top: 10px;"><strong>Or copy this direct link (works if shortcode is on homepage):</strong></p>
-                `;
-            }
-            
-            modal.style.display = 'flex';
-
-            // Focus on input for easy copying
-            setTimeout(() => input.select(), 100);
-
-            this.showToast('Fullscreen link generated!');
         }
 
         /**

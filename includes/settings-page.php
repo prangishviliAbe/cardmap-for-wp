@@ -27,7 +27,7 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_line_style', [ 'type' => 'string', 'default' => 'straight-with-arrows' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_node_styles', [ 'type' => 'string', 'default' => json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ], JSON_PRETTY_PRINT ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'straight' => 'Straight', 'straight-with-arrows' => 'Straight with Arrows', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dotted' => 'Dotted', 'flowchart' => 'Flowchart', 'flowchart-with-arrows' => 'Flowchart with Arrows' ], JSON_PRETTY_PRINT ) ] );
-    // register_setting( 'cardmap_settings_group', 'cardmap_enable_align_button', [ 'type' => 'boolean', 'default' => true ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_enable_auto_align', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
     register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_type', [ 'type' => 'string', 'default' => 'draw' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_duration', [ 'type' => 'integer', 'default' => 800 ] );
@@ -58,6 +58,7 @@ function cardmap_export_settings() {
         'cardmap_line_style',
         'cardmap_node_styles',
         'cardmap_line_styles',
+        'cardmap_enable_auto_align',
         'cardmap_enable_connection_animation',
         'cardmap_connection_animation_type',
         'cardmap_connection_animation_duration',
@@ -115,6 +116,7 @@ function cardmap_import_settings() {
         'cardmap_line_style',
         'cardmap_node_styles',
         'cardmap_line_styles',
+        'cardmap_enable_auto_align',
         'cardmap_enable_connection_animation',
         'cardmap_connection_animation_type',
         'cardmap_connection_animation_duration',
@@ -268,6 +270,16 @@ function cardmap_settings_page() {
                 <div class="settings-card">
                     <h2><span class="dashicons dashicons-edit"></span> Editor Settings</h2>
                     <div class="card-content">
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <label for="cardmap_enable_auto_align" class="setting-title">Enable Auto-Align Button</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_enable_auto_align" name="cardmap_enable_auto_align" value="1" <?php checked(1, get_option('cardmap_enable_auto_align', 1) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Show the Auto-Align button in the editor toolbar. This feature intelligently aligns cards that are positioned close to each other horizontally or vertically, distributing them proportionally for a cleaner layout.</p>
+                        </div>
                         <div class="setting-item">
                             <div class="setting-header">
                                 <label for="cardmap_show_rail_thickness" class="setting-title">Show Rail Thickness</label>

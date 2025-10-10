@@ -481,6 +481,10 @@
             const deleteRailBtn = document.getElementById('delete-rail');
             if (deleteRailBtn) deleteRailBtn.addEventListener('click', this.toggleDeleteRailMode.bind(this));
 
+            // Auto-align button
+            const autoAlignBtn = document.getElementById('auto-align-cards');
+            if (autoAlignBtn) autoAlignBtn.addEventListener('click', this.autoAlignCards.bind(this));
+
             // Prevent default context menu on editor wrapper to allow connection context menu
             this.editorWrapper.addEventListener('contextmenu', (e) => {
                 // Only prevent if this is likely a connection right-click
@@ -2955,6 +2959,146 @@
             const dn = document.getElementById('delete-node'); if (dn) dn.classList.remove('button-primary');
             const cm = document.getElementById('connect-mode'); if (cm) cm.classList.remove('button-primary');
             this.editor.style.cursor = this.deleteRailMode ? 'not-allowed' : 'grab';
+        }
+
+        /**
+         * Auto-aligns cards that are positioned close to each other.
+         * Groups cards by horizontal or vertical proximity and aligns them proportionally.
+         */
+        autoAlignCards() {
+            // Save current state for undo
+            this.saveToHistory('Auto-align cards');
+
+            // Get all card nodes (exclude rails)
+            const cards = this.mapData.nodes.filter(node => !node.is_rail);
+            
+            if (cards.length < 2) {
+                this.showToast('Need at least 2 cards to align');
+                return;
+            }
+
+            // Threshold for considering cards "close" to each other (in pixels)
+            const HORIZONTAL_THRESHOLD = 80; // Cards within this Y-range are considered horizontally aligned
+            const VERTICAL_THRESHOLD = 80;   // Cards within this X-range are considered vertically aligned
+            
+            let alignedCount = 0;
+
+            // Find horizontal groups (cards with similar Y positions)
+            const horizontalGroups = this.groupCardsByProximity(cards, 'y', HORIZONTAL_THRESHOLD);
+            
+            // Align each horizontal group
+            horizontalGroups.forEach(group => {
+                if (group.length >= 2) {
+                    this.alignHorizontalGroup(group);
+                    alignedCount += group.length;
+                }
+            });
+
+            // Find vertical groups (cards with similar X positions)
+            const verticalGroups = this.groupCardsByProximity(cards, 'x', VERTICAL_THRESHOLD);
+            
+            // Align each vertical group
+            verticalGroups.forEach(group => {
+                if (group.length >= 2) {
+                    this.alignVerticalGroup(group);
+                    alignedCount += group.length;
+                }
+            });
+
+            if (alignedCount > 0) {
+                // Re-render all nodes
+                cards.forEach(node => {
+                    const el = document.getElementById(node.id);
+                    if (el) {
+                        el.style.left = node.x + 'px';
+                        el.style.top = node.y + 'px';
+                    }
+                });
+
+                // Repaint connections
+                this.instance.repaintEverything();
+                
+                // Save changes
+                this.saveMapData();
+                
+                this.showToast(`Auto-aligned ${Math.floor(alignedCount / 2)} groups of cards`);
+            } else {
+                this.showToast('No cards were close enough to align');
+            }
+        }
+
+        /**
+         * Groups cards by proximity along a specific axis.
+         * @param {Array} cards - Array of card nodes
+         * @param {string} axis - 'x' or 'y'
+         * @param {number} threshold - Maximum distance for cards to be in the same group
+         * @returns {Array} Array of card groups
+         */
+        groupCardsByProximity(cards, axis, threshold) {
+            if (cards.length === 0) return [];
+
+            // Sort cards by the specified axis
+            const sorted = [...cards].sort((a, b) => a[axis] - b[axis]);
+            
+            const groups = [];
+            let currentGroup = [sorted[0]];
+
+            for (let i = 1; i < sorted.length; i++) {
+                const current = sorted[i];
+                const previous = sorted[i - 1];
+                
+                // Check if current card is within threshold of the previous card
+                if (Math.abs(current[axis] - previous[axis]) <= threshold) {
+                    currentGroup.push(current);
+                } else {
+                    // Start a new group if we have at least 2 cards
+                    if (currentGroup.length >= 2) {
+                        groups.push(currentGroup);
+                    }
+                    currentGroup = [current];
+                }
+            }
+
+            // Don't forget the last group
+            if (currentGroup.length >= 2) {
+                groups.push(currentGroup);
+            }
+
+            return groups;
+        }
+
+        /**
+         * Aligns a group of cards horizontally (same Y position).
+         * Calculates the average Y and sets all cards to that position.
+         * @param {Array} group - Array of card nodes to align
+         */
+        alignHorizontalGroup(group) {
+            if (group.length < 2) return;
+
+            // Calculate the average Y position
+            const avgY = group.reduce((sum, node) => sum + node.y, 0) / group.length;
+            
+            // Set all cards in the group to the average Y position
+            group.forEach(node => {
+                node.y = Math.round(avgY);
+            });
+        }
+
+        /**
+         * Aligns a group of cards vertically (same X position).
+         * Calculates the average X and sets all cards to that position.
+         * @param {Array} group - Array of card nodes to align
+         */
+        alignVerticalGroup(group) {
+            if (group.length < 2) return;
+
+            // Calculate the average X position
+            const avgX = group.reduce((sum, node) => sum + node.x, 0) / group.length;
+            
+            // Set all cards in the group to the average X position
+            group.forEach(node => {
+                node.x = Math.round(avgX);
+            });
         }
 
         /** Toggle delete-connection mode which allows clicking links to delete them */

@@ -137,6 +137,9 @@ function cardmap_editor_callback( $post ) {
         <button type="button" class="button" id="delete-node">❌ Delete Node</button>
         <button type="button" class="button" id="delete-connection">✂️ Delete Link</button>
         <button type="button" class="button" id="delete-rail">🧨 Delete Rail</button>
+        <?php if ( get_option( 'cardmap_enable_auto_align', 1 ) ) : ?>
+        <button type="button" class="button button-secondary" id="auto-align-cards" title="Automatically align cards that are close to each other">⚡ Auto-Align</button>
+        <?php endif; ?>
         <button type="button" class="button button-secondary" id="fullscreen-editor">⛶ Fullscreen</button>
         <button type="button" class="button button-secondary" id="generate-fullscreen-link">🔗 Get Fullscreen Link</button>
         <button type="button" class="button button-primary" id="save-map">💾 Save</button>

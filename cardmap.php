@@ -58,6 +58,7 @@ function cardmap_admin_assets( $hook ) {
             'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
             'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
             'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
+            'enable_auto_align' => (bool) get_option( 'cardmap_enable_auto_align', 1 ),
             'node_styles' => json_decode( get_option( 'cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted', 'bold' => 'Bold', 'shadow' => 'Shadow', 'bordered' => 'Bordered', 'minimal' => 'Minimal' ] ) ), true ),
             'ruler_enabled' => (bool) get_option( 'cardmap_enable_ruler', false ),
             'ruler_color' => get_option( 'cardmap_ruler_color', '#A61832' ),

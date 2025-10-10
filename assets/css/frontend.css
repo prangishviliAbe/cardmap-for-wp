@@ -195,8 +195,25 @@
     stroke: #A61832;
     stroke-width: 2px;
     /* Default draw animation; specific animation classes can override */
-    animation: cardmap-draw-line 1s ease-out forwards;
+    /* Note: animation removed from default to allow dashstyle to work */
     transition: stroke-width 0.2s ease, stroke-opacity 0.2s ease;
+}
+
+/* Only apply animation when explicitly requested via class */
+.cardmap-frontend-wrapper .jtk-svg path.cardmap-connection-anim,
+.cardmap-frontend-wrapper .jtk-connector path.cardmap-connection-anim,
+.cardmap-frontend-wrapper .cardmap-connector path.cardmap-connection-anim,
+.cardmap-frontend-wrapper svg .jtk-connector path.cardmap-connection-anim {
+    animation: cardmap-draw-line 1s ease-out forwards;
+}
+
+/* Ensure dashed/dotted paths retain their stroke-dasharray */
+.cardmap-frontend-wrapper .jtk-svg path[stroke-dasharray],
+.cardmap-frontend-wrapper .jtk-connector path[stroke-dasharray],
+.cardmap-frontend-wrapper .cardmap-connector path[stroke-dasharray],
+.cardmap-frontend-wrapper svg .jtk-connector path[stroke-dasharray] {
+    /* Preserve the stroke-dasharray attribute */
+    animation: none !important;
 }
 
 /* Hover effect for interactive connections */

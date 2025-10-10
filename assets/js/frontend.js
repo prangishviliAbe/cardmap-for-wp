@@ -55,8 +55,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const railSize = rail_size ? parseInt(rail_size, 10) : 3;
             const baseConfig = { stroke: color, strokeWidth: thickness };
             const overlays = [["Arrow",{ width:10, length:10, location:1 }]];
-            const dashedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "4 2" };
-            const dottedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "1 1" };
+            const dashedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "4 2", strokeDasharray: "4 2" };
+            const dottedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "1 4", strokeDasharray: "1 4" };
 
             switch (style) {
                 case 'normal':
@@ -82,8 +82,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'rail':
                     return {
                         connector: ["StateMachine", { curviness: 0, margin: 5, proximity: 10 }],
-                        paintStyle: { stroke: color, strokeWidth: railSize, "stroke-dasharray": "0" },
-                        hoverPaintStyle: { stroke: color, strokeWidth: railSize, "stroke-dasharray": "0" },
+                        paintStyle: { stroke: color, strokeWidth: railSize, strokeDasharray: "0" },
+                        hoverPaintStyle: { stroke: color, strokeWidth: railSize, strokeDasharray: "0" },
                         overlays: []
                     };
                 default:
@@ -346,14 +346,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                     // Map some rail visual styles to dash patterns for connectors
                                     if (railStyle === 'dash-heavy') {
                                         overridden.paintStyle.dashstyle = '12 6';
+                                        overridden.paintStyle.strokeDasharray = '12 6';
                                     } else if (railStyle === 'dash-subtle') {
                                         overridden.paintStyle.dashstyle = '6 6';
+                                        overridden.paintStyle.strokeDasharray = '6 6';
                                     } else if (railStyle === 'dotted') {
                                         overridden.paintStyle.dashstyle = '1 4';
+                                        overridden.paintStyle.strokeDasharray = '1 4';
                                     } else if (railStyle === 'striped' || railStyle === 'gradient' || railStyle === 'embossed') {
                                         // these complex styles don't translate perfectly to stroke patterns;
                                         // use a solid stroke with the rail color and a slightly larger width
                                         overridden.paintStyle.dashstyle = null;
+                                        overridden.paintStyle.strokeDasharray = null;
                                     }
 
                                     config = overridden;
@@ -477,6 +481,22 @@ document.addEventListener('DOMContentLoaded', function() {
                                         if (svg) {
                                             svg.style.cursor = 'pointer';
                                             svg.title = 'Click to reverse connection direction';
+                                            
+                                            // Fix: Ensure stroke-dasharray is properly applied from paintStyle
+                                            const path = svg.querySelector('path');
+                                            if (path && config.paintStyle) {
+                                                if (config.paintStyle.strokeDasharray) {
+                                                    path.setAttribute('stroke-dasharray', config.paintStyle.strokeDasharray);
+                                                    console.log('Applied stroke-dasharray to path:', config.paintStyle.strokeDasharray);
+                                                }
+                                                // Ensure stroke color and width are also applied
+                                                if (config.paintStyle.stroke) {
+                                                    path.setAttribute('stroke', config.paintStyle.stroke);
+                                                }
+                                                if (config.paintStyle.strokeWidth) {
+                                                    path.setAttribute('stroke-width', config.paintStyle.strokeWidth);
+                                                }
+                                            }
                                         }
                                     }
 

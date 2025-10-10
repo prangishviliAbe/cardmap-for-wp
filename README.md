@@ -38,6 +38,18 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.10.3 (2025-10-10)
+
+- **🔧 Critical Fix:** Resolved card link styling rendering issues on frontend.
+- **✅ Dashed Lines Fix:** Dashed connection lines now properly display as dashed instead of being invisible or appearing as straight lines.
+- **✅ Dotted Lines Fix:** Dotted connection lines now properly display as dotted instead of being invisible or appearing as straight lines.
+- **🎨 CSS Enhancement:** Removed default animation from connection paths to allow custom dash/dot styles to render correctly.
+- **⚡ SVG Attributes:** Added proper `strokeDasharray` SVG attribute support alongside jsPlumb's `dashstyle` property.
+- **🔍 Animation Control:** Connection animations now only apply when explicitly enabled via the `cardmap-connection-anim` class.
+- **💡 Technical Fix:** Resolved CSS animation conflict where `stroke-dasharray` used for animation was overriding intentional dash/dot styling.
+- **🚀 Style Application:** Improved connection style application with manual SVG attribute setting after connection creation.
+- **📋 Consistency:** All connection styles (straight, dashed, dotted, rail-based) now render consistently on frontend and admin.
+
 ### v1.10.2 (2025-10-10)
 
 - **🐛 Critical Bug Fix:** Individual connection styles now display correctly on frontend - fixed rail styling override issue

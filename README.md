@@ -38,6 +38,14 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.10.7 (2025-10-10)
+
+- **🐛 Critical Bug Fix:** Fixed JavaScript syntax errors in frontend.js caused by console.log removal process
+- **🔧 Code Repair:** Removed orphaned object literals that were left behind from automated cleanup
+- **✅ Stability Restored:** All JavaScript files are now error-free and fully functional
+- **🎯 Quality Improvement:** Enhanced cleanup process to prevent similar issues in the future
+- **🚀 Production Ready:** Plugin is stable and ready for deployment
+
 ### v1.10.6 (2025-10-10)
 
 - **🧹 Code Cleanup:** Removed all development console.log statements from JavaScript files for production readiness

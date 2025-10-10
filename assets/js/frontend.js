@@ -15,26 +15,48 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Auto-enter fullscreen if URL parameters match this map
+        // Show fullscreen prompt if URL parameters match this map
         if (autoCardmapId && autoCardmapId === mapId && autoFullscreen) {
-            setTimeout(() => {
-                console.log('Attempting auto-fullscreen for map:', mapId);
-                wrapper.requestFullscreen().catch(err => {
-                    console.warn('Auto-fullscreen failed:', err);
-                    // Try alternative fullscreen methods if the primary one fails
-                    if (wrapper.webkitRequestFullscreen) {
-                        wrapper.webkitRequestFullscreen().catch(webkitErr => {
-                            console.warn('Webkit fullscreen also failed:', webkitErr);
-                        });
-                    } else if (wrapper.msRequestFullscreen) {
-                        wrapper.msRequestFullscreen().catch(msErr => {
-                            console.warn('MS fullscreen also failed:', msErr);
-                        });
-                    }
-                }).then(() => {
-                    console.log('Auto-fullscreen successful for map:', mapId);
-                });
-            }, 500); // Increased delay to ensure everything is loaded
+            // Create fullscreen prompt overlay
+            const fullscreenPrompt = document.createElement('div');
+            fullscreenPrompt.className = 'cardmap-fullscreen-prompt';
+            fullscreenPrompt.innerHTML = `
+                <div class="cardmap-fullscreen-prompt-content">
+                    <div class="cardmap-fullscreen-prompt-icon">⛶</div>
+                    <h3>Fullscreen Mode Ready</h3>
+                    <p>Click the button below to view this map in fullscreen</p>
+                    <button class="cardmap-fullscreen-prompt-button">Enter Fullscreen</button>
+                    <button class="cardmap-fullscreen-prompt-dismiss">View Normal</button>
+                </div>
+            `;
+            
+            wrapper.appendChild(fullscreenPrompt);
+            
+            // Handle enter fullscreen button
+            const enterBtn = fullscreenPrompt.querySelector('.cardmap-fullscreen-prompt-button');
+            enterBtn.addEventListener('click', function() {
+                fullscreenPrompt.style.display = 'none';
+                
+                // Request fullscreen with proper error handling
+                if (wrapper.requestFullscreen) {
+                    wrapper.requestFullscreen().catch(err => {
+                        console.warn('Fullscreen request failed:', err);
+                        alert('Fullscreen mode is not available in your browser.');
+                    });
+                } else if (wrapper.webkitRequestFullscreen) {
+                    wrapper.webkitRequestFullscreen();
+                } else if (wrapper.msRequestFullscreen) {
+                    wrapper.msRequestFullscreen();
+                } else {
+                    alert('Fullscreen mode is not supported in your browser.');
+                }
+            });
+            
+            // Handle dismiss button
+            const dismissBtn = fullscreenPrompt.querySelector('.cardmap-fullscreen-prompt-dismiss');
+            dismissBtn.addEventListener('click', function() {
+                fullscreenPrompt.style.display = 'none';
+            });
         }
 
         const mapConfig = cardmap_frontend_data[mapId];

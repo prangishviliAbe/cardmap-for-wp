@@ -124,12 +124,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Use Continuous anchors for rails to allow connections at any point
                 // Also ensure the rail element has proper dimensions and positioning
                 const railRect = railEl.getBoundingClientRect();
-                    id: railEl.id,
-                    width: railRect.width,
-                    height: railRect.height,
-                    left: railRect.left,
-                    top: railRect.top
-                });
 
                 instance.makeSource(railEl, {
                     anchor: "Continuous",
@@ -216,11 +210,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     connection.addOverlay(arrowOverlay);
                 }
 
-                    from: `${originalSource} -> ${originalTarget}`,
-                    to: `${connectionData.source} -> ${connectionData.target}`,
-                    style: originalStyle
-                });
-
                 // Force repaint to show changes
                 setTimeout(() => {
                     instance.repaintEverything();
@@ -261,13 +250,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         const sourceEl = panZoomContainer.querySelector('#' + c.source);
                         const targetEl = panZoomContainer.querySelector('#' + c.target);
-                            source: !!sourceEl,
-                            target: !!targetEl,
-                            sourceId: c.source,
-                            targetId: c.target,
-                            sourceElId: sourceEl?.id,
-                            targetElId: targetEl?.id
-                        });
 
                         if (sourceEl && targetEl) {
                             // Get connection style with proper priority: connection's own style > source's style > target's style > global default
@@ -361,17 +343,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 anchors = getDirectionalAnchorsFrontend(sourceEl, targetEl) || ["RightMiddle", "LeftMiddle"];
                             }
 
-                                source: c.source,
-                                target: c.target,
-                                anchors: anchors,
-                                style: c.style,
-                                sourceIsRail: sourceIsRail,
-                                targetIsRail: targetIsRail,
-                                config: config,
-                                sourceElRect: sourceEl.getBoundingClientRect(),
-                                targetElRect: targetEl.getBoundingClientRect()
-                            });
-
                             try {
                                 const connection = instance.connect({
                                     source: sourceEl,
@@ -409,12 +380,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                     connection.bind('click', function(e) {
                                         // Prevent event bubbling
                                         e.stopPropagation();
-
-                                            connectionId: c.id,
-                                            source: c.source,
-                                            target: c.target,
-                                            index: index
-                                        });
 
                                         // Show confirmation dialog with connection details
                                         const sourceTitle = document.querySelector('#' + c.source + ' .card-title')?.textContent || c.source;
@@ -546,13 +511,8 @@ document.addEventListener('DOMContentLoaded', function() {
             );
 
             rails.forEach((railEl, index) => {
-                    id: railEl.id,
-                    classList: railEl.className,
-                    style: railEl.style.cssText,
-                    dataset: railEl.dataset
-                });
                 // add rail-bar if missing
-                    if (!railEl.querySelector('.rail-bar')) {
+                if (!railEl.querySelector('.rail-bar')) {
                     const bar = document.createElement('div');
                     bar.className = 'rail-bar';
                     // If rails were saved with explicit width/height of 0px, treat that
@@ -671,10 +631,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // toggle visibility according to setting - default to showing rails if setting is undefined
                 // Fix: Default to showing rails unless explicitly disabled
                 const shouldHideRails = mapConfig.show_rail_thickness === false || mapConfig.show_rail_thickness === 0;
-                    setting: mapConfig.show_rail_thickness,
-                    shouldHide: shouldHideRails,
-                    railId: railEl.id
-                });
 
                 if (shouldHideRails) {
                     railEl.classList.add('rail-thickness-hidden');
@@ -728,12 +684,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Force layout recalculation
                     railEl.offsetHeight; // Trigger reflow
-                    
-                        id: railEl.id,
-                        dataPos: { x: railData.x, y: railData.y, w: railData.width, h: railData.height },
-                        domPos: { left: railEl.style.left, top: railEl.style.top, width: railEl.style.width, height: railEl.style.height },
-                        actualBounds: railEl.getBoundingClientRect()
-                    });
                 }
 
                 // Final check - ensure rail bar is visible unless explicitly hidden
@@ -742,17 +692,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     railBar.style.display = 'block';
                     railBar.style.opacity = '1';
                 }
-
-                // Additional debugging for troubleshooting
-                    id: railEl.id,
-                    classes: railEl.className,
-                    hasRailBar: !!railBar,
-                    isHidden: railEl.classList.contains('rail-thickness-hidden'),
-                    railBarDisplay: railBar ? railBar.style.display : 'no bar',
-                    railBarOpacity: railBar ? railBar.style.opacity : 'no bar',
-                    position: `${railEl.style.left}, ${railEl.style.top}`,
-                    size: `${railEl.style.width}, ${railEl.style.height}`
-                });
             });
         } catch (err) {
             // ignore DOM errors

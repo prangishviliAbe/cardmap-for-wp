@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.10.3
+Stable tag: 1.10.4
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -31,7 +31,17 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 
 == Changelog ==
 
-<<<<<<< Updated upstream
+= 1.10.4 =
+*   ✨ New Feature: Intelligent Auto-Align button for card alignment
+*   🎯 Smart Grouping: Automatically detects and groups cards positioned within 80px proximity
+*   📏 Horizontal Alignment: Aligns cards with similar Y-positions using proportional averaging
+*   📐 Vertical Alignment: Aligns cards with similar X-positions using proportional averaging
+*   ⚙️ Configurable: Can be enabled/disabled via Settings → Editor Settings
+*   💾 Undo Support: Full integration with history system (Ctrl+Z works)
+*   📢 User Feedback: Clear toast notifications showing alignment results
+*   🎨 UX Enhancement: One-click operation for cleaner, organized card layouts
+*   🔧 Non-destructive: All alignments can be undone instantly
+
 = 1.10.3 =
 *   🔧 Critical Fix: Resolved card link styling rendering issues on frontend
 *   ✅ Fixed: Dashed connection lines now properly display as dashed (previously invisible or straight)

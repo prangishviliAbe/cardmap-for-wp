@@ -38,6 +38,18 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.10.4 (2025-10-10)
+
+- **✨ New Feature:** Intelligent Auto-Align button for effortless card organization.
+- **🎯 Smart Detection:** Automatically identifies cards positioned within 80px proximity for grouping.
+- **📏 Horizontal Alignment:** Aligns cards with similar Y-positions to their proportional average for perfect rows.
+- **📐 Vertical Alignment:** Aligns cards with similar X-positions to their proportional average for perfect columns.
+- **⚙️ Customizable:** Enable/disable the Auto-Align button via Settings → Editor Settings.
+- **💾 Full Undo Support:** Integrated with history system - press Ctrl+Z to undo any alignment.
+- **📢 User-Friendly Feedback:** Toast notifications show how many card groups were aligned.
+- **🎨 One-Click Operation:** Single button press creates clean, organized layouts instantly.
+- **🔧 Non-Destructive:** All alignment operations are reversible and work alongside manual positioning.
+
 ### v1.10.3 (2025-10-10)
 
 - **🔧 Critical Fix:** Resolved card link styling rendering issues on frontend.

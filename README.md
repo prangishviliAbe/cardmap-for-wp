@@ -38,6 +38,16 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.10.6 (2025-10-10)
+
+- **🧹 Code Cleanup:** Removed all development console.log statements from JavaScript files for production readiness
+- **🗑️ Feature Removal:** Completely removed ruler overlay functionality from the plugin
+- **⚡ Performance Boost:** Cleaner codebase with reduced console output improves performance
+- **🔧 Settings Cleanup:** Removed unused ruler settings from admin panel and configuration
+- **📦 Optimized Bundle:** Smaller JavaScript bundle size after removing ruler code and debug logs
+- **💡 Production Ready:** Professional, clean code without development artifacts
+- **🎯 Streamlined:** Focused feature set without unnecessary complexity
+
 ### v1.10.5 (2025-10-10)
 
 - **🎨 Major UI Enhancement:** Completely redesigned card settings panel with sophisticated modern visuals

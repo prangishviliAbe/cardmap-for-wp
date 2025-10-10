@@ -14,10 +14,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const mapData = mapConfig.map_data;
         const panZoomContainer = wrapper.querySelector('.cardmap-pan-zoom-container');
 
-        console.log('Frontend map config:', mapConfig);
-        console.log('Frontend map data:', mapData);
-        console.log('Rails in map data:', mapData.rails);
-        console.log('Show rail thickness setting:', mapConfig.show_rail_thickness);
 
         if (!panZoomContainer || !mapData) {
             return;
@@ -124,12 +120,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
-                console.log('Initializing rail as jsPlumb endpoint:', railEl.id, railEl);
 
                 // Use Continuous anchors for rails to allow connections at any point
                 // Also ensure the rail element has proper dimensions and positioning
                 const railRect = railEl.getBoundingClientRect();
-                console.log('Rail dimensions:', {
                     id: railEl.id,
                     width: railRect.width,
                     height: railRect.height,
@@ -151,7 +145,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     allowLoopback: false,
                     connectorStyle: { strokeWidth: 2, stroke: '#A61832' }
                 });
-                console.log('Rail initialized as jsPlumb endpoint:', railEl.id);
             } catch (err) {
                 console.error('Error initializing rail as jsPlumb endpoint:', railEl.id, err);
             }
@@ -223,7 +216,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     connection.addOverlay(arrowOverlay);
                 }
 
-                console.log('Connection reversed successfully:', {
                     from: `${originalSource} -> ${originalTarget}`,
                     to: `${connectionData.source} -> ${connectionData.target}`,
                     style: originalStyle
@@ -252,7 +244,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (el.id) {
                     try {
                         instance.manage(el);
-                        console.log('Element managed by jsPlumb:', el.id, el.classList.toString());
                     } catch (err) {
                         console.warn('Error managing element:', el.id, err);
                     }
@@ -263,7 +254,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (mapData.connections) {
                     mapData.connections.forEach((c, index) => {
                     try {
-                        console.log('Processing connection:', c, 'Source:', c.source, 'Target:', c.target);
                         if (!c.source || !c.target) {
                             console.warn('Connection missing source or target:', c);
                             return;
@@ -271,7 +261,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         const sourceEl = panZoomContainer.querySelector('#' + c.source);
                         const targetEl = panZoomContainer.querySelector('#' + c.target);
-                        console.log('Found elements:', {
                             source: !!sourceEl,
                             target: !!targetEl,
                             sourceId: c.source,
@@ -305,7 +294,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 
                                 // Only apply rail styling if connection doesn't have its own individual style
                                 if (railEl && !c.style) {
-                                    console.log('Applying rail styling to connection without individual style');
                                     const railStyle = railEl.dataset.railStyle || railEl.getAttribute('data-rail-style') || '';
                                     const railColor = railEl.dataset.railColor || railEl.getAttribute('data-rail-color') || mapConfig.line_color;
                                     const railSize = parseInt(railEl.dataset.railSize || railEl.getAttribute('data-rail-size') || c.rail_size || mapConfig.line_thickness, 10) || mapConfig.line_thickness;
@@ -354,7 +342,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                     }
                                     return anchor; // Return string anchor as-is
                                 });
-                                console.log('Using saved anchors for connection:', anchors);
                             } else if (sourceIsRail || targetIsRail) {
                                 // For rail connections, prefer saved precise anchors, fallback to Continuous
                                 if (sourceIsRail && targetIsRail) {
@@ -369,14 +356,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                     const sourceAnchor = getDirectionalAnchorsFrontend(sourceEl, targetEl)[0];
                                     anchors = [sourceAnchor, "Continuous"];
                                 }
-                                console.log('Using anchors for rail connection:', anchors, 'sourceIsRail:', sourceIsRail, 'targetIsRail:', targetIsRail);
                             } else {
                                 // For node-to-node connections, compute directional anchors
                                 anchors = getDirectionalAnchorsFrontend(sourceEl, targetEl) || ["RightMiddle", "LeftMiddle"];
-                                console.log('Using computed directional anchors:', anchors);
                             }
 
-                            console.log('Creating connection with config:', {
                                 source: c.source,
                                 target: c.target,
                                 anchors: anchors,
@@ -400,7 +384,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 });
 
                                 if (connection) {
-                                    console.log('Connection created successfully:', c.id || 'no-id');
                                     
                                     // Only do minimal repainting to avoid disrupting precise positioning
                                     setTimeout(() => {
@@ -414,7 +397,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 
                                                 // Only intervene if SVG has extreme negative positioning (indicating a real problem)
                                                 if (left < -100 || top < -100) {
-                                                    console.log('Fixing extreme SVG positioning:', { left, top });
                                                     connection.repaint();
                                                 }
                                             }
@@ -428,7 +410,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                         // Prevent event bubbling
                                         e.stopPropagation();
 
-                                        console.log('Connection clicked for reversal:', {
                                             connectionId: c.id,
                                             source: c.source,
                                             target: c.target,
@@ -460,7 +441,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                             if (path && config.paintStyle) {
                                                 if (config.paintStyle.strokeDasharray) {
                                                     path.setAttribute('stroke-dasharray', config.paintStyle.strokeDasharray);
-                                                    console.log('Applied stroke-dasharray to path:', config.paintStyle.strokeDasharray);
                                                 }
                                                 // Ensure stroke color and width are also applied
                                                 if (config.paintStyle.stroke) {
@@ -522,7 +502,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Force a repaint after all connections are created
             setTimeout(() => {
                 instance.repaintEverything();
-                console.log('Repainted all connections');
                 
                 // Only do additional fixes if there are actual positioning problems
                 setTimeout(() => {
@@ -541,7 +520,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (left < -50 || top < -50) {
                                     conn.repaint();
                                     problemConnections++;
-                                    console.log('Fixed problematic connection positioning:', { left, top });
                                 }
                             }
                         } catch (err) {
@@ -550,9 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     if (problemConnections > 0) {
-                        console.log(`Fixed ${problemConnections} connections with positioning issues`);
                     } else {
-                        console.log('No connection positioning issues detected');
                     }
                 }, 50);
             }, 100);
@@ -562,17 +538,14 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             // Look for rails both as direct elements and as nodes with is_rail flag
             const rails = panZoomContainer.querySelectorAll('.cardmap-rail');
-            console.log('Found', rails.length, 'rails in frontend');
 
             // Also check if there are any elements with data attributes that indicate they are rails
             const allElements = panZoomContainer.querySelectorAll('*');
             const potentialRails = Array.from(allElements).filter(el =>
                 el.dataset && (el.dataset.railStyle || el.dataset.railColor || el.dataset.railSize)
             );
-            console.log('Found', potentialRails.length, 'potential rails by data attributes');
 
             rails.forEach((railEl, index) => {
-                console.log('Processing rail', index + 1, ':', {
                     id: railEl.id,
                     classList: railEl.className,
                     style: railEl.style.cssText,
@@ -698,7 +671,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // toggle visibility according to setting - default to showing rails if setting is undefined
                 // Fix: Default to showing rails unless explicitly disabled
                 const shouldHideRails = mapConfig.show_rail_thickness === false || mapConfig.show_rail_thickness === 0;
-                console.log('Rail visibility check:', {
                     setting: mapConfig.show_rail_thickness,
                     shouldHide: shouldHideRails,
                     railId: railEl.id
@@ -706,10 +678,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (shouldHideRails) {
                     railEl.classList.add('rail-thickness-hidden');
-                    console.log('Hiding rail thickness for rail:', railEl.id);
                 } else {
                     railEl.classList.remove('rail-thickness-hidden');
-                    console.log('Showing rail thickness for rail:', railEl.id, 'setting:', mapConfig.show_rail_thickness, 'shouldHide:', shouldHideRails);
                 }
 
                 // Ensure rail has proper positioning and is visible in the container
@@ -731,11 +701,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (currentWidth < 1) {
                         railEl.style.width = (railData.size || 3) + 'px';
-                        console.log('Fixed rail width for:', railEl.id);
                     }
                     if (currentHeight < 1) {
                         railEl.style.height = (railData.size || 3) + 'px';
-                        console.log('Fixed rail height for:', railEl.id);
                     }
                     
                     // Ensure proper positioning for jsPlumb calculations
@@ -761,7 +729,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Force layout recalculation
                     railEl.offsetHeight; // Trigger reflow
                     
-                    console.log('Rail position synchronized:', {
                         id: railEl.id,
                         dataPos: { x: railData.x, y: railData.y, w: railData.width, h: railData.height },
                         domPos: { left: railEl.style.left, top: railEl.style.top, width: railEl.style.width, height: railEl.style.height },
@@ -774,11 +741,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (railBar && !railEl.classList.contains('rail-thickness-hidden')) {
                     railBar.style.display = 'block';
                     railBar.style.opacity = '1';
-                    console.log('Rail bar confirmed visible for:', railEl.id);
                 }
 
                 // Additional debugging for troubleshooting
-                console.log('Rail final state:', {
                     id: railEl.id,
                     classes: railEl.className,
                     hasRailBar: !!railBar,

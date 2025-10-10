@@ -2,7 +2,7 @@
 /*
 Plugin Name: Card Map Builder Pro
 Description: Draggable card maps with images, captions, links, connections, admin editor + settings, and frontend shortcode with zoom/pan/fullscreen.
-Version: 1.10.5
+Version: 1.10.6
 Author: Abe Prangishvili
 */
 
@@ -60,9 +60,6 @@ function cardmap_admin_assets( $hook ) {
             'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
             'enable_auto_align' => (bool) get_option( 'cardmap_enable_auto_align', 1 ),
             'node_styles' => json_decode( get_option( 'cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted', 'bold' => 'Bold', 'shadow' => 'Shadow', 'bordered' => 'Bordered', 'minimal' => 'Minimal' ] ) ), true ),
-            'ruler_enabled' => (bool) get_option( 'cardmap_enable_ruler', false ),
-            'ruler_color' => get_option( 'cardmap_ruler_color', '#A61832' ),
-            'ruler_opacity' => get_option( 'cardmap_ruler_opacity', 30 ),
         ] );
     }
 

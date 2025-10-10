@@ -21,10 +21,7 @@
                 lineColor: cardmap_admin_data.line_color,
                 lineThickness: cardmap_admin_data.line_thickness,
                 showRailThickness: !!cardmap_admin_data.show_rail_thickness,
-                nodeStyles: this.parseJson(cardmap_admin_data.node_styles, {}),
-                rulerEnabled: !!cardmap_admin_data.ruler_enabled,
-                rulerColor: cardmap_admin_data.ruler_color || '#A61832',
-                rulerOpacity: (cardmap_admin_data.ruler_opacity || 30) / 100
+                nodeStyles: this.parseJson(cardmap_admin_data.node_styles, {})
             };
 
             // Editor state
@@ -61,12 +58,6 @@
             // Grid system
             this.gridSize = 20;
             this.snapToGrid = true;
-
-            // Ruler system
-            this.rulerEnabled = this.config.rulerEnabled;
-            this.rulerColor = this.config.rulerColor;
-            this.rulerOpacity = this.config.rulerOpacity;
-            this.rulerCanvas = null;
             
             // Pan & Zoom state
             this.scale = 1;
@@ -124,9 +115,6 @@
             this.editor.addEventListener('dblclick', (e) => {
                 // Check if the double-click was on a connection SVG element
                 if (e.target && (e.target.classList.contains('jtk-connector') || e.target.closest('.jtk-connector'))) {
-                    console.log('=== DIRECT DOUBLE-CLICK DETECTED ===');
-                    console.log('Target element:', e.target);
-                    console.log('Event coordinates:', { clientX: e.clientX, clientY: e.clientY });
 
                     // Find the connection that was clicked
                     const connections = this.instance.getAllConnections();
@@ -145,7 +133,6 @@
                     }
 
                     if (clickedConnection) {
-                        console.log('Found clicked connection:', clickedConnection._cardmap_id);
                         // Simulate the same deletion logic as the jsPlumb handler
                         const connId = clickedConnection._cardmap_id;
                         if (connId) {
@@ -156,19 +143,16 @@
                                 this.instance.deleteConnection(clickedConnection);
                                 this.saveMapData();
                                 this.showToast('Connection deleted');
-                                console.log('=== DIRECT DOUBLE-CLICK DELETION SUCCESSFUL ===');
                             } catch (err) {
                                 console.error('Error in direct double-click deletion:', err);
                                 this.showToast('Error deleting connection');
                             }
                         }
                     } else {
-                        console.log('No connection found at click location');
                     }
                 }
             });
 
-            console.log('Direct connection handlers initialized');
         }
 
         /**
@@ -232,7 +216,6 @@
                 // Prevent single-click from interfering with double-click
                 const now = Date.now();
                 if (now - this._lastConnectionClickAt < 300) { // 300ms double-click window
-                    console.log('Ignoring single-click to allow double-click');
                     return;
                 }
                 this._lastConnectionClickAt = now;
@@ -261,10 +244,6 @@
             // double-clicking a connection will delete it immediately (user action)
             this.instance.bind('dblclick', (conn, originalEvent) => {
                 try {
-                    console.log('=== DOUBLE-CLICK EVENT FIRED ===');
-                    console.log('Connection object:', conn);
-                    console.log('Connection ID:', conn?._cardmap_id);
-                    console.log('Original event:', originalEvent);
 
                     // Prevent interference from single-click handlers
                     if (originalEvent) {
@@ -279,14 +258,12 @@
                         return;
                     }
 
-                    console.log('Deleting connection:', connId);
 
                     // Mark for deletion in our data
                     this.pendingDeletes.add(connId);
                     const originalCount = this.mapData.connections.length;
                     this.mapData.connections = (this.mapData.connections || []).filter(c => c.id !== connId);
                     const newCount = this.mapData.connections.length;
-                    console.log(`Filtered connections: ${originalCount} -> ${newCount}`);
 
                     // Save to history
                     this.saveToHistory(`Deleted connection ${connId}`);
@@ -296,7 +273,6 @@
                     try {
                         deleted = this.instance.deleteConnection(conn);
                         if (deleted) {
-                            console.log('Connection deleted successfully via deleteConnection');
                         } else {
                             console.warn('deleteConnection returned false');
                         }
@@ -305,7 +281,6 @@
                         try {
                             conn.detach();
                             deleted = true;
-                            console.log('Connection detached as fallback');
                         } catch (detachErr) {
                             console.error('Error detaching connection:', detachErr);
                         }
@@ -314,7 +289,6 @@
                     if (deleted) {
                         this.saveMapData();
                         this.showToast('Connection deleted');
-                        console.log('=== DOUBLE-CLICK DELETION SUCCESSFUL ===');
                     } else {
                         console.error('Failed to delete connection - no deletion method worked');
                         this.showToast('Error deleting connection');
@@ -374,14 +348,7 @@
             this.editorWrapper.addEventListener('wheel', this.handleZoom.bind(this));
             
             this.editorWrapper.addEventListener('click', (e) => {
-                // Handle ruler canvas clicks for connection creation
-                if (this.connectMode && this.rulerEnabled && e.target === this.rulerCanvas) {
-                    console.log('Ruler canvas clicked in connect mode - ignoring deselect');
-                    // Don't deselect nodes when clicking on ruler for connections
-                    return;
-                }
-
-                if (e.target === this.editorWrapper || e.target === this.editor || e.target === this.rulerCanvas) {
+                if (e.target === this.editorWrapper || e.target === this.editor) {
                     this.deselectAllNodes();
                 }
                 const railEl = e.target.closest('.cardmap-rail');
@@ -524,7 +491,6 @@
                 this.historyIndex--;
             }
 
-            console.log(`History saved: ${action} (stack size: ${this.historyStack.length})`);
             this.updateHistoryUI();
         }
 
@@ -571,7 +537,6 @@
                 });
 
                 this.instance.repaintEverything();
-                console.log(`Restored state: ${state.action} from ${new Date(state.timestamp).toLocaleTimeString()}`);
 
             } catch (error) {
                 console.error('Error restoring from history:', error);
@@ -802,333 +767,10 @@
         }
 
         /**
-         * Toggles ruler overlay functionality.
-         */
-        toggleRuler() {
-            try {
-                console.log('=== RULER TOGGLE ===');
-                console.log('Current ruler state:', this.rulerEnabled);
-
-                this.rulerEnabled = !this.rulerEnabled;
-                console.log('New ruler state:', this.rulerEnabled);
-
-                this.showToast(`Ruler ${this.rulerEnabled ? 'enabled' : 'disabled'}`);
-
-                // Update visual indicator
-                if (this.editorWrapper) {
-                    this.editorWrapper.classList.toggle('ruler-enabled', this.rulerEnabled);
-                    console.log('Editor wrapper ruler class updated:', this.rulerEnabled);
-                } else {
-                    console.warn('Editor wrapper not found');
-                }
-
-                // Update button visual state
-                const rulerBtn = document.getElementById('toggle-ruler');
-                if (rulerBtn) {
-                    rulerBtn.classList.toggle('ruler-active', this.rulerEnabled);
-                    console.log('Ruler button state updated:', this.rulerEnabled);
-                } else {
-                    console.warn('Ruler toggle button not found');
-                }
-
-                if (this.rulerEnabled) {
-                    console.log('Creating ruler...');
-                    this.createRuler();
-                    console.log('Updating ruler...');
-                    this.updateRuler();
-                    console.log('Ruler creation complete');
-                } else {
-                    console.log('Removing ruler...');
-                    this.removeRuler();
-                    console.log('Ruler removal complete');
-                }
-
-                console.log('=== RULER TOGGLE COMPLETE ===');
-            } catch (error) {
-                console.error('Error in toggleRuler:', error);
-                this.showToast('Error toggling ruler: ' + error.message);
-                // Reset ruler state on error
-                this.rulerEnabled = false;
-                this.editorWrapper.classList.remove('ruler-enabled');
-                const rulerBtn = document.getElementById('toggle-ruler');
-                if (rulerBtn) {
-                    rulerBtn.classList.remove('ruler-active');
-                }
-            }
-        }
-
-        /**
-         * Creates the ruler overlay canvas.
-         */
-        createRuler() {
-            try {
-                console.log('Creating ruler canvas...');
-
-                // Remove existing canvas if any
-                if (this.rulerCanvas) {
-                    console.log('Removing existing ruler canvas');
-                    this.rulerCanvas.remove();
-                    this.rulerCanvas = null;
-                }
-
-                this.rulerCanvas = document.createElement('canvas');
-                this.rulerCanvas.id = 'cardmap-ruler-canvas';
-                this.rulerCanvas.style.cssText = `
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    pointer-events: none;
-                    z-index: 1000;
-                    opacity: ${this.rulerOpacity};
-                    width: 100%;
-                    height: 100%;
-                    display: block;
-                `;
-
-                console.log('Appending ruler canvas to wrapper');
-                this.editorWrapper.appendChild(this.rulerCanvas);
-
-                console.log('Updating ruler canvas size');
-                this.updateRulerCanvasSize();
-
-                console.log('Ruler canvas created successfully');
-            } catch (error) {
-                console.error('Error creating ruler:', error);
-                this.showToast('Error creating ruler: ' + error.message);
-                this.rulerCanvas = null;
-            }
-        }
-
-        /**
-         * Removes the ruler overlay.
-         */
-        removeRuler() {
-            if (this.rulerCanvas) {
-                this.rulerCanvas.remove();
-                this.rulerCanvas = null;
-            }
-            // Clear any pending resize timeouts
-            if (this._resizeTimeout) {
-                clearTimeout(this._resizeTimeout);
-                this._resizeTimeout = null;
-            }
-        }
-
-        /**
-         * Updates the ruler canvas size to match the editor.
-         */
-        updateRulerCanvasSize() {
-            if (!this.rulerCanvas) return;
-
-            try {
-                const wrapperRect = this.editorWrapper.getBoundingClientRect();
-
-                // Limit canvas size to prevent memory issues
-                const maxCanvasSize = 4000;
-                const canvasSize = Math.min(maxCanvasSize, Math.max(1000, wrapperRect.width * 2, wrapperRect.height * 2));
-
-                console.log('Setting canvas size:', { canvasSize, wrapperRect: { width: wrapperRect.width, height: wrapperRect.height } });
-
-                this.rulerCanvas.width = canvasSize;
-                this.rulerCanvas.height = canvasSize;
-
-                // Style to fill the wrapper
-                this.rulerCanvas.style.width = `${wrapperRect.width}px`;
-                this.rulerCanvas.style.height = `${wrapperRect.height}px`;
-
-                console.log('Canvas size updated successfully');
-            } catch (error) {
-                console.error('Error updating ruler canvas size:', error);
-            }
-        }
-
-        /**
          * Handles window resize events (fullscreen, etc.).
          */
         handleWindowResize() {
-            try {
-                if (this.rulerEnabled) {
-                    console.log('Window resize detected, updating ruler...');
-                    // Debounce resize updates
-                    clearTimeout(this._resizeTimeout);
-                    this._resizeTimeout = setTimeout(() => {
-                        try {
-                            this.updateRulerCanvasSize();
-                            this.updateRuler();
-                            console.log('Ruler resize update complete');
-                        } catch (resizeError) {
-                            console.error('Error in resize timeout:', resizeError);
-                        }
-                    }, 150); // Increased debounce time
-                }
-            } catch (error) {
-                console.error('Error in handleWindowResize:', error);
-            }
-        }
-
-        /**
-         * Updates the ruler display.
-         */
-        updateRuler() {
-            try {
-                if (!this.rulerEnabled || !this.rulerCanvas) {
-                    console.log('Ruler update skipped - not enabled or no canvas');
-                    return;
-                }
-
-                console.log('Updating ruler display...');
-                this.updateRulerCanvasSize();
-                this.drawRuler();
-                console.log('Ruler update complete');
-            } catch (error) {
-                console.error('Error updating ruler:', error);
-                this.showToast('Error updating ruler: ' + error.message);
-            }
-        }
-
-        /**
-         * Draws the ruler lines on the canvas.
-         */
-        drawRuler() {
-            try {
-                if (!this.rulerCanvas) {
-                    console.log('No ruler canvas found');
-                    return;
-                }
-
-                const ctx = this.rulerCanvas.getContext('2d');
-                if (!ctx) {
-                    console.log('Could not get canvas context');
-                    return;
-                }
-
-                const width = this.rulerCanvas.width;
-                const height = this.rulerCanvas.height;
-
-                console.log('Drawing ruler:', { width, height, scale: this.scale });
-
-                // Prevent infinite loops by limiting canvas size
-                if (width > 10000 || height > 10000) {
-                    console.warn('Canvas too large, skipping ruler draw');
-                    return;
-                }
-
-                // Clear canvas
-                ctx.clearRect(0, 0, width, height);
-
-                // Set ruler properties with scale compensation
-                const lineWidth = Math.max(0.5, Math.min(2, 1 / this.scale));
-                ctx.strokeStyle = this.rulerColor;
-                ctx.lineWidth = lineWidth;
-                ctx.setLineDash([]);
-
-                // Calculate spacing based on scale for better visibility
-                const baseSpacing = 50;
-                const minSpacing = 10;
-                const maxSpacing = 200;
-                const dynamicSpacing = Math.max(minSpacing, Math.min(maxSpacing, baseSpacing / this.scale));
-
-                console.log('Ruler spacing:', dynamicSpacing);
-
-                // Draw vertical lines (limit iterations to prevent freeze)
-                const maxIterations = 1000;
-                let iterations = 0;
-
-                for (let x = 0; x < width && iterations < maxIterations; x += dynamicSpacing, iterations++) {
-                    try {
-                        ctx.beginPath();
-                        ctx.moveTo(x, 0);
-                        ctx.lineTo(x, height);
-                        ctx.stroke();
-
-                        // Draw measurement labels for major lines (every 100px scaled)
-                        const labelInterval = Math.max(50, dynamicSpacing * 2);
-                        if (Math.abs(x % labelInterval) < 2 && x > 0) {
-                            ctx.fillStyle = this.rulerColor;
-                            const fontSize = Math.max(8, Math.min(16, 12 / this.scale));
-                            ctx.font = `${fontSize}px monospace`;
-                            ctx.textAlign = 'center';
-                            const label = Math.round(x).toString();
-                            if (label.length < 10) { // Prevent extremely long labels
-                                ctx.fillText(label, x, Math.max(fontSize, 15 / this.scale));
-                            }
-                        }
-                    } catch (lineError) {
-                        console.warn('Error drawing vertical line at x=' + x, lineError);
-                        break;
-                    }
-                }
-
-                // Draw horizontal lines (reset iterations)
-                iterations = 0;
-                for (let y = 0; y < height && iterations < maxIterations; y += dynamicSpacing, iterations++) {
-                    try {
-                        ctx.beginPath();
-                        ctx.moveTo(0, y);
-                        ctx.lineTo(width, y);
-                        ctx.stroke();
-
-                        // Draw measurement labels for major lines
-                        const labelInterval = Math.max(50, dynamicSpacing * 2);
-                        if (Math.abs(y % labelInterval) < 2 && y > 0) {
-                            ctx.fillStyle = this.rulerColor;
-                            const fontSize = Math.max(8, Math.min(16, 12 / this.scale));
-                            ctx.font = `${fontSize}px monospace`;
-                            ctx.textAlign = 'right';
-                            const label = Math.round(y).toString();
-                            if (label.length < 10) { // Prevent extremely long labels
-                                ctx.fillText(label, Math.max(20, 30 / this.scale), y - 2);
-                            }
-                        }
-                    } catch (lineError) {
-                        console.warn('Error drawing horizontal line at y=' + y, lineError);
-                        break;
-                    }
-                }
-
-                // Draw corner ruler markers (scale-compensated size)
-                try {
-                    const markerSize = Math.max(15, Math.min(50, 25 / this.scale));
-                    ctx.strokeStyle = this.rulerColor;
-                    ctx.lineWidth = Math.max(1, Math.min(3, 3 / this.scale));
-
-                    // Top-left corner marker
-                    ctx.strokeRect(0, 0, markerSize, markerSize);
-
-                    // Draw crosshairs at origin
-                    const crosshairSize = markerSize * 0.6;
-                    ctx.beginPath();
-                    ctx.moveTo(0, crosshairSize);
-                    ctx.lineTo(markerSize, crosshairSize);
-                    ctx.moveTo(crosshairSize, 0);
-                    ctx.lineTo(crosshairSize, markerSize);
-                    ctx.stroke();
-
-                    // Add center dot at origin
-                    ctx.beginPath();
-                    ctx.arc(crosshairSize, crosshairSize, Math.max(1, Math.min(3, 2 / this.scale)), 0, 2 * Math.PI);
-                    ctx.fill();
-                } catch (markerError) {
-                    console.warn('Error drawing ruler markers:', markerError);
-                }
-
-                console.log('Ruler drawing complete');
-            } catch (error) {
-                console.error('Error in drawRuler:', error);
-                this.showToast('Error drawing ruler: ' + error.message);
-            }
-        }
-
-        /**
-         * Updates ruler settings from plugin options.
-         */
-        updateRulerSettings() {
-            this.rulerColor = cardmap_admin_data.ruler_color || '#A61832';
-            this.rulerOpacity = (cardmap_admin_data.ruler_opacity || 30) / 100;
-
-            if (this.rulerEnabled) {
-                this.updateRuler();
-            }
+            // Debounce resize updates if needed in the future
         }
 
         /**
@@ -1202,12 +844,7 @@
          * Renders the initial map data from the server.
          */
         loadInitialData() {
-            console.log('=== LOADING INITIAL DATA ===');
-            console.log('Loaded mapData:', this.mapData);
-            console.log('Nodes with connection styles:', this.mapData.nodes?.filter(n => n.connectionStyle).map(n => ({id: n.id, style: n.connectionStyle})));
-            console.log('Rails with connection styles:', this.mapData.rails?.filter(r => r.connectionStyle).map(r => ({id: r.id, style: r.connectionStyle})));
             // Also log rail appearance properties if present
-            console.log('Rails with appearance properties:', this.mapData.rails?.map(r => ({ id: r.id, railStyle: r.railStyle, railColor: r.railColor, size: r.size })));
             
             this.instance.batch(() => {
                 (this.mapData.rails || []).forEach(r => this.renderRail(r));
@@ -1382,31 +1019,17 @@
             const connStyleSelect = node.querySelector('.card-connection-style');
             if (connStyleSelect) {
                 // Set initial value - use saved connectionStyle or fall back to global default
-                console.log('=== NODE CONNECTION STYLE INIT ===');
-                console.log('Available line styles for node:', this.config.availableLineStyles);
-                console.log('Node data connectionStyle:', nodeData.connectionStyle);
-                console.log('Global line style:', this.config.lineStyle);
-                console.log('Dropdown options:', Array.from(connStyleSelect.options).map(o => ({value: o.value, text: o.text})));
                 
                 const initialValue = nodeData.connectionStyle || this.config.lineStyle;
-                console.log('Setting dropdown to:', initialValue);
                 connStyleSelect.value = initialValue;
-                console.log('Dropdown actual value after setting:', connStyleSelect.value);
-                console.log('Selected option text:', connStyleSelect.options[connStyleSelect.selectedIndex]?.text);
-                console.log('=== END INIT ===');
                 
                 connStyleSelect.addEventListener('change', (e) => {
-                    console.log('=== CONNECTION STYLE CHANGE EVENT ===');
-                    console.log('Connection style changed to:', connStyleSelect.value, 'for node:', nodeData.id);
-                    console.log('Event target:', e.target);
-                    console.log('Available line styles:', this.config.availableLineStyles);
 
                     nodeData.connectionStyle = connStyleSelect.value;
 
                     // Update existing connections that involve this node (both as source and target)
                     const sourceConns = this.instance.getConnections({ source: node.id });
                     const targetConns = this.instance.getConnections({ target: node.id });
-                    console.log('Found connections - source:', sourceConns.length, 'target:', targetConns.length);
 
                     let updatedConnections = 0;
 
@@ -1415,7 +1038,6 @@
                         const newStyle = nodeData.connectionStyle || this.config.lineStyle;
                         const config = this.getConnectorConfig(newStyle);
                         try {
-                            console.log('Updating SOURCE connection style to:', newStyle, 'for connection:', c._cardmap_id);
                             c.setPaintStyle && c.setPaintStyle(config.paintStyle);
                             if (config.connector) c.setConnector && c.setConnector(config.connector);
 
@@ -1429,7 +1051,6 @@
                             const connData = this.mapData.connections.find(conn => conn.id === c._cardmap_id);
                             if (connData) {
                                 connData.style = newStyle;
-                                console.log('Updated mapData connection style:', connData.style);
                             }
                             updatedConnections++;
                         } catch (err) {
@@ -1446,7 +1067,6 @@
                             const newStyle = nodeData.connectionStyle || this.config.lineStyle;
                             const config = this.getConnectorConfig(newStyle);
                             try {
-                                console.log('Updating TARGET connection style to:', newStyle, 'for connection:', c._cardmap_id);
                                 c.setPaintStyle && c.setPaintStyle(config.paintStyle);
                                 if (config.connector) c.setConnector && c.setConnector(config.connector);
 
@@ -1467,13 +1087,11 @@
                     });
 
                     // Force repaint to ensure visual changes are applied
-                    console.log('Forcing repaint after updating', updatedConnections, 'connections');
                     this.instance.repaintEverything();
 
                     // Show user feedback
                     this.showToast(`Connection style updated to: ${this.config.availableLineStyles[connStyleSelect.value]}`);
 
-                    console.log('=== CONNECTION STYLE CHANGE COMPLETE ===');
                 });
             }
 
@@ -2028,7 +1646,6 @@
                 relY = Math.max(0, Math.min(1, relY));
 
                 // jsPlumb accepts [x, y, ox, oy] anchor arrays where x,y are relative (0-1)
-                console.log(`Precise rail anchor for ${railId}: [${relX.toFixed(3)}, ${relY.toFixed(3)}] at world (${worldCoords.x.toFixed(1)}, ${worldCoords.y.toFixed(1)}) rail pos (${railData.x}, ${railData.y})`);
                 return [relX, relY, 0, 0];
             } catch (error) {
                 console.error('Error in getPreciseRailAnchorArray:', {
@@ -2149,15 +1766,10 @@
          */
         handleConnectionClick(e, node) {
             try {
-                console.log('=== CONNECTION CLICK ===');
-                console.log('Target node:', node.id);
-                console.log('Click target:', e.target);
-                console.log('Ruler enabled:', this.rulerEnabled);
 
                 if (!this.firstNode) {
                     this.firstNode = node;
                     this.firstAnchor = this.getPreciseAnchorFromEvent(e, node);
-                    console.log('First anchor calculated:', this.firstAnchor);
                     node.style.boxShadow = '0 0 0 3px rgba(166,24,50,0.5)';
                 } else if (this.firstNode !== node) {
                     const sourceId = this.firstNode.id;
@@ -2179,12 +1791,10 @@
                     let anchorA = null;
                     let anchorB = null;
 
-                    console.log('Computing anchors between elements...');
                     const [a, b] = this.computeAnchorsBetweenElements(this.firstNode, node, null, e);
                     anchorA = this.firstAnchor || a;
                     anchorB = b;
 
-                    console.log('Final anchors:', { anchorA, anchorB });
 
                     const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
                     const targetNodeData = this.mapData.nodes.find(n => n.id === targetId) || {};
@@ -2192,7 +1802,6 @@
                     const targetRailData = this.mapData.rails.find(r => r.id === targetId) || {};
                     const connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || targetNodeData.connectionStyle || targetRailData.connectionStyle || this.config.lineStyle;
 
-                    console.log('Creating connection with style:', connStyle);
                     const conn = this.instance.connect({
                         source: sourceId,
                         target: targetId,
@@ -2224,7 +1833,6 @@
                     this.firstAnchor = null;
                 }
 
-                console.log('=== CONNECTION CLICK COMPLETE ===');
             } catch (error) {
                 console.error('Error in handleConnectionClick:', error);
                 this.showToast('Error creating connection: ' + error.message);
@@ -2442,11 +2050,8 @@
                     // Set initial value - use saved connectionStyle or fall back to global default
                     const initialValue = r.connectionStyle || this.config.lineStyle;
                     railConnStyleSelect.value = initialValue;
-                    console.log('Set rail connection style:', initialValue, 'for rail:', r.id);
                     
                     railConnStyleSelect.addEventListener('change', () => {
-                        console.log('=== RAIL CONNECTION STYLE CHANGE ===');
-                        console.log('Rail connection style changed to:', railConnStyleSelect.value, 'for rail:', r.id);
                         r.connectionStyle = railConnStyleSelect.value;
 
                         // Update existing connections involving this rail
@@ -2457,14 +2062,12 @@
                             return sourceMatch || targetMatch;
                         });
 
-                        console.log('Found', railConnections.length, 'connections involving rail', r.id);
                         let updatedCount = 0;
 
                         railConnections.forEach(c => {
                             const newStyle = r.connectionStyle || this.config.lineStyle;
                             const config = this.getConnectorConfig(newStyle);
                             try {
-                                console.log('Updating rail connection style to:', newStyle, 'for connection:', c._cardmap_id);
                                 if (c.setPaintStyle && config.paintStyle) {
                                     c.setPaintStyle(config.paintStyle);
                                 }
@@ -2486,14 +2089,12 @@
                         });
 
                         // Force repaint to ensure visual changes are applied
-                        console.log('Forcing repaint after updating', updatedCount, 'rail connections');
                         this.instance.repaintEverything();
 
                         // Show user feedback
                         this.showToast(`Rail connection style updated to: ${this.config.availableLineStyles[railConnStyleSelect.value]}`);
 
                         this.saveMapData();
-                        console.log('=== RAIL CONNECTION STYLE CHANGE COMPLETE ===');
                     });
                 }
 
@@ -2562,7 +2163,6 @@
             if (r.railStyle) railEl.setAttribute('data-rail-style', r.railStyle);
             if (r.railColor) railEl.setAttribute('data-rail-color', r.railColor);
             if (r.size) railEl.setAttribute('data-rail-size', r.size);
-            console.log('Render rail:', r.id, 'appearance:', { railStyle: r.railStyle, railColor: r.railColor, size: r.size });
 
             // set bar appearance (color, dashed/dotted/solid)
             const railBarEl = railEl.querySelector('.rail-bar');
@@ -3115,10 +2715,8 @@
                     // persist per-node connection style if user set it
                     const connSel = el.querySelector('.card-connection-style');
                     if (connSel) {
-                        console.log('Saving node', nodeData.id, 'connection style:', connSel.value);
                         nodeData.connectionStyle = connSel.value;
                     } else {
-                        console.log('No connection style selector found for node:', nodeData.id);
                     }
                 }
             });
@@ -3135,29 +2733,24 @@
                     // persist rail connection style if user set it
                     const railConnSel = el.querySelector('.rail-connection-style');
                     if (railConnSel) {
-                        console.log('Saving rail', railData.id, 'connection style:', railConnSel.value);
                         railData.connectionStyle = railConnSel.value;
                     } else {
-                        console.log('No connection style selector found for rail:', railData.id);
                     }
                     // Persist visual appearance controls (style, color, thickness)
                     const railAppearanceSel = el.querySelector('.rail-appearance-style');
                     if (railAppearanceSel) {
-                        console.log('Saving rail', railData.id, 'appearance style:', railAppearanceSel.value);
                         railData.railStyle = railAppearanceSel.value;
                     } else {
                         // leave existing value
                     }
                     const railColorInput = el.querySelector('.rail-color-input');
                     if (railColorInput) {
-                        console.log('Saving rail', railData.id, 'color:', railColorInput.value);
                         railData.railColor = railColorInput.value;
                     }
                     const railThicknessInput = el.querySelector('.rail-thickness-input');
                     if (railThicknessInput) {
                         const newSize = parseInt(railThicknessInput.value, 10);
                         if (!isNaN(newSize) && newSize > 0) {
-                            console.log('Saving rail', railData.id, 'thickness:', newSize);
                             railData.size = newSize;
                             if (railData.orientation === 'vertical') {
                                 railData.width = newSize;
@@ -3247,11 +2840,6 @@
             try {
                 this.editor.style.transform = `translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale})`;
                 this.instance.setZoom(this.scale);
-
-                // Update ruler if enabled and properly initialized
-                if (this.rulerEnabled && this.rulerCanvas) {
-                    this.updateRuler();
-                }
             } catch (error) {
                 console.error('Error in updateTransform:', error);
             }
@@ -3590,7 +3178,6 @@
                         // For diagonal rails, keep both x and y precise
                     }
                     
-                    console.log(`Precise rail anchor for ${el.id}: [${x.toFixed(3)}, ${y.toFixed(3)}]`);
                     return [x, y, 0, 0];
                 }
 
@@ -3621,7 +3208,6 @@
                     anchorName = "RightMiddle";
                 }
 
-                console.log(`Card anchor for ${el.id}: ${anchorName} (distances: T:${distanceToTop.toFixed(1)}, B:${distanceToBottom.toFixed(1)}, L:${distanceToLeft.toFixed(1)}, R:${distanceToRight.toFixed(1)})`);
                 return anchorName;
             } catch (err) {
                 console.warn('Error in getPreciseAnchorFromEvent:', err);

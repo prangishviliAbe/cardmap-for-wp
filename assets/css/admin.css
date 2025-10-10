@@ -28,26 +28,52 @@
 
 .card-settings-toggle {
     position: absolute;
-    top: 5px;
-    right: 5px;
-    z-index: 1;
-    background: rgba(255, 255, 255, 0.8) !important;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
     border-radius: 50% !important;
-    width: 28px !important;
-    height: 28px !important;
+    width: 34px !important;
+    height: 34px !important;
     padding: 0 !important;
     min-width: 0 !important;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid #ccc !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    border: 2px solid #e0e0e0 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.card-settings-toggle:hover {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e8eaed 100%) !important;
+    border-color: #A61832 !important;
+    box-shadow: 0 4px 12px rgba(166, 24, 50, 0.2), 0 2px 6px rgba(0,0,0,0.1);
+    transform: scale(1.08);
+}
+
+.cardmap-node.settings-visible .card-settings-toggle {
+    background: linear-gradient(135deg, #A61832 0%, #8a1428 100%) !important;
+    border-color: #8a1428 !important;
+    box-shadow: 0 4px 12px rgba(166, 24, 50, 0.3), 0 2px 6px rgba(0,0,0,0.15);
 }
 
 .card-settings-toggle .dashicons {
-    font-size: 16px;
+    font-size: 18px;
     line-height: 1;
     color: #555;
+    transition: all 0.3s ease;
+}
+
+.card-settings-toggle:hover .dashicons {
+    color: #A61832;
+    transform: rotate(90deg);
+}
+
+.cardmap-node.settings-visible .card-settings-toggle .dashicons {
+    color: #ffffff;
+    transform: rotate(180deg);
 }
 
 .cardmap-node:hover { transform: translateY(-2px); transition: transform 0.12s; }
@@ -96,16 +122,128 @@
 
 .cardmap-node.settings-visible .node-tools {
     display: block;
+    animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 500px;
+    }
+}
+
+.node-tools {
+    background: linear-gradient(180deg, #fafbfc 0%, #f5f6f8 100%);
+    border-top: 2px solid #e8eaed;
+    padding: 16px;
+    border-radius: 0 0 8px 8px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
 }
 
 .node-tools .card-link-input, .node-tools select {
     width: 100%;
     box-sizing: border-box;
-    padding: 6px;
-    border-radius: 6px;
-    border: 1px solid #ddd;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #ffffff;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-.node-tools select { margin-top: 8px; }
+
+.node-tools .card-link-input:focus, .node-tools select:focus {
+    border-color: #A61832;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(166, 24, 50, 0.1), 0 1px 3px rgba(0,0,0,0.1);
+    background: #ffffff;
+}
+
+.node-tools .card-link-input:hover, .node-tools select:hover {
+    border-color: #c0c0c0;
+}
+
+.node-tools select { 
+    margin-top: 10px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+
+.node-tools label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+    margin-bottom: 6px;
+    margin-top: 12px;
+}
+
+.node-tools label:first-child {
+    margin-top: 0;
+}
+
+.node-tools button {
+    margin-top: 0;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.node-tools button.edit-image {
+    width: 100%;
+    background: linear-gradient(135deg, #2271b1 0%, #1a5a8a 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 2px 6px rgba(34, 113, 177, 0.3);
+}
+
+.node-tools button.edit-image:hover {
+    background: linear-gradient(135deg, #1a5a8a 0%, #144a70 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(34, 113, 177, 0.4);
+}
+
+.node-tools button.edit-image:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(34, 113, 177, 0.3);
+}
+
+.node-tools button.edit-image .dashicons {
+    margin: 0;
+}
+
+.node-tools button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.node-tools button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
 
 /* Rail (hanging line) visuals */
 .cardmap-rail {

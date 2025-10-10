@@ -1299,16 +1299,21 @@
                 </div>
                 <button type="button" class="card-settings-toggle button icon"><span class="dashicons dashicons-admin-generic"></span></button>
                 <div class="node-tools">
-                    <button class="button edit-image" type="button">Select Image</button>
-                    <input class="card-link-input" placeholder="Card link (https://...)" value="${ n.link || '' }" />
+                    <button class="button button-primary edit-image" type="button">
+                        <span class="dashicons dashicons-format-image" style="font-size: 16px; margin-top: 4px;"></span>
+                        Select Image
+                    </button>
+                    <label>Card Link</label>
+                    <input class="card-link-input" placeholder="https://example.com" value="${ n.link || '' }" />
+                    <label>Link Target</label>
                     <select class="card-link-target">
-                        <option value="_self" ${ !n.target || n.target === '_self' ? 'selected' : '' }>Same window</option>
-                        <option value="_blank" ${ n.target === '_blank' ? 'selected' : '' }>New window</option>
+                        <option value="_self" ${ !n.target || n.target === '_self' ? 'selected' : '' }>Same Window</option>
+                        <option value="_blank" ${ n.target === '_blank' ? 'selected' : '' }>New Window</option>
                     </select>
-                    <label style="display:block;margin-top:8px;font-size:12px;color:#666;">Style</label>
-                    <select class="card-node-style" style="width:100%;">${styleOptions}</select>
-                    <label style="display:block;margin-top:8px;font-size:12px;color:#666;">Connection Style</label>
-                    <select class="card-connection-style" style="width:100%;">
+                    <label>Card Style</label>
+                    <select class="card-node-style">${styleOptions}</select>
+                    <label>Connection Style</label>
+                    <select class="card-connection-style">
                         ${ Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('') }
                     </select>
                 </div>

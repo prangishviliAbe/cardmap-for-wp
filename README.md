@@ -1,6 +1,6 @@
-![Card Map Builder Pro](assets/cover.png)
+![CardMap for WP Banner](assets/images/banner.png)
 
-# Card Map Builder Pro
+# CardMap for WP
 
 A WordPress plugin for creating interactive, node-based maps with connections. Built with jsPlumb, this plugin allows you to visually design and display complex diagrams, flowcharts, or maps on your WordPress site using a simple shortcode.
 
@@ -37,6 +37,19 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 7.  To display the map, copy the shortcode provided in the "Shortcode" meta box (e.g., `[cardmap id="123"]`) and paste it into any post or page.
 
 ## Changelog
+
+### v1.10.5 (2025-10-10)
+
+- **🎨 Major UI Enhancement:** Completely redesigned card settings panel with sophisticated modern visuals
+- **✨ Enhanced Settings Toggle:** Beautiful gradient background with smooth rotation animations and color transitions
+- **💫 Animated Panel:** Settings panel now slides down smoothly with elegant cubic-bezier easing
+- **🎯 Premium Form Styling:** All inputs and selects feature modern styling with focus states, shadows, and hover effects
+- **📝 Clear Labeling:** Added professional uppercase labels for all card settings fields
+- **🔵 Enhanced Image Button:** Select Image button features primary gradient color and icon for better visibility
+- **🌟 Custom Dropdowns:** Styled select boxes with custom arrows and improved user experience
+- **🎨 Sophisticated Colors:** Modern gradient schemes, subtle shadows, and refined color palette throughout
+- **⚡ Smooth Animations:** Transform effects, hover states, and transitions on all interactive elements
+- **💡 Better UX:** Enhanced visual feedback and accessibility across the entire settings interface
 
 ### v1.10.4 (2025-10-10)
 

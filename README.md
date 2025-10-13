@@ -40,14 +40,23 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ### v1.10.8 (2025-10-13)
 
+- **🔧 Critical Fix:** Arrow overlays now properly visible on all arrow-styled connections (straight, flowchart, dashed, dotted)
+- **🔧 Critical Fix:** Context menu now works multiple times without requiring page refresh
+- **🔧 Critical Fix:** Style overlap issue resolved - styles now switch cleanly without remnants of previous style
 - **✨ New Feature:** Added arrow support for dashed and dotted connection styles
-- **🎯 Enhancement:** New "Dashed with Arrows" style option available
-- **🎯 Enhancement:** New "Dotted with Arrows" style option available
-- **🔧 Fixed:** Arrow overlays now properly display on dashed connections
-- **🔧 Fixed:** Arrow overlays now properly display on dotted connections
-- **⚡ Consistency:** Arrow styles now work uniformly across all connection types in both admin panel and frontend
-- **🎨 UX Improvement:** Right-click context menu now includes all arrow variations for dashed and dotted lines
-- **📋 Quality:** Improved stroke dash array handling for better cross-browser compatibility
+- **✨ New Feature:** Added "Dashed with Arrows" style option
+- **✨ New Feature:** Added "Dotted with Arrows" style option
+- **✨ New Feature:** Added "Bezier with Arrows" style option
+- **✨ New Feature:** Automatic migration system to update settings to modern standards
+- **� Improvement:** Removed "Default Connection Line Style" global setting (now uses per-connection styling only)
+- **🔄 Improvement:** Added backwards compatibility for legacy style names (rounded-flowchart, curved-bezier, parallel, etc.)
+- **🔄 Improvement:** Enhanced arrow overlay rendering with proper fill, stroke, and foldback properties
+- **🔄 Improvement:** Improved style normalization for old/incorrect naming conventions
+- **🔄 Improvement:** Better event handler cleanup to prevent duplicate listeners
+- **⚡ Technical:** Version-based migration system for automatic settings updates
+- **⚡ Technical:** Proper paint style reset to prevent style overlap
+- **⚡ Technical:** Multiple delayed repaints for reliable arrow rendering
+- **⚡ Technical:** Re-attach context menu after connector changes to maintain functionality
 
 ### v1.10.7 (2025-10-10)
 

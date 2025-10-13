@@ -3077,9 +3077,13 @@
             if (style && typeof style === 'string') {
                 normalizedStyle = style
                     .replace(/^flowchart-straight-with-arrows$/, 'straight-with-arrows')
-                    .replace(/^bezier-with-arrows$/, 'straight-with-arrows') // Assume bezier arrows should use straight
                     .replace(/^straight-arrows$/, 'straight-with-arrows')
-                    .replace(/^flowchart-arrows$/, 'flowchart-with-arrows');
+                    .replace(/^flowchart-arrows$/, 'flowchart-with-arrows')
+                    .replace(/^rounded-flowchart$/, 'flowchart')
+                    .replace(/^curved-bezier$/, 'bezier')
+                    .replace(/^rounded-bezier$/, 'bezier')
+                    .replace(/^parallel$/, 'straight')
+                    .replace(/^diagonal$/, 'straight');
             }
             
             const styles = {

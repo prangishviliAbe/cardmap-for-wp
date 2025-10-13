@@ -36,12 +36,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const dashedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "4 2", strokeDasharray: "4 2" };
             const dottedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "1 4", strokeDasharray: "1 4" };
 
-            switch (style) {
+            // Normalize old style names
+            let normalizedStyle = style;
+            if (style && typeof style === 'string') {
+                normalizedStyle = style
+                    .replace(/^flowchart-straight-with-arrows$/, 'straight-with-arrows')
+                    .replace(/^straight-arrows$/, 'straight-with-arrows')
+                    .replace(/^flowchart-arrows$/, 'flowchart-with-arrows')
+                    .replace(/^rounded-flowchart$/, 'flowchart')
+                    .replace(/^curved-bezier$/, 'bezier')
+                    .replace(/^rounded-bezier$/, 'bezier')
+                    .replace(/^parallel$/, 'straight')
+                    .replace(/^diagonal$/, 'straight');
+            }
+
+            switch (normalizedStyle) {
                 case 'normal':
                 case 'straight':
                     return { connector: ["Straight"], paintStyle: baseConfig, overlays: [] };
                 case 'bezier':
-                case 'rounded-bezier':
                     return { connector: ["Bezier", {curviness: 50}], paintStyle: baseConfig, overlays: [] };
                 case 'flowchart':
                     return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: [] };
@@ -51,8 +64,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     return { connector: ["Straight"], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
                 case 'flowchart-with-arrows':
                     return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
-                case 'diagonal':
-                    return { connector: ["Straight"], paintStyle: baseConfig, anchors: ["TopLeft", "BottomRight"], overlays: [] };
+                case 'bezier-with-arrows':
+                    return { connector: ["Bezier", {curviness: 50}], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
                 case 'dashed':
                     return { connector: ["Straight"], paintStyle: dashedConfig, overlays: [] };
                 case 'dotted':

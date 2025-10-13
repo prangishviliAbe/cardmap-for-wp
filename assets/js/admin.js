@@ -3334,10 +3334,23 @@
         addConnectionContextMenu(connection) {
             const connEl = connection.canvas || (connection.getConnector && connection.getConnector().canvas);
             if (connEl) {
-                connEl.addEventListener('contextmenu', (e) => {
+                // Create a unique handler for this connection
+                const contextMenuHandler = (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     this.showConnectionContextMenu(connection, e);
-                });
+                };
+                
+                // Remove old handler if it exists
+                if (connEl._contextMenuHandler) {
+                    connEl.removeEventListener('contextmenu', connEl._contextMenuHandler);
+                }
+                
+                // Add new handler
+                connEl.addEventListener('contextmenu', contextMenuHandler);
+                connEl._contextMenuHandler = contextMenuHandler;
+                
+                console.log('Context menu attached to connection:', connection._cardmap_id);
             }
         }
 
@@ -3460,16 +3473,24 @@
                 
                 // Add new overlays (arrows, etc.)
                 if (config.overlays && Array.isArray(config.overlays) && config.overlays.length > 0) {
+                    console.log('Adding overlays:', config.overlays, 'to connection:', connection._cardmap_id);
                     config.overlays.forEach(overlay => {
                         if (connection.addOverlay) {
                             try {
-                                connection.addOverlay(overlay);
+                                const result = connection.addOverlay(overlay);
+                                console.log('Overlay added, result:', result);
                             } catch (e) {
-                                console.warn('Error adding overlay:', e);
+                                console.error('Error adding overlay:', e);
                             }
                         }
                     });
+                    console.log('Connection overlays after adding:', connection.getOverlays ? connection.getOverlays() : 'getOverlays not available');
                 }
+                
+                // Re-attach context menu listener since canvas element may have been replaced
+                setTimeout(() => {
+                    this.addConnectionContextMenu(connection);
+                }, 100);
                 
                 // Force multiple repaints to ensure arrows appear
                 setTimeout(() => {
@@ -3480,7 +3501,7 @@
                 setTimeout(() => {
                     if (connection.repaint) connection.repaint();
                     this.instance.repaintEverything();
-                }, 50);
+                }, 100);
                 
                 // Save changes
                 this.saveMapData();

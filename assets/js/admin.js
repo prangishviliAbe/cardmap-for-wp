@@ -16,7 +16,7 @@
 
             // Configuration from WordPress
             this.config = {
-                lineStyle: cardmap_admin_data.line_style,
+                lineStyle: 'straight-with-arrows', // Default connection style
                 availableLineStyles: this.parseJson(cardmap_admin_data.available_line_styles, {}),
                 lineColor: cardmap_admin_data.line_color,
                 lineThickness: cardmap_admin_data.line_thickness,

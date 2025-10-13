@@ -53,7 +53,6 @@ function cardmap_admin_assets( $hook ) {
             'nonce' => wp_create_nonce( 'cardmap_save' ),
             'post_id' => $post_id,
             'map_data' => $map_data,
-            'line_style' => get_option( 'cardmap_line_style', 'straight-with-arrows' ),
             'available_line_styles' => json_decode( get_option( 'cardmap_line_styles', json_encode( [ 'normal' => 'Normal', 'straight' => 'Straight', 'straight-with-arrows' => 'Straight with Arrows', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dashed-with-arrows' => 'Dashed with Arrows', 'dotted' => 'Dotted', 'dotted-with-arrows' => 'Dotted with Arrows', 'flowchart' => 'Flowchart', 'flowchart-with-arrows' => 'Flowchart with Arrows' ] ) ), true ),
             'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
             'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),

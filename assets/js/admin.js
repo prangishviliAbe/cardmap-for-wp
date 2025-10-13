@@ -3478,23 +3478,35 @@
                 const config = this.getConnectorConfig(newStyle);
                 console.log('Config for style:', config);
                 
-                // Update connector type first
+                // Clear existing overlays FIRST before changing anything
+                if (connection.removeAllOverlays) {
+                    const existingOverlays = connection.getOverlays ? connection.getOverlays() : [];
+                    console.log('Existing overlays before removal:', existingOverlays);
+                    connection.removeAllOverlays();
+                }
+                
+                // Reset paint style to base config FIRST to clear any dash/dot styles
+                const basePaintStyle = { 
+                    stroke: this.config.lineColor, 
+                    strokeWidth: this.config.lineThickness,
+                    strokeDasharray: "0",  // Reset to solid line
+                    dashstyle: "0"         // Reset jsPlumb dash style
+                };
+                if (connection.setPaintStyle) {
+                    connection.setPaintStyle(basePaintStyle);
+                    console.log('Reset base paint style');
+                }
+                
+                // Update connector type
                 if (config.connector && connection.setConnector) {
                     connection.setConnector(config.connector);
                     console.log('Connector set to:', config.connector);
                 }
                 
-                // Update paint style
+                // Now apply the actual new paint style (if different from base)
                 if (config.paintStyle && connection.setPaintStyle) {
                     connection.setPaintStyle(config.paintStyle);
                     console.log('Paint style set to:', config.paintStyle);
-                }
-                
-                // Clear existing overlays
-                if (connection.removeAllOverlays) {
-                    const existingOverlays = connection.getOverlays ? connection.getOverlays() : [];
-                    console.log('Existing overlays before removal:', existingOverlays);
-                    connection.removeAllOverlays();
                 }
                 
                 // Add new overlays (arrows, etc.)

@@ -20,6 +20,33 @@ add_action( 'plugins_loaded', function() {
     load_plugin_textdomain( 'cardmap', false, dirname( plugin_basename( __FILE__ ) ) . '/languages/' );
 });
 
+// Migration: Update line styles to include all modern styles
+add_action( 'admin_init', function() {
+    $current_version = get_option( 'cardmap_version', '0' );
+    $plugin_version = '1.10.8';
+    
+    // Run migration if version is different
+    if ( version_compare( $current_version, $plugin_version, '<' ) ) {
+        // Update line styles to include all modern arrow styles
+        $modern_styles = [
+            'normal' => 'Normal',
+            'straight' => 'Straight',
+            'straight-with-arrows' => 'Straight with Arrows',
+            'bezier' => 'Bezier',
+            'bezier-with-arrows' => 'Bezier with Arrows',
+            'dashed' => 'Dashed',
+            'dashed-with-arrows' => 'Dashed with Arrows',
+            'dotted' => 'Dotted',
+            'dotted-with-arrows' => 'Dotted with Arrows',
+            'flowchart' => 'Flowchart',
+            'flowchart-with-arrows' => 'Flowchart with Arrows'
+        ];
+        
+        update_option( 'cardmap_line_styles', json_encode( $modern_styles, JSON_PRETTY_PRINT ) );
+        update_option( 'cardmap_version', $plugin_version );
+    }
+});
+
 // Include required files
 require_once CARDMAP_PLUGIN_DIR . 'includes/post-type.php';
 require_once CARDMAP_PLUGIN_DIR . 'includes/settings-page.php';

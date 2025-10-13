@@ -3058,7 +3058,7 @@
          */
         getConnectorConfig(style) {
             const baseConfig = { stroke: this.config.lineColor, strokeWidth: this.config.lineThickness };
-            const overlays = [["Arrow", { width: 10, length: 10, location: 1 }]];
+            const overlays = [["Arrow", { width: 10, length: 10, location: 1, foldback: 0.8, fill: this.config.lineColor, stroke: this.config.lineColor }]];
             const dashedConfig = { ...baseConfig, dashstyle: "4 2", strokeDasharray: "4 2" };
             const dottedConfig = { ...baseConfig, dashstyle: "1 4", strokeDasharray: "1 4" };
             const styles = {

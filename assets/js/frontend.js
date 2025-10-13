@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Default rail thickness when not provided should be 3px
             const railSize = rail_size ? parseInt(rail_size, 10) : 3;
             const baseConfig = { stroke: color, strokeWidth: thickness };
-            const overlays = [["Arrow",{ width:10, length:10, location:1 }]];
+            const overlays = [["Arrow",{ width:10, length:10, location:1, foldback:0.8, fill:color, stroke:color }]];
             const dashedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "4 2", strokeDasharray: "4 2" };
             const dottedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "1 4", strokeDasharray: "1 4" };
 
@@ -210,7 +210,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     connection.removeAllOverlays();
 
                     // Add arrow overlay pointing to the new target (location 1 = end of connection)
-                    const arrowOverlay = ["Arrow", { width: 10, length: 10, location: 1 }];
+                    const arrowColor = connection.getPaintStyle().stroke || '#A61832';
+                    const arrowOverlay = ["Arrow", { width: 10, length: 10, location: 1, foldback: 0.8, fill: arrowColor, stroke: arrowColor }];
                     connection.addOverlay(arrowOverlay);
                 }
 

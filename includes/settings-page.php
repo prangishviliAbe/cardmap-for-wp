@@ -25,7 +25,7 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_line_color', [ 'type' => 'string', 'default' => '#A61832' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_line_thickness', [ 'type' => 'integer', 'default' => 2 ] );
     register_setting( 'cardmap_settings_group', 'cardmap_node_styles', [ 'type' => 'string', 'default' => json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted' ], JSON_PRETTY_PRINT ) ] );
-    register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'normal' => 'Normal', 'straight' => 'Straight', 'straight-with-arrows' => 'Straight with Arrows', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dashed-with-arrows' => 'Dashed with Arrows', 'dotted' => 'Dotted', 'dotted-with-arrows' => 'Dotted with Arrows', 'flowchart' => 'Flowchart', 'flowchart-with-arrows' => 'Flowchart with Arrows' ], JSON_PRETTY_PRINT ) ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_line_styles', [ 'type' => 'string', 'default' => json_encode( [ 'normal' => 'Normal', 'straight' => 'Straight', 'straight-with-arrows' => 'Straight with Arrows', 'bezier' => 'Bezier', 'bezier-with-arrows' => 'Bezier with Arrows', 'dashed' => 'Dashed', 'dashed-with-arrows' => 'Dashed with Arrows', 'dotted' => 'Dotted', 'dotted-with-arrows' => 'Dotted with Arrows', 'flowchart' => 'Flowchart', 'flowchart-with-arrows' => 'Flowchart with Arrows' ], JSON_PRETTY_PRINT ) ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_auto_align', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
     register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_type', [ 'type' => 'string', 'default' => 'draw' ] );
@@ -285,7 +285,7 @@ function cardmap_settings_page() {
                         </div>
                         <div class="setting-item">
                             <label for="cardmap_line_styles" class="setting-title">Per-Connection Styles (JSON)</label>
-                            <textarea id="cardmap_line_styles" name="cardmap_line_styles" rows="4"><?php echo esc_textarea( get_option('cardmap_line_styles', json_encode( [ 'normal' => 'Normal', 'straight' => 'Straight', 'straight-with-arrows' => 'Straight with Arrows', 'bezier' => 'Bezier', 'dashed' => 'Dashed', 'dashed-with-arrows' => 'Dashed with Arrows', 'dotted' => 'Dotted', 'dotted-with-arrows' => 'Dotted with Arrows', 'flowchart' => 'Flowchart', 'flowchart-with-arrows' => 'Flowchart with Arrows' ], JSON_PRETTY_PRINT ) ) ); ?></textarea>
+                            <textarea id="cardmap_line_styles" name="cardmap_line_styles" rows="4"><?php echo esc_textarea( get_option('cardmap_line_styles', json_encode( [ 'normal' => 'Normal', 'straight' => 'Straight', 'straight-with-arrows' => 'Straight with Arrows', 'bezier' => 'Bezier', 'bezier-with-arrows' => 'Bezier with Arrows', 'dashed' => 'Dashed', 'dashed-with-arrows' => 'Dashed with Arrows', 'dotted' => 'Dotted', 'dotted-with-arrows' => 'Dotted with Arrows', 'flowchart' => 'Flowchart', 'flowchart-with-arrows' => 'Flowchart with Arrows' ], JSON_PRETTY_PRINT ) ) ); ?></textarea>
                             <p class="description">JSON object of <code>style-key:label</code> pairs for connection styles in the editor, e.g., <code>{"straight":"Straight","dashed":"Dashed"}</code>.</p>
                         </div>
                     </div>

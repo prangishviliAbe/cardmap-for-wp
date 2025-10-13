@@ -3070,6 +3070,18 @@
             }];
             const dashedConfig = { ...baseConfig, dashstyle: "4 2", strokeDasharray: "4 2" };
             const dottedConfig = { ...baseConfig, dashstyle: "1 4", strokeDasharray: "1 4" };
+            
+            // Normalize style name - handle old/incorrect naming conventions
+            let normalizedStyle = style;
+            // Handle old style names with incorrect prefixes
+            if (style && typeof style === 'string') {
+                normalizedStyle = style
+                    .replace(/^flowchart-straight-with-arrows$/, 'straight-with-arrows')
+                    .replace(/^bezier-with-arrows$/, 'straight-with-arrows') // Assume bezier arrows should use straight
+                    .replace(/^straight-arrows$/, 'straight-with-arrows')
+                    .replace(/^flowchart-arrows$/, 'flowchart-with-arrows');
+            }
+            
             const styles = {
                 'normal': { connector: ["Straight"], overlays: [] },
                 'straight': { connector: ["Straight"], overlays: [] },
@@ -3078,13 +3090,16 @@
                 'state-machine': { connector: ["StateMachine", { curviness: 20 }], overlays: [] },
                 'straight-with-arrows': { connector: ["Straight"], overlays: [createArrowOverlay()] },
                 'flowchart-with-arrows': { connector: ["Flowchart"], overlays: [createArrowOverlay()] },
+                'bezier-with-arrows': { connector: ["Bezier", { curviness: 50 }], overlays: [createArrowOverlay()] },
                 'dashed': { connector: ["Straight"], paintStyle: dashedConfig, overlays: [] },
                 'dotted': { connector: ["Straight"], paintStyle: dottedConfig, overlays: [] },
                 'dashed-with-arrows': { connector: ["Straight"], paintStyle: dashedConfig, overlays: [createArrowOverlay()] },
                 'dotted-with-arrows': { connector: ["Straight"], paintStyle: dottedConfig, overlays: [createArrowOverlay()] }
             };
-            // Default to straight line without arrows for unknown styles
-            const config = styles[style] || styles['straight'];
+            
+            // Use normalized style or default to straight
+            const config = styles[normalizedStyle] || styles['straight'];
+            console.log('getConnectorConfig - input:', style, 'normalized:', normalizedStyle, 'has overlays:', config.overlays.length);
             return { ...config, paintStyle: config.paintStyle || baseConfig };
         }
 

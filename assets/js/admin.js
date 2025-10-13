@@ -3450,41 +3450,52 @@
          */
         applyConnectionStyle(connection, connData, newStyle) {
             try {
+                console.log('=== Applying style:', newStyle, 'to connection:', connection._cardmap_id);
+                
                 // Update connection data
                 connData.style = newStyle;
                 
                 // Apply visual changes to the connection
                 const config = this.getConnectorConfig(newStyle);
+                console.log('Config for style:', config);
                 
                 // Update connector type first
                 if (config.connector && connection.setConnector) {
                     connection.setConnector(config.connector);
+                    console.log('Connector set to:', config.connector);
                 }
                 
                 // Update paint style
                 if (config.paintStyle && connection.setPaintStyle) {
                     connection.setPaintStyle(config.paintStyle);
+                    console.log('Paint style set to:', config.paintStyle);
                 }
                 
                 // Clear existing overlays
                 if (connection.removeAllOverlays) {
+                    const existingOverlays = connection.getOverlays ? connection.getOverlays() : [];
+                    console.log('Existing overlays before removal:', existingOverlays);
                     connection.removeAllOverlays();
                 }
                 
                 // Add new overlays (arrows, etc.)
                 if (config.overlays && Array.isArray(config.overlays) && config.overlays.length > 0) {
-                    console.log('Adding overlays:', config.overlays, 'to connection:', connection._cardmap_id);
-                    config.overlays.forEach(overlay => {
+                    console.log('Adding', config.overlays.length, 'overlays:', JSON.stringify(config.overlays));
+                    config.overlays.forEach((overlay, index) => {
                         if (connection.addOverlay) {
                             try {
+                                console.log('Adding overlay', index, ':', overlay);
                                 const result = connection.addOverlay(overlay);
-                                console.log('Overlay added, result:', result);
+                                console.log('Overlay', index, 'added successfully, result:', result);
                             } catch (e) {
-                                console.error('Error adding overlay:', e);
+                                console.error('Error adding overlay', index, ':', e);
                             }
                         }
                     });
-                    console.log('Connection overlays after adding:', connection.getOverlays ? connection.getOverlays() : 'getOverlays not available');
+                    const finalOverlays = connection.getOverlays ? connection.getOverlays() : [];
+                    console.log('Connection overlays after adding:', finalOverlays);
+                } else {
+                    console.log('No overlays to add. Config.overlays:', config.overlays);
                 }
                 
                 // Re-attach context menu listener since canvas element may have been replaced

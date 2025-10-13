@@ -3058,7 +3058,16 @@
          */
         getConnectorConfig(style) {
             const baseConfig = { stroke: this.config.lineColor, strokeWidth: this.config.lineThickness };
-            const overlays = [["Arrow", { width: 10, length: 10, location: 1, foldback: 0.8, fill: this.config.lineColor, stroke: this.config.lineColor }]];
+            // Arrow overlay with proper styling - must be recreated each time to avoid reference issues
+            const createArrowOverlay = () => ["Arrow", { 
+                width: 12, 
+                length: 12, 
+                location: 1, 
+                foldback: 0.8, 
+                fill: this.config.lineColor, 
+                stroke: this.config.lineColor,
+                strokeWidth: 1
+            }];
             const dashedConfig = { ...baseConfig, dashstyle: "4 2", strokeDasharray: "4 2" };
             const dottedConfig = { ...baseConfig, dashstyle: "1 4", strokeDasharray: "1 4" };
             const styles = {
@@ -3067,12 +3076,12 @@
                 'bezier': { connector: ["Bezier", { curviness: 50 }], overlays: [] },
                 'flowchart': { connector: ["Flowchart"], overlays: [] },
                 'state-machine': { connector: ["StateMachine", { curviness: 20 }], overlays: [] },
-                'straight-with-arrows': { connector: ["Straight"], overlays: overlays },
-                'flowchart-with-arrows': { connector: ["Flowchart"], overlays: overlays },
+                'straight-with-arrows': { connector: ["Straight"], overlays: [createArrowOverlay()] },
+                'flowchart-with-arrows': { connector: ["Flowchart"], overlays: [createArrowOverlay()] },
                 'dashed': { connector: ["Straight"], paintStyle: dashedConfig, overlays: [] },
                 'dotted': { connector: ["Straight"], paintStyle: dottedConfig, overlays: [] },
-                'dashed-with-arrows': { connector: ["Straight"], paintStyle: dashedConfig, overlays: overlays },
-                'dotted-with-arrows': { connector: ["Straight"], paintStyle: dottedConfig, overlays: overlays }
+                'dashed-with-arrows': { connector: ["Straight"], paintStyle: dashedConfig, overlays: [createArrowOverlay()] },
+                'dotted-with-arrows': { connector: ["Straight"], paintStyle: dottedConfig, overlays: [createArrowOverlay()] }
             };
             // Default to straight line without arrows for unknown styles
             const config = styles[style] || styles['straight'];
@@ -3394,7 +3403,13 @@
 
             // Close menu when clicking outside
             setTimeout(() => {
-                document.addEventListener('click', this.hideConnectionContextMenuOnOutsideClick.bind(this), { once: true });
+                const outsideClickHandler = (event) => {
+                    if (this.currentConnectionMenu && !this.currentConnectionMenu.menu.contains(event.target)) {
+                        this.hideConnectionContextMenu();
+                        document.removeEventListener('click', outsideClickHandler);
+                    }
+                };
+                document.addEventListener('click', outsideClickHandler);
             }, 10);
         }
 
@@ -3428,31 +3443,44 @@
                 // Apply visual changes to the connection
                 const config = this.getConnectorConfig(newStyle);
                 
+                // Update connector type first
+                if (config.connector && connection.setConnector) {
+                    connection.setConnector(config.connector);
+                }
+                
                 // Update paint style
                 if (config.paintStyle && connection.setPaintStyle) {
                     connection.setPaintStyle(config.paintStyle);
                 }
                 
-                // Update connector type
-                if (config.connector && connection.setConnector) {
-                    connection.setConnector(config.connector);
-                }
-                
-                // Update overlays (arrows, etc.)
+                // Clear existing overlays
                 if (connection.removeAllOverlays) {
                     connection.removeAllOverlays();
                 }
-                if (config.overlays && Array.isArray(config.overlays)) {
+                
+                // Add new overlays (arrows, etc.)
+                if (config.overlays && Array.isArray(config.overlays) && config.overlays.length > 0) {
                     config.overlays.forEach(overlay => {
                         if (connection.addOverlay) {
-                            connection.addOverlay(overlay);
+                            try {
+                                connection.addOverlay(overlay);
+                            } catch (e) {
+                                console.warn('Error adding overlay:', e);
+                            }
                         }
                     });
                 }
                 
-                // Force repaint
-                if (connection.repaint) connection.repaint();
-                this.instance.repaintEverything();
+                // Force multiple repaints to ensure arrows appear
+                setTimeout(() => {
+                    if (connection.repaint) connection.repaint();
+                    this.instance.repaintEverything();
+                }, 10);
+                
+                setTimeout(() => {
+                    if (connection.repaint) connection.repaint();
+                    this.instance.repaintEverything();
+                }, 50);
                 
                 // Save changes
                 this.saveMapData();

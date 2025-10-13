@@ -23,7 +23,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Default rail thickness when not provided should be 3px
             const railSize = rail_size ? parseInt(rail_size, 10) : 3;
             const baseConfig = { stroke: color, strokeWidth: thickness };
-            const overlays = [["Arrow",{ width:10, length:10, location:1, foldback:0.8, fill:color, stroke:color }]];
+            // Create arrow overlay with proper styling
+            const createArrowOverlay = () => ["Arrow", { 
+                width: 12, 
+                length: 12, 
+                location: 1, 
+                foldback: 0.8, 
+                fill: color, 
+                stroke: color,
+                strokeWidth: 1
+            }];
             const dashedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "4 2", strokeDasharray: "4 2" };
             const dottedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "1 4", strokeDasharray: "1 4" };
 
@@ -39,9 +48,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'state-machine':
                     return { connector: ["StateMachine", { curviness: 20, margin: 5, proximity: 10 }], paintStyle: baseConfig, overlays: [] };
                 case 'straight-with-arrows':
-                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: overlays };
+                    return { connector: ["Straight"], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
                 case 'flowchart-with-arrows':
-                    return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: overlays };
+                    return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
                 case 'diagonal':
                     return { connector: ["Straight"], paintStyle: baseConfig, anchors: ["TopLeft", "BottomRight"], overlays: [] };
                 case 'dashed':
@@ -49,9 +58,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'dotted':
                     return { connector: ["Straight"], paintStyle: dottedConfig, overlays: [] };
                 case 'dashed-with-arrows':
-                    return { connector: ["Straight"], paintStyle: dashedConfig, overlays: overlays };
+                    return { connector: ["Straight"], paintStyle: dashedConfig, overlays: [createArrowOverlay()] };
                 case 'dotted-with-arrows':
-                    return { connector: ["Straight"], paintStyle: dottedConfig, overlays: overlays };
+                    return { connector: ["Straight"], paintStyle: dottedConfig, overlays: [createArrowOverlay()] };
                 case 'rail':
                     return {
                         connector: ["StateMachine", { curviness: 0, margin: 5, proximity: 10 }],

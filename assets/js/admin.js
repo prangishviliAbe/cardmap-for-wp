@@ -3059,6 +3059,8 @@
         getConnectorConfig(style) {
             const baseConfig = { stroke: this.config.lineColor, strokeWidth: this.config.lineThickness };
             const overlays = [["Arrow", { width: 10, length: 10, location: 1 }]];
+            const dashedConfig = { ...baseConfig, dashstyle: "4 2", strokeDasharray: "4 2" };
+            const dottedConfig = { ...baseConfig, dashstyle: "1 4", strokeDasharray: "1 4" };
             const styles = {
                 'normal': { connector: ["Straight"], overlays: [] },
                 'straight': { connector: ["Straight"], overlays: [] },
@@ -3067,8 +3069,10 @@
                 'state-machine': { connector: ["StateMachine", { curviness: 20 }], overlays: [] },
                 'straight-with-arrows': { connector: ["Straight"], overlays: overlays },
                 'flowchart-with-arrows': { connector: ["Flowchart"], overlays: overlays },
-                'dashed': { paintStyle: { ...baseConfig, dashstyle: "4 2" }, overlays: [] },
-                'dotted': { paintStyle: { ...baseConfig, dashstyle: "1 1" }, overlays: [] }
+                'dashed': { connector: ["Straight"], paintStyle: dashedConfig, overlays: [] },
+                'dotted': { connector: ["Straight"], paintStyle: dottedConfig, overlays: [] },
+                'dashed-with-arrows': { connector: ["Straight"], paintStyle: dashedConfig, overlays: overlays },
+                'dotted-with-arrows': { connector: ["Straight"], paintStyle: dottedConfig, overlays: overlays }
             };
             // Default to straight line without arrows for unknown styles
             const config = styles[style] || styles['straight'];

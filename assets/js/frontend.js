@@ -24,8 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const railSize = rail_size ? parseInt(rail_size, 10) : 3;
             const baseConfig = { stroke: color, strokeWidth: thickness };
             const overlays = [["Arrow",{ width:10, length:10, location:1 }]];
-            const dashedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "4 2", strokeDasharray: "4 2" };
-            const dottedOverlay = { stroke: color, strokeWidth: thickness, dashstyle: "1 4", strokeDasharray: "1 4" };
+            const dashedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "4 2", strokeDasharray: "4 2" };
+            const dottedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "1 4", strokeDasharray: "1 4" };
 
             switch (style) {
                 case 'normal':
@@ -45,9 +45,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'diagonal':
                     return { connector: ["Straight"], paintStyle: baseConfig, anchors: ["TopLeft", "BottomRight"], overlays: [] };
                 case 'dashed':
-                    return { connector: ["Straight"], paintStyle: dashedOverlay, overlays: [] };
+                    return { connector: ["Straight"], paintStyle: dashedConfig, overlays: [] };
                 case 'dotted':
-                    return { connector: ["Straight"], paintStyle: dottedOverlay, overlays: [] };
+                    return { connector: ["Straight"], paintStyle: dottedConfig, overlays: [] };
+                case 'dashed-with-arrows':
+                    return { connector: ["Straight"], paintStyle: dashedConfig, overlays: overlays };
+                case 'dotted-with-arrows':
+                    return { connector: ["Straight"], paintStyle: dottedConfig, overlays: overlays };
                 case 'rail':
                     return {
                         connector: ["StateMachine", { curviness: 0, margin: 5, proximity: 10 }],

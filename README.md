@@ -38,6 +38,17 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v1.10.8 (2025-10-13)
+
+- **✨ New Feature:** Added arrow support for dashed and dotted connection styles
+- **🎯 Enhancement:** New "Dashed with Arrows" style option available
+- **🎯 Enhancement:** New "Dotted with Arrows" style option available
+- **🔧 Fixed:** Arrow overlays now properly display on dashed connections
+- **🔧 Fixed:** Arrow overlays now properly display on dotted connections
+- **⚡ Consistency:** Arrow styles now work uniformly across all connection types in both admin panel and frontend
+- **🎨 UX Improvement:** Right-click context menu now includes all arrow variations for dashed and dotted lines
+- **📋 Quality:** Improved stroke dash array handling for better cross-browser compatibility
+
 ### v1.10.7 (2025-10-10)
 
 - **🐛 Critical Bug Fix:** Fixed JavaScript syntax errors in frontend.js caused by console.log removal process

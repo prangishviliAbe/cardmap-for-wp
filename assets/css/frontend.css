@@ -184,12 +184,11 @@
     pointer-events: auto !important;
     display: block !important;
     cursor: pointer !important;
-    transition: opacity 0.2s ease !important;
 }
 
 /* Hide connectors initially when animations are enabled */
 .cardmap-frontend-wrapper.cardmap-animate-connections .jtk-connector {
-    opacity: 0 !important;
+    opacity: 0;
 }
 
 .cardmap-frontend-wrapper .jtk-svg path,

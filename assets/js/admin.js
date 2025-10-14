@@ -144,7 +144,6 @@
                                 this.saveMapData();
                                 this.showToast('Connection deleted');
                             } catch (err) {
-                                console.error('Error in direct double-click deletion:', err);
                                 this.showToast('Error deleting connection');
                             }
                         }
@@ -195,7 +194,7 @@
                         connEl.classList.add('connection-hover');
                     }
                 } catch (err) {
-                    console.warn('Error adding hover effect to connection:', err);
+                    // Silently handle hover effect errors
                 }
             });
 
@@ -207,7 +206,7 @@
                         connEl.classList.remove('connection-hover');
                     }
                 } catch (err) {
-                    console.warn('Error removing hover effect from connection:', err);
+                    // Silently handle hover effect errors
                 }
             });
             this.instance.bind('click', (conn, originalEvent) => {
@@ -253,7 +252,6 @@
 
                     const connId = conn && conn._cardmap_id;
                     if (!connId) {
-                        console.warn('No connection ID found for deletion');
                         this.showToast('Error: Connection ID not found');
                         return;
                     }
@@ -272,17 +270,12 @@
                     let deleted = false;
                     try {
                         deleted = this.instance.deleteConnection(conn);
-                        if (deleted) {
-                        } else {
-                            console.warn('deleteConnection returned false');
-                        }
                     } catch (e) {
-                        console.warn('deleteConnection failed, trying detach:', e);
                         try {
                             conn.detach();
                             deleted = true;
                         } catch (detachErr) {
-                            console.error('Error detaching connection:', detachErr);
+                            // Silently handle detach errors
                         }
                     }
 
@@ -290,11 +283,9 @@
                         this.saveMapData();
                         this.showToast('Connection deleted');
                     } else {
-                        console.error('Failed to delete connection - no deletion method worked');
                         this.showToast('Error deleting connection');
                     }
                 } catch (err) {
-                    console.error('Error in double-click handler:', err);
                     this.showToast('Error deleting connection');
                 }
             });

@@ -29,7 +29,8 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_enable_auto_align', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_connection_animation', [ 'type' => 'boolean', 'default' => false ] );
     register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_type', [ 'type' => 'string', 'default' => 'draw' ] );
-    register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_duration', [ 'type' => 'integer', 'default' => 800 ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_duration', [ 'type' => 'integer', 'default' => 1200 ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_connection_animation_stagger', [ 'type' => 'integer', 'default' => 200 ] );
     register_setting( 'cardmap_settings_group', 'cardmap_show_rail_thickness', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_frontend_view', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_hover_effect', [ 'type' => 'string', 'default' => 'lift' ] );
@@ -57,6 +58,7 @@ function cardmap_export_settings() {
         'cardmap_enable_connection_animation',
         'cardmap_connection_animation_type',
         'cardmap_connection_animation_duration',
+        'cardmap_connection_animation_stagger',
         'cardmap_show_rail_thickness',
         'cardmap_enable_frontend_view',
         'cardmap_hover_effect'
@@ -114,6 +116,7 @@ function cardmap_import_settings() {
         'cardmap_enable_connection_animation',
         'cardmap_connection_animation_type',
         'cardmap_connection_animation_duration',
+        'cardmap_connection_animation_stagger',
         'cardmap_show_rail_thickness',
         'cardmap_enable_frontend_view',
         'cardmap_hover_effect'
@@ -233,6 +236,16 @@ function cardmap_settings_page() {
                                 <?php endforeach; ?>
                             </select>
                             <p class="description">Choose the animation used for connections when the map loads (when animation is enabled).</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_connection_animation_duration" class="setting-title">Animation Duration (ms)</label>
+                            <input type="number" id="cardmap_connection_animation_duration" name="cardmap_connection_animation_duration" min="100" max="5000" step="100" value="<?php echo esc_attr( get_option('cardmap_connection_animation_duration', 1200) ); ?>">
+                            <p class="description">How long each connection animation takes to complete (in milliseconds). Default: 1200ms (1.2 seconds).</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_connection_animation_stagger" class="setting-title">Animation Stagger Delay (ms)</label>
+                            <input type="number" id="cardmap_connection_animation_stagger" name="cardmap_connection_animation_stagger" min="0" max="1000" step="50" value="<?php echo esc_attr( get_option('cardmap_connection_animation_stagger', 200) ); ?>">
+                            <p class="description">Time delay between each connection starting its animation (in milliseconds). Default: 200ms. Set to 0 for all connections to animate simultaneously.</p>
                         </div>
                         <div class="setting-item">
                             <label for="cardmap_line_color" class="setting-title">Connection Line Color</label>

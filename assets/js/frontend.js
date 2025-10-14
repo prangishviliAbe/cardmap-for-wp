@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const mapData = mapConfig.map_data;
         const panZoomContainer = wrapper.querySelector('.cardmap-pan-zoom-container');
 
-
         if (!panZoomContainer || !mapData) {
             return;
         }
@@ -125,11 +124,320 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        const supportsWAAPI = typeof Element !== 'undefined' && typeof Element.prototype.animate === 'function';
+        const dashAnimationTypes = new Set(['draw', 'dash', 'bounce', 'wipe-left', 'wipe-right']);
+
+        function runFadeLikeAnimation(target, vectorPath, type, duration, delay) {
+            const computedOpacity = parseFloat(window.getComputedStyle(target).opacity || '1') || 1;
+            const needsVectorEffect = vectorPath && (type === 'slide-up' || type === 'scale' || type === 'pulse');
+            const originalVectorAttr = needsVectorEffect ? vectorPath.getAttribute('vector-effect') : null;
+            const originalVectorStyle = needsVectorEffect ? vectorPath.style.vectorEffect : null;
+
+            if (needsVectorEffect && vectorPath) {
+                vectorPath.setAttribute('vector-effect', 'non-scaling-stroke');
+            }
+
+            target.style.opacity = '0';
+            const keyframes = (() => {
+                switch (type) {
+                    case 'slide-up':
+                        target.style.transformBox = 'fill-box';
+                        target.style.transformOrigin = 'center';
+                        return [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: computedOpacity, transform: 'translateY(0)' }];
+                    case 'scale':
+                        target.style.transformBox = 'fill-box';
+                        target.style.transformOrigin = 'center';
+                        return [{ opacity: 0, transform: 'scale(0.85)' }, { opacity: computedOpacity, transform: 'scale(1)' }];
+                    case 'pulse':
+                        target.style.transformBox = 'fill-box';
+                        target.style.transformOrigin = 'center';
+                        return [
+                            { opacity: 0, transform: 'scale(0.9)' },
+                            { opacity: computedOpacity, transform: 'scale(1.05)' },
+                            { opacity: computedOpacity, transform: 'scale(1)' }
+                        ];
+                    case 'grow':
+                        // For grow animation, we'll animate both opacity and scale
+                        target.style.transformBox = 'fill-box';
+                        target.style.transformOrigin = 'center';
+                        return [
+                            { opacity: 0, transform: 'scale(0.8)' },
+                            { opacity: computedOpacity, transform: 'scale(1.1)' },
+                            { opacity: computedOpacity, transform: 'scale(1)' }
+                        ];
+                    default:
+                        return [{ opacity: 0 }, { opacity: computedOpacity }];
+                }
+            })();
+
+            const easing = type === 'pulse' ? 'ease-in-out' : 'ease-out';
+            const animation = target.animate(keyframes, {
+                duration,
+                delay,
+                fill: 'forwards',
+                easing
+            });
+
+            const restoreVectorEffect = () => {
+                if (!needsVectorEffect || !vectorPath) {
+                    return;
+                }
+                if (originalVectorAttr !== null) {
+                    vectorPath.setAttribute('vector-effect', originalVectorAttr);
+                } else {
+                    vectorPath.removeAttribute('vector-effect');
+                }
+                if (originalVectorStyle) {
+                    vectorPath.style.vectorEffect = originalVectorStyle;
+                } else {
+                    vectorPath.style.removeProperty('vector-effect');
+                }
+            };
+
+            animation.finished.then(() => {
+                target.style.opacity = `${computedOpacity}`;
+                if (type === 'slide-up' || type === 'scale' || type === 'pulse' || type === 'grow') {
+                    target.style.transform = '';
+                    target.style.transformBox = '';
+                    target.style.transformOrigin = '';
+                }
+                restoreVectorEffect();
+            }).catch(() => {
+                target.style.opacity = `${computedOpacity}`;
+                target.style.transform = '';
+                target.style.transformBox = '';
+                target.style.transformOrigin = '';
+                restoreVectorEffect();
+            });
+
+            return animation;
+        }
+
+        function runDashRevealAnimation(path, type, duration, delay) {
+            if (typeof path.getTotalLength !== 'function') {
+                return runFadeLikeAnimation(path.closest('svg') || path, path, 'fade', duration, delay);
+            }
+
+            const length = path.getTotalLength();
+
+            if (!length || !isFinite(length)) {
+                // Fallback to fade if path has no length
+                return runFadeLikeAnimation(path.closest('svg') || path, path, 'fade', duration, delay);
+            }
+            
+            // Ensure the SVG container is visible for dash animations
+            const svg = path.closest('svg');
+            if(svg) {
+                svg.style.opacity = '1';
+            }
+            path.style.opacity = '1';
+
+            const original = {
+                attrDashArray: path.getAttribute('stroke-dasharray'),
+                attrDashOffset: path.getAttribute('stroke-dashoffset'),
+                styleDashArray: path.style.strokeDasharray,
+                styleDashOffset: path.style.strokeDashoffset
+            };
+
+            // Use existing dasharray if it's a dashed line, otherwise use path length
+            const dashArrayValue = original.attrDashArray && original.attrDashArray !== 'none' && original.attrDashArray !== '0'
+                ? original.attrDashArray
+                : (original.styleDashArray && original.styleDashArray !== 'none' && original.styleDashArray !== ''
+                    ? original.styleDashArray
+                    : `${length}`);
+
+            path.style.strokeDasharray = dashArrayValue;
+
+            const startOffset = type === 'wipe-right' ? -length : length;
+            path.style.strokeDashoffset = startOffset;
+
+            const keyframes = (() => {
+                if (type === 'bounce') {
+                    return [
+                        { strokeDashoffset: startOffset, offset: 0 },
+                        { strokeDashoffset: 0, offset: 0.7 },
+                        { strokeDashoffset: startOffset * -0.1, offset: 0.85 },
+                        { strokeDashoffset: 0, offset: 1 }
+                    ];
+                } else if (type === 'wipe-left') {
+                    // Wipe from right to left
+                    return [{ strokeDashoffset: length }, { strokeDashoffset: -length }];
+                } else if (type === 'wipe-right') {
+                    // Wipe from left to right
+                    return [{ strokeDashoffset: -length }, { strokeDashoffset: length }];
+                }
+                // For 'draw' and 'dash' - animate from hidden to visible by revealing the stroke
+                return [
+                    { strokeDashoffset: length },
+                    { strokeDashoffset: 0 }
+                ];
+            })();
+
+            const easing = type === 'bounce' ? 'linear' : 'ease-out';
+
+            const animation = path.animate(keyframes, {
+                duration,
+                delay,
+                fill: 'forwards',
+                easing
+            });
+
+            const restore = () => {
+                // Restore original dash styles
+                if (original.attrDashArray !== null) {
+                    path.setAttribute('stroke-dasharray', original.attrDashArray);
+                } else if (original.styleDashArray) {
+                    path.style.strokeDasharray = original.styleDashArray;
+                } else {
+                    path.style.removeProperty('stroke-dasharray');
+                }
+
+                if (original.attrDashOffset !== null) {
+                    path.setAttribute('stroke-dashoffset', original.attrDashOffset);
+                } else if (original.styleDashOffset) {
+                    path.style.strokeDashoffset = original.styleDashOffset;
+                } else {
+                    path.style.removeProperty('stroke-dashoffset');
+                }
+            };
+
+            animation.finished.then(() => {
+                restore();
+            }).catch((error) => {
+                restore();
+            });
+
+            return animation;
+        }
+
+        function animateConnectionPath(path, rawType, durationMs, delayMs) {
+            if (!path) {
+                return;
+            }
+
+            const safeDuration = Math.max(0, parseInt(durationMs, 10) || 0);
+            const safeDelay = Math.max(0, parseInt(delayMs, 10) || 0);
+            const type = (rawType || '').toLowerCase();
+            const isDashAnimation = dashAnimationTypes.has(type);
+            const fadeTarget = !isDashAnimation ? (path.closest('svg') || path) : path;
+
+            if (safeDuration === 0 && safeDelay === 0) {
+                path.style.opacity = '';
+                if (fadeTarget !== path) {
+                    fadeTarget.style.opacity = '';
+                }
+                return;
+            }
+
+            if (!supportsWAAPI) {
+                const finalOpacity = parseFloat(window.getComputedStyle(fadeTarget).opacity || '1') || 1;
+                const startFallback = () => {
+                    let cleanupTimer = null;
+                    let rafId = null;
+                    const cancel = () => {
+                        if (rafId !== null) {
+                            cancelAnimationFrame(rafId);
+                        }
+                        if (cleanupTimer !== null) {
+                            clearTimeout(cleanupTimer);
+                        }
+                        fadeTarget.style.transition = '';
+                        fadeTarget.style.opacity = `${finalOpacity}`;
+                        if (path._cardmapAnimation && path._cardmapAnimation.cancel === cancel) {
+                            path._cardmapAnimation = null;
+                        }
+                    };
+
+                    fadeTarget.style.transition = '';
+                    fadeTarget.style.opacity = `${finalOpacity}`;
+                    fadeTarget.getBoundingClientRect();
+                    fadeTarget.style.opacity = '0';
+                    rafId = requestAnimationFrame(() => {
+                        fadeTarget.style.transition = `opacity ${safeDuration}ms ease-out`;
+                        fadeTarget.style.opacity = `${finalOpacity}`;
+                        cleanupTimer = setTimeout(() => {
+                            fadeTarget.style.transition = '';
+                            cleanupTimer = null;
+                            if (path._cardmapAnimation && path._cardmapAnimation.cancel === cancel) {
+                                path._cardmapAnimation = null;
+                            }
+                        }, safeDuration + 50);
+                    });
+
+                    path._cardmapAnimation = { cancel };
+                };
+
+                if (path._cardmapDelayTimer) {
+                    clearTimeout(path._cardmapDelayTimer);
+                    path._cardmapDelayTimer = null;
+                }
+                if (path._cardmapAnimation && typeof path._cardmapAnimation.cancel === 'function') {
+                    path._cardmapAnimation.cancel();
+                }
+                path._cardmapAnimation = null;
+
+                if (safeDelay > 0) {
+                    path._cardmapDelayTimer = setTimeout(() => {
+                        path._cardmapDelayTimer = null;
+                        startFallback();
+                    }, safeDelay);
+                } else {
+                    startFallback();
+                }
+                return;
+            }
+
+            if (path._cardmapDelayTimer) {
+                clearTimeout(path._cardmapDelayTimer);
+                path._cardmapDelayTimer = null;
+            }
+            if (path._cardmapAnimation && typeof path._cardmapAnimation.cancel === 'function') {
+                try {
+                    path._cardmapAnimation.cancel();
+                } catch (err) {
+                    // Ignore cancellation errors
+                }
+            }
+            path._cardmapAnimation = null;
+
+            const startAnimation = () => {
+                const animation = isDashAnimation
+                    ? runDashRevealAnimation(path, type, safeDuration, 0)
+                    : runFadeLikeAnimation(fadeTarget, path, type, safeDuration, 0);
+
+                if (!animation) {
+                    return null;
+                }
+
+                path._cardmapAnimation = animation;
+                const cleanup = () => {
+                    if (path._cardmapAnimation === animation) {
+                        path._cardmapAnimation = null;
+                    }
+                };
+                animation.finished.then(cleanup).catch(cleanup);
+                return animation;
+            };
+
+            if (safeDelay > 0) {
+                path._cardmapDelayTimer = setTimeout(() => {
+                    path._cardmapDelayTimer = null;
+                    startAnimation();
+                }, safeDelay);
+            } else {
+                startAnimation();
+            }
+            // Return the animation object so we can track its completion
+            return path._cardmapAnimation;
+        }
+
         const instance = jsPlumb.getInstance({
             Container: panZoomContainer,
             ConnectionsDetachable: false,
             Anchors: ["TopLeft", "TopCenter", "TopRight", "LeftMiddle", "RightMiddle", "BottomLeft", "BottomCenter", "BottomRight"]
         });
+
+        const pendingConnectionAnimations = [];
         
         // Ensure the container has proper positioning for accurate calculations
         if (!panZoomContainer.style.position) {
@@ -142,22 +450,14 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 // Ensure rail has proper ID before initializing
                 if (!railEl.id) {
-                    console.warn('Rail missing ID, skipping jsPlumb initialization');
                     return;
                 }
-
 
                 // Use Continuous anchors for rails to allow connections at any point
                 // Also ensure the rail element has proper dimensions and positioning
                 const railRect = railEl.getBoundingClientRect();
 
-                instance.makeSource(railEl, {
-                    anchor: "Continuous",
-                    endpoint: "Blank", 
-                    maxConnections: -1,
-                    allowLoopback: false,
-                    connectorStyle: { strokeWidth: 2, stroke: '#A61832' }
-                });
+                // Only make Rails targets on the frontend (not sources)
                 instance.makeTarget(railEl, {
                     anchor: "Continuous",
                     endpoint: "Blank",
@@ -166,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     connectorStyle: { strokeWidth: 2, stroke: '#A61832' }
                 });
             } catch (err) {
-                console.error('Error initializing rail as jsPlumb endpoint:', railEl.id, err);
+                // Silently handle rail initialization errors
             }
         });
 
@@ -209,10 +509,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetEl = panZoomContainer.querySelector('#' + connectionData.target);
 
             if (!sourceEl || !targetEl) {
-                console.error('Cannot reverse connection: elements not found', {
-                    source: connectionData.source,
-                    target: connectionData.target
-                });
                 return;
             }
 
@@ -243,7 +539,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 50);
 
             } catch (error) {
-                console.error('Error reversing connection:', error);
                 // Revert changes if there was an error
                 connectionData.source = originalSource;
                 connectionData.target = originalTarget;
@@ -254,24 +549,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Create connections after a short delay to ensure rails are fully initialized
         setTimeout(() => {
-            // Ensure all elements are properly managed by jsPlumb before creating connections
-            const allElements = panZoomContainer.querySelectorAll('.cardmap-node, .cardmap-rail');
-            allElements.forEach(el => {
-                if (el.id) {
-                    try {
-                        instance.manage(el);
-                    } catch (err) {
-                        console.warn('Error managing element:', el.id, err);
-                    }
-                }
-            });
-            
             instance.batch(() => {
                 if (mapData.connections) {
                     mapData.connections.forEach((c, index) => {
                     try {
                         if (!c.source || !c.target) {
-                            console.warn('Connection missing source or target:', c);
                             return;
                         }
 
@@ -382,7 +664,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                 });
 
                                 if (connection) {
-                                    
+
+                                    // If animations are enabled, immediately hide the connection's element.
+                                    if (mapConfig.enable_animation) {
+                                        const connector = connection.getConnector && connection.getConnector();
+                                        if (connector && connector.canvas) {
+                                            connector.canvas.style.opacity = '0';
+                                        }
+                                    }
+
                                     // Only do minimal repainting to avoid disrupting precise positioning
                                     setTimeout(() => {
                                         try {
@@ -392,14 +682,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 const svg = connector.canvas;
                                                 const left = parseFloat(svg.style.left) || 0;
                                                 const top = parseFloat(svg.style.top) || 0;
-                                                
+
                                                 // Only intervene if SVG has extreme negative positioning (indicating a real problem)
                                                 if (left < -100 || top < -100) {
                                                     connection.repaint();
                                                 }
                                             }
                                         } catch (repaintErr) {
-                                            console.warn('Error in minimal repaint check:', repaintErr);
+                                            // Silently handle repaint errors
                                         }
                                     }, 10);
 
@@ -447,40 +737,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
                                     // Apply animation if enabled
                                     if (mapConfig.enable_animation) {
-                                        const animType = mapConfig.connection_animation_type || 'draw';
-                                        const duration = (mapConfig.connection_animation_duration || 800) + 'ms';
-                                        const delay = index * 100; // staggered delay
+                                        const animType = mapConfig.connection_animation_type || 'fade';
+                                        const durationMs = parseInt(mapConfig.connection_animation_duration, 10) || 1200;
+                                        const staggerMs = parseInt(mapConfig.connection_animation_stagger, 10) || 0;
+                                        const delayMs = index * staggerMs;
 
-                                        // Apply animation after the connector DOM has been rendered
-                                        setTimeout(() => {
-                                            try {
-                                                const connector = connection.getConnector && connection.getConnector();
-                                                const svg = connector && connector.canvas;
-                                                const path = svg && svg.querySelector && svg.querySelector('path');
-                                                if (path) {
-                                                    path.classList.add('cardmap-connection-anim', `conn-anim-${animType}`);
-                                                    path.style.animationDelay = `${delay}ms`;
-                                                    path.style.animationDuration = duration;
-                                                }
-                                            } catch (err) {
-                                                console.warn('Could not apply animation to connection:', err);
-                                            }
-                                        }, 50);
+                                        pendingConnectionAnimations.push({
+                                            connection,
+                                            animType,
+                                            durationMs,
+                                            delayMs
+                                        });
                                     }
-                                } else {
-                                    console.error('Connection creation returned null/undefined');
                                 }
                             } catch (connErr) {
-                                console.error('Error creating connection:', connErr, {
-                                    source: c.source,
-                                    target: c.target,
-                                    sourceEl: !!sourceEl,
-                                    targetEl: !!targetEl
-                                });
+                                // Silently handle connection creation errors
                             }
                         }
                     } catch (err) {
-                        console.error('Error processing connection:', err, c);
+                        // Silently handle connection processing errors
                     }
                     });
                 }
@@ -491,39 +766,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            // Force a repaint after all connections are created
+            // Execute animations after a brief delay to ensure connections are ready
             setTimeout(() => {
                 instance.repaintEverything();
-                
-                // Only do additional fixes if there are actual positioning problems
+
                 setTimeout(() => {
-                    const allConnections = instance.getAllConnections();
-                    let problemConnections = 0;
-                    
-                    allConnections.forEach(conn => {
-                        try {
-                            const connector = conn.getConnector && conn.getConnector();
-                            if (connector && connector.canvas) {
-                                const svg = connector.canvas;
-                                const left = parseFloat(svg.style.left) || 0;
-                                const top = parseFloat(svg.style.top) || 0;
-                                
-                                // Only fix connections with extreme positioning issues
-                                if (left < -50 || top < -50) {
-                                    conn.repaint();
-                                    problemConnections++;
+                    if (mapConfig.enable_animation && pendingConnectionAnimations.length) {
+                        const animationPromises = [];
+                        // Execute animations immediately without additional repaints that could interfere
+                        pendingConnectionAnimations.forEach(item => {
+                            try {
+                                const connector = item.connection.getConnector && item.connection.getConnector();
+                                const svg = connector && connector.canvas;
+                                const path = svg && svg.querySelector && svg.querySelector('path');
+
+                                if (path) {
+                                    const animation = animateConnectionPath(path, item.animType, item.durationMs, item.delayMs);
+                                    if (animation && animation.finished) {
+                                        animationPromises.push(animation.finished);
+                                    }
                                 }
+                            } catch (err) {
+                                // Silently ignore animation errors
                             }
-                        } catch (err) {
-                            console.warn('Error checking connection positioning:', err);
+                        });
+                        pendingConnectionAnimations.length = 0;
+
+                        // When all animations are done, remove the animation class to allow connectors to show normally.
+                        if (animationPromises.length > 0) {
+                            Promise.allSettled(animationPromises).then(() => {
+                                wrapper.classList.remove('cardmap-animate-connections');
+                            });
+                        } else {
+                            // If there were no animations to run, remove the class immediately.
+                            wrapper.classList.remove('cardmap-animate-connections');
                         }
-                    });
-                    
-                    if (problemConnections > 0) {
-                    } else {
                     }
                 }, 50);
-            }, 100);
+            }, 50);
         }, 50);
 
         // Ensure rails have a visible inner bar (.rail-bar) so we can hide/show thickness
@@ -756,23 +1036,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!document.fullscreenElement) {
                     // Try standard fullscreen first
                     wrapper.requestFullscreen().catch(err => {
-                        console.warn('Standard fullscreen failed:', err);
                         // Try webkit prefix
                         if (wrapper.webkitRequestFullscreen) {
                             wrapper.webkitRequestFullscreen().catch(webkitErr => {
-                                console.warn('Webkit fullscreen failed:', webkitErr);
                                 // Try MS prefix
                                 if (wrapper.msRequestFullscreen) {
                                     wrapper.msRequestFullscreen().catch(msErr => {
-                                        console.warn('MS fullscreen failed:', msErr);
-                                        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                                        // All fullscreen methods failed
                                     });
-                                } else {
-                                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
                                 }
                             });
-                        } else {
-                            alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
                         }
                     });
                 } else {

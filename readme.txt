@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.10.8
+Stable tag: 1.10.9
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,17 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 4.  Use the shortcode `[cardmap id="your_map_id"]` to display your map.
 
 == Changelog ==
+
+= 1.10.9 =
+*   🐛 Critical Fix: Connection animations now work correctly - animation type selection from settings is properly applied
+*   🐛 Critical Fix: Animation stagger delay now works - was hardcoded to 0, now respects user settings
+*   🐛 Critical Fix: No more flash of visible connections before animation - connections hidden from page load
+*   ✨ Improvement: Removed debug/test rainbow animation code from draw/dash animations
+*   ✨ Improvement: Cleaned up all debug console.log statements for production
+*   🔄 Improvement: CSS-based connection hiding for better performance and no visual flash
+*   🔄 Improvement: Simplified animation code for better reliability
+*   ⚡ Technical: Animation class applied server-side for instant hiding
+*   ⚡ Technical: Improved animation cleanup and class management
 
 = 1.10.8 =
 *   🔧 Critical Fix: Arrow overlays now properly visible on all arrow-styled connections (straight, flowchart, dashed, dotted)

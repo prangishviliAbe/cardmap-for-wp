@@ -48,15 +48,17 @@ add_shortcode( 'cardmap', function( $atts ) {
         'enable_drag' => (bool) get_option( 'cardmap_enable_drag', 1 ),
         'enable_animation' => (bool) get_option( 'cardmap_enable_connection_animation', 0 ),
         'connection_animation_type' => get_option( 'cardmap_connection_animation_type', 'draw' ),
-        'connection_animation_duration' => (int) get_option( 'cardmap_connection_animation_duration', 800 ),
+        'connection_animation_duration' => (int) get_option( 'cardmap_connection_animation_duration', 1200 ),
+        'connection_animation_stagger' => (int) get_option( 'cardmap_connection_animation_stagger', 200 ),
     'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
         'hover_effect' => get_option( 'cardmap_hover_effect', 'lift' ),
     ];
     cardmap_add_to_localized_data($data_to_localize, $post_id);
 
     ob_start();
+    $animation_class = $data_to_localize['enable_animation'] ? ' cardmap-animate-connections' : '';
     ?>
-    <div id="cardmap-frontend-<?php echo esc_attr( $post_id ); ?>" class="cardmap-frontend-wrapper" data-map-id="<?php echo esc_attr( $post_id ); ?>" style="width:100%;height:600px;border:1px solid #ddd;position:relative;overflow:hidden;">
+    <div id="cardmap-frontend-<?php echo esc_attr( $post_id ); ?>" class="cardmap-frontend-wrapper<?php echo $animation_class; ?>" data-map-id="<?php echo esc_attr( $post_id ); ?>" style="width:100%;height:600px;border:1px solid #ddd;position:relative;overflow:hidden;">
         <div class="cardmap-viewport" style="width:100%;height:100%;position:absolute;top:0;left:0;">
             <div class="cardmap-pan-zoom-container" style="position:relative;width:1200px;height:1000px;">
                 <?php if (isset($map_data['nodes'])) : ?>

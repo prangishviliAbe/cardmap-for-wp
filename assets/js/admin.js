@@ -1590,13 +1590,13 @@
             const localY = e.clientY - rect.top;
             
             if (railData.orientation === 'vertical') {
-                // For vertical rails, choose side based on click position but keep Y precise
+                // For vertical rails, fix X to center (0.5) and keep Y precise where clicked
                 const relY = Math.max(0, Math.min(1, localY / rect.height));
-                return localX < rect.width/2 ? [0, relY, 0, 0] : [1, relY, 0, 0];
+                return [0.5, relY, 0, 0];
             } else if (railData.orientation === 'horizontal') {
-                // For horizontal rails, choose top/bottom based on click but keep X precise  
+                // For horizontal rails, fix Y to center (0.5) and keep X precise where clicked
                 const relX = Math.max(0, Math.min(1, localX / rect.width));
-                return localY < rect.height/2 ? [relX, 0, 0, 0] : [relX, 1, 0, 0];
+                return [relX, 0.5, 0, 0];
             }
             
             // For diagonal or unknown orientation, use precise positioning
@@ -3282,13 +3282,13 @@
                     const railData = this.mapData.rails.find(r => r.id === el.id);
                     if (railData) {
                         if (railData.orientation === 'vertical') {
-                            // For vertical rails, connections should typically be on the sides
-                            x = relativeX < elRect.width / 2 ? 0 : 1;
-                            // Keep y position precise along the rail length
+                            // For vertical rails, fix x to center (0.5) and keep y precise along the rail length
+                            x = 0.5;
+                            // y stays precise - wherever the user clicked
                         } else if (railData.orientation === 'horizontal') {
-                            // For horizontal rails, connections should typically be on top/bottom
-                            y = relativeY < elRect.height / 2 ? 0 : 1;
-                            // Keep x position precise along the rail length
+                            // For horizontal rails, fix y to center (0.5) and keep x precise along the rail length
+                            y = 0.5;
+                            // x stays precise - wherever the user clicked
                         }
                         // For diagonal rails, keep both x and y precise
                     }

@@ -385,6 +385,10 @@
             const autoAlignBtn = document.getElementById('auto-align-cards');
             if (autoAlignBtn) autoAlignBtn.addEventListener('click', this.autoAlignCards.bind(this));
 
+            // Align on rail button
+            const alignOnRailBtn = document.getElementById('align-on-rail');
+            if (alignOnRailBtn) alignOnRailBtn.addEventListener('click', this.alignCardsOnRail.bind(this));
+
             // Prevent default context menu on editor wrapper to allow connection context menu
             this.editorWrapper.addEventListener('contextmenu', (e) => {
                 // Only prevent if this is likely a connection right-click
@@ -2728,6 +2732,144 @@
             group.forEach(node => {
                 node.x = Math.round(avgX);
             });
+        }
+
+        /**
+         * Aligns cards along a selected rail with equal spacing.
+         * Distributes cards evenly along the rail's length.
+         */
+        alignCardsOnRail() {
+            // Check if a rail is selected
+            if (!this.selectedRail) {
+                this.showToast('⚠️ Please select a rail first', 'warning');
+                return;
+            }
+
+            // Get the rail data
+            const railId = this.selectedRail;
+            const rail = this.mapData.rails.find(r => r.id === railId);
+            
+            if (!rail) {
+                this.showToast('⚠️ Rail not found', 'error');
+                return;
+            }
+
+            // Find all connections involving this rail
+            const railConnections = this.mapData.connections.filter(conn => {
+                return conn.source === railId || conn.target === railId;
+            });
+
+            if (railConnections.length === 0) {
+                this.showToast('ℹ️ No cards connected to this rail', 'info');
+                return;
+            }
+
+            // Extract unique card IDs connected to this rail
+            const cardIds = new Set();
+            railConnections.forEach(conn => {
+                if (conn.source === railId) {
+                    cardIds.add(conn.target);
+                } else {
+                    cardIds.add(conn.source);
+                }
+            });
+
+            if (cardIds.size < 2) {
+                this.showToast('ℹ️ Need at least 2 cards to align', 'info');
+                return;
+            }
+
+            // Save state for undo
+            this.saveToHistory();
+
+            // Get card nodes
+            const cards = Array.from(cardIds).map(id => {
+                return this.mapData.nodes.find(n => n.id === id);
+            }).filter(Boolean);
+
+            // Determine rail orientation
+            const isVertical = rail.orientation === 'vertical';
+            
+            // Sort cards by position along the rail
+            if (isVertical) {
+                cards.sort((a, b) => a.y - b.y);
+            } else {
+                cards.sort((a, b) => a.x - b.x);
+            }
+
+            // Calculate rail dimensions
+            const railStart = isVertical ? rail.y : rail.x;
+            const railEnd = railStart + (isVertical ? rail.height : rail.width);
+            const railLength = railEnd - railStart;
+
+            // Calculate spacing
+            const numCards = cards.length;
+            const spacing = railLength / (numCards + 1);
+
+            // Position cards evenly along the rail
+            cards.forEach((card, index) => {
+                const position = railStart + spacing * (index + 1);
+                
+                if (isVertical) {
+                    // For vertical rails, adjust Y position
+                    card.y = Math.round(position - (card.height || 100) / 2);
+                    // Keep X aligned with rail
+                    card.x = Math.round(rail.x + (rail.width / 2) - (card.width || 200) / 2);
+                } else {
+                    // For horizontal rails, adjust X position
+                    card.x = Math.round(position - (card.width || 200) / 2);
+                    // Keep Y aligned with rail
+                    card.y = Math.round(rail.y + (rail.height / 2) - (card.height || 100) / 2);
+                }
+            });
+
+            // Update connection anchors for precision
+            railConnections.forEach(conn => {
+                const cardNode = this.mapData.nodes.find(n => 
+                    n.id === (conn.source === railId ? conn.target : conn.source)
+                );
+                
+                if (!cardNode) return;
+
+                if (isVertical) {
+                    // For vertical rails, anchor should be at precise Y position
+                    const cardCenterY = cardNode.y + (cardNode.height || 100) / 2;
+                    const relativeY = (cardCenterY - rail.y) / rail.height;
+                    const anchorY = Math.max(0, Math.min(1, relativeY));
+                    
+                    if (conn.source === railId) {
+                        conn.anchors.source = [0.5, anchorY];
+                    } else {
+                        conn.anchors.target = [0.5, anchorY];
+                    }
+                } else {
+                    // For horizontal rails, anchor should be at precise X position
+                    const cardCenterX = cardNode.x + (cardNode.width || 200) / 2;
+                    const relativeX = (cardCenterX - rail.x) / rail.width;
+                    const anchorX = Math.max(0, Math.min(1, relativeX));
+                    
+                    if (conn.source === railId) {
+                        conn.anchors.source = [anchorX, 0.5];
+                    } else {
+                        conn.anchors.target = [anchorX, 0.5];
+                    }
+                }
+            });
+
+            // Re-render the canvas
+            this.renderCanvas();
+            
+            // Repaint connections
+            if (this.jsPlumbInstance) {
+                this.jsPlumbInstance.repaintEverything();
+            }
+
+            // Auto-save
+            if (this.autoSaveEnabled) {
+                this.debouncedSave();
+            }
+
+            this.showToast(`✅ Aligned ${cards.length} cards on rail`, 'success');
         }
 
         /** Toggle delete-connection mode which allows clicking links to delete them */

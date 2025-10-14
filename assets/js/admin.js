@@ -1149,70 +1149,8 @@
             const node = params.el;
             const draggedNode = this.mapData.nodes.find(n => n.id === node.id);
 
-            // Update connections dynamically as the node moves
-            const connections = this.instance.getConnections({ source: node.id }).concat(this.instance.getConnections({ target: node.id }));
-            
-            connections.forEach(conn => {
-                try {
-                    const sourceEl = document.getElementById(conn.sourceId);
-                    const targetEl = document.getElementById(conn.targetId);
-                    
-                    if (!sourceEl || !targetEl) return;
-                    
-                    const sourceIsRail = sourceEl.classList.contains('cardmap-rail');
-                    const targetIsRail = targetEl.classList.contains('cardmap-rail');
-                    
-                    // If connected to a rail, calculate dynamic anchor position on the rail
-                    if (sourceIsRail || targetIsRail) {
-                        const railEl = sourceIsRail ? sourceEl : targetEl;
-                        const nodeEl = sourceIsRail ? targetEl : sourceEl;
-                        const railData = this.mapData.rails.find(r => r.id === railEl.id);
-                        
-                        if (railData) {
-                            // Calculate the best anchor point on the rail based on node position
-                            const nodeRect = nodeEl.getBoundingClientRect();
-                            const railRect = railEl.getBoundingClientRect();
-                            const editorRect = this.editor.getBoundingClientRect();
-                            
-                            // Convert to editor coordinates
-                            const nodeCenterX = (nodeRect.left + nodeRect.right) / 2 - editorRect.left;
-                            const nodeCenterY = (nodeRect.top + nodeRect.bottom) / 2 - editorRect.top;
-                            const railLeft = railRect.left - editorRect.left;
-                            const railTop = railRect.top - editorRect.top;
-                            
-                            let railAnchor;
-                            
-                            if (railData.orientation === 'vertical') {
-                                // For vertical rails, calculate Y position along the rail
-                                const relativeY = Math.max(0, Math.min(1, (nodeCenterY - railTop) / railRect.height));
-                                railAnchor = [0.5, relativeY, 0, 0]; // Center X, dynamic Y
-                            } else {
-                                // For horizontal rails, calculate X position along the rail
-                                const relativeX = Math.max(0, Math.min(1, (nodeCenterX - railLeft) / railRect.width));
-                                railAnchor = [relativeX, 0.5, 0, 0]; // Dynamic X, center Y
-                            }
-                            
-                            // Determine which anchor to update (source or target)
-                            if (sourceIsRail) {
-                                const targetAnchor = this.getDirectionalAnchors(targetEl, sourceEl)[0];
-                                conn.setAnchors([railAnchor, targetAnchor]);
-                            } else {
-                                const sourceAnchor = this.getDirectionalAnchors(sourceEl, targetEl)[0];
-                                conn.setAnchors([sourceAnchor, railAnchor]);
-                            }
-                        }
-                    } else if (draggedNode && draggedNode.attachedRail) {
-                        // If the node is on a rail, use simplified anchors
-                        const rail = this.mapData.rails.find(r => r.id === draggedNode.attachedRail);
-                        if (rail) {
-                            const simpleAnchors = rail.orientation === 'vertical' ? ["LeftMiddle", "RightMiddle"] : ["TopCenter", "BottomCenter"];
-                            conn.setAnchors(simpleAnchors);
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Could not update anchors during drag:', e);
-                }
-            });
+            // Note: Dynamic anchor updates during drag are handled by jsPlumb's repaint
+            // The connections will be updated properly after drag ends
 
             const rails = this.mapData.rails || [];
             let nearest = null;

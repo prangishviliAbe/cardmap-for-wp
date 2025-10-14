@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.10.11
+Stable tag: 1.10.12
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,13 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 4.  Use the shortcode `[cardmap id="your_map_id"]` to display your map.
 
 == Changelog ==
+
+= 1.10.12 =
+*   ✨ New Feature: Added "Duplicate" action to Card Maps list
+*   🎯 Enhancement: One-click duplication of entire maps with all nodes, connections, and settings
+*   🔒 Security: Proper nonce verification and permission checks for duplicate action
+*   📋 UX: Duplicated maps open immediately in edit mode with "(Copy)" appended to title
+*   🚀 Productivity: Quickly create variations of existing maps without manual recreation
 
 = 1.10.11 =
 *   ✨ New Feature: Added "Flowchart with Arrows (Dashed)" connection style

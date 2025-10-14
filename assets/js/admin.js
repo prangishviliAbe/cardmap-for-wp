@@ -931,6 +931,10 @@
                         <span class="dashicons dashicons-format-image" style="font-size: 16px; margin-top: 4px;"></span>
                         Select Image
                     </button>
+                    <button class="button duplicate-card" type="button" title="Duplicate this card">
+                        <span class="dashicons dashicons-admin-page"></span>
+                        Duplicate Card
+                    </button>
                     <label>Card Link</label>
                     <input class="card-link-input" placeholder="https://example.com" value="${ n.link || '' }" />
                     <label>Link Target</label>
@@ -991,6 +995,13 @@
                     }
                 });
                 frame.open();
+            });
+
+            // Duplicate card button
+            node.querySelector('.duplicate-card').addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.duplicateCard(node.id);
             });
 
             node.querySelector('.card-link-input').addEventListener('input', function(){ node.dataset.link = this.value.trim(); });
@@ -1855,6 +1866,86 @@
             this.mapData.nodes.push(newNode);
             this.renderNode(newNode);
             this.saveToHistory('Added node');
+        }
+
+        /**
+         * Duplicates a card/node with all its properties.
+         * @param {string} nodeId The ID of the node to duplicate.
+         */
+        duplicateCard(nodeId) {
+            // Find the original node data
+            const originalNode = this.mapData.nodes.find(n => n.id === nodeId);
+            if (!originalNode) {
+                this.showToast('Card not found!', 'error');
+                return;
+            }
+
+            // Create a new unique ID
+            const newId = `node_${Date.now()}`;
+
+            // Create a deep copy of the node with a new ID and offset position
+            const duplicatedNode = {
+                ...originalNode,
+                id: newId,
+                x: originalNode.x + 50, // Offset by 50px right
+                y: originalNode.y + 50, // Offset by 50px down
+            };
+
+            // Add to map data
+            this.mapData.nodes.push(duplicatedNode);
+
+            // Render the new node
+            this.renderNode(duplicatedNode);
+
+            // Copy connections from the original node (optional - keeps connections)
+            const originalConnections = this.mapData.connections.filter(
+                c => c.source === nodeId || c.target === nodeId
+            );
+
+            originalConnections.forEach(conn => {
+                const newConnId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const newConn = {
+                    ...conn,
+                    id: newConnId,
+                    source: conn.source === nodeId ? newId : conn.source,
+                    target: conn.target === nodeId ? newId : conn.target,
+                };
+
+                this.mapData.connections.push(newConn);
+
+                // Render the connection
+                setTimeout(() => {
+                    const sourceEl = document.getElementById(newConn.source);
+                    const targetEl = document.getElementById(newConn.target);
+                    
+                    if (sourceEl && targetEl) {
+                        const style = newConn.style || this.config.lineStyle;
+                        const config = this.getConnectorConfig(style);
+                        
+                        const connection = this.instance.connect({
+                            source: sourceEl,
+                            target: targetEl,
+                            anchors: newConn.anchors || this.getDirectionalAnchors(sourceEl, targetEl),
+                            ...config,
+                            paintStyle: config.paintStyle
+                        });
+
+                        if (connection) {
+                            connection._cardmap_id = newConnId;
+                            this.addConnectionContextMenu(connection);
+                        }
+                    }
+                }, 100);
+            });
+
+            // Save to history
+            this.saveToHistory(`Duplicated card: ${originalNode.text || 'Untitled'}`);
+            
+            // Show success message
+            this.showToast(`Card duplicated successfully!`, 'success');
+            
+            // Auto-save
+            this.scheduleAutoSave();
         }
 
         /**

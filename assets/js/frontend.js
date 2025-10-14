@@ -18,9 +18,22 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Helper function to safely parse integers with fallback
+        const safeInt = (value, fallback = 0) => Math.max(0, parseInt(value, 10) || fallback);
+
+        // Dash style configuration mapping
+        const DASH_STYLES = {
+            'dash-bold': { dashstyle: '12 6', strokeDasharray: '12 6' },
+            'dash-subtle': { dashstyle: '6 6', strokeDasharray: '6 6' },
+            'dotted': { dashstyle: '1 4', strokeDasharray: '1 4' },
+            'striped': { dashstyle: null, strokeDasharray: null },
+            'gradient': { dashstyle: null, strokeDasharray: null },
+            'embossed': { dashstyle: null, strokeDasharray: null }
+        };
+
         function getConnectorConfig(style, color, thickness, rail_size) {
             // Default rail thickness when not provided should be 3px
-            const railSize = rail_size ? parseInt(rail_size, 10) : 3;
+            const railSize = safeInt(rail_size, 3);
             const baseConfig = { stroke: color, strokeWidth: thickness };
             // Create arrow overlay with proper styling
             const createArrowOverlay = () => ["Arrow", { 
@@ -63,6 +76,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     return { connector: ["Straight"], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
                 case 'flowchart-with-arrows':
                     return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
+                case 'flowchart-with-arrows-dashed':
+                    return { connector: ["Flowchart"], paintStyle: dashedConfig, overlays: [createArrowOverlay()] };
                 case 'bezier-with-arrows':
                     return { connector: ["Bezier", {curviness: 50}], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
                 case 'dashed':
@@ -315,8 +330,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            const safeDuration = Math.max(0, parseInt(durationMs, 10) || 0);
-            const safeDelay = Math.max(0, parseInt(delayMs, 10) || 0);
+            const safeDuration = safeInt(durationMs, 0);
+            const safeDelay = safeInt(delayMs, 0);
             const type = (rawType || '').toLowerCase();
             const isDashAnimation = dashAnimationTypes.has(type);
             const fadeTarget = !isDashAnimation ? (path.closest('svg') || path) : path;
@@ -496,6 +511,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Keep the same style - arrows will automatically point to the new target
                         break;
                     case 'flowchart-with-arrows':
+                    case 'flowchart-with-arrows-dashed':
                         // Keep the same style - arrows will automatically point to the new target
                         break;
                     default:
@@ -587,7 +603,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (railEl && !c.style) {
                                     const railStyle = railEl.dataset.railStyle || railEl.getAttribute('data-rail-style') || '';
                                     const railColor = railEl.dataset.railColor || railEl.getAttribute('data-rail-color') || mapConfig.line_color;
-                                    const railSize = parseInt(railEl.dataset.railSize || railEl.getAttribute('data-rail-size') || c.rail_size || mapConfig.line_thickness, 10) || mapConfig.line_thickness;
+                                    const railSize = safeInt(railEl.dataset.railSize || railEl.getAttribute('data-rail-size') || c.rail_size, mapConfig.line_thickness);
 
                                     // Start from the current config and override paintStyle properties
                                     const overridden = Object.assign({}, config);
@@ -596,20 +612,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                     overridden.paintStyle.strokeWidth = railStyle === 'double-line' ? Math.max(2, Math.round(railSize * 1.5)) : Math.max(1, railSize);
 
                                     // Map some rail visual styles to dash patterns for connectors
-                                    if (railStyle === 'dash-heavy') {
-                                        overridden.paintStyle.dashstyle = '12 6';
-                                        overridden.paintStyle.strokeDasharray = '12 6';
-                                    } else if (railStyle === 'dash-subtle') {
-                                        overridden.paintStyle.dashstyle = '6 6';
-                                        overridden.paintStyle.strokeDasharray = '6 6';
-                                    } else if (railStyle === 'dotted') {
-                                        overridden.paintStyle.dashstyle = '1 4';
-                                        overridden.paintStyle.strokeDasharray = '1 4';
-                                    } else if (railStyle === 'striped' || railStyle === 'gradient' || railStyle === 'embossed') {
-                                        // these complex styles don't translate perfectly to stroke patterns;
-                                        // use a solid stroke with the rail color and a slightly larger width
-                                        overridden.paintStyle.dashstyle = null;
-                                        overridden.paintStyle.strokeDasharray = null;
+                                    const dashConfig = DASH_STYLES[railStyle] || (railStyle === 'dash-heavy' ? DASH_STYLES['dash-bold'] : null);
+                                    if (dashConfig) {
+                                        overridden.paintStyle.dashstyle = dashConfig.dashstyle;
+                                        overridden.paintStyle.strokeDasharray = dashConfig.strokeDasharray;
                                     }
 
                                     config = overridden;
@@ -738,8 +744,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     // Apply animation if enabled
                                     if (mapConfig.enable_animation) {
                                         const animType = mapConfig.connection_animation_type || 'fade';
-                                        const durationMs = parseInt(mapConfig.connection_animation_duration, 10) || 1200;
-                                        const staggerMs = parseInt(mapConfig.connection_animation_stagger, 10) || 0;
+                                        const durationMs = safeInt(mapConfig.connection_animation_duration, 1200);
+                                        const staggerMs = safeInt(mapConfig.connection_animation_stagger, 0);
                                         const delayMs = index * staggerMs;
 
                                         pendingConnectionAnimations.push({
@@ -1005,7 +1011,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Get initial zoom from settings (default 100%)
-        const initialZoom = parseInt(mapConfig.initial_zoom, 10) || 100;
+        const initialZoom = safeInt(mapConfig.initial_zoom, 100);
         let scale = initialZoom / 100;
         let panX = 0;
         let panY = 0;

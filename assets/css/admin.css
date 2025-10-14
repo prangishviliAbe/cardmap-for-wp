@@ -235,6 +235,35 @@
     margin: 0;
 }
 
+.node-tools button.duplicate-card {
+    width: 100%;
+    background: linear-gradient(135deg, #50575e 0%, #3c434a 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    margin-top: 8px;
+    box-shadow: 0 2px 6px rgba(80, 87, 94, 0.3);
+}
+
+.node-tools button.duplicate-card:hover {
+    background: linear-gradient(135deg, #3c434a 0%, #2c3338 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(80, 87, 94, 0.4);
+}
+
+.node-tools button.duplicate-card:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(80, 87, 94, 0.3);
+}
+
+.node-tools button.duplicate-card .dashicons {
+    margin: 0;
+    font-size: 18px;
+}
+
 .node-tools button:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);

@@ -2794,13 +2794,9 @@
                 }
             });
 
-            // Re-render the canvas
+            // Re-render the entire canvas including connections
             this.renderCanvas();
-            
-            // Repaint connections
-            if (this.jsPlumbInstance) {
-                this.jsPlumbInstance.repaintEverything();
-            }
+            this.renderConnections();
 
             // Auto-save
             if (this.autoSaveEnabled) {

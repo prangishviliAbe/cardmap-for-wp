@@ -16,16 +16,18 @@ add_shortcode( 'cardmap', function( $atts ) {
         return '<!-- Cardmap: Invalid ID -->';
     }
 
-    // Enqueue assets only when the shortcode is rendered.
+    // Enqueue assets only when the shortcode is rendered
     wp_enqueue_style( 'cardmap-frontend-css' );
     wp_enqueue_script( 'cardmap-frontend-js' );
 
+    // Fetch and decode map data
     $raw = get_post_meta( $post_id, '_cardmap_data', true );
     $map_data = $raw ? json_decode( $raw, true ) : [ 'nodes' => [], 'connections' => [], 'rails' => [] ];
 
-    if (isset($map_data['rails']) && is_array($map_data['rails'])) {
-        foreach ($map_data['rails'] as $rail) {
-            if (isset($rail['id'])) {
+    // Merge rails into nodes array
+    if ( ! empty( $map_data['rails'] ) && is_array( $map_data['rails'] ) ) {
+        foreach ( $map_data['rails'] as $rail ) {
+            if ( isset( $rail['id'] ) ) {
                 $map_data['nodes'][] = [
                     'id' => $rail['id'],
                     'x' => $rail['x'],
@@ -39,10 +41,8 @@ add_shortcode( 'cardmap', function( $atts ) {
         }
     }
 
-
-    // Prepare data for localization and add it to the global array.
-    $data_to_localize = [
-        'map_data' => $map_data,
+    // Batch fetch all settings to reduce database queries
+    $settings = [
         'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
         'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
         'enable_drag' => (bool) get_option( 'cardmap_enable_drag', 1 ),
@@ -50,20 +50,23 @@ add_shortcode( 'cardmap', function( $atts ) {
         'connection_animation_type' => get_option( 'cardmap_connection_animation_type', 'draw' ),
         'connection_animation_duration' => (int) get_option( 'cardmap_connection_animation_duration', 1200 ),
         'connection_animation_stagger' => (int) get_option( 'cardmap_connection_animation_stagger', 200 ),
-    'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
+        'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
         'hover_effect' => get_option( 'cardmap_hover_effect', 'lift' ),
         'initial_zoom' => (int) get_option( 'cardmap_initial_zoom', 100 ),
     ];
-    cardmap_add_to_localized_data($data_to_localize, $post_id);
+
+    // Prepare data for localization
+    $data_to_localize = array_merge( [ 'map_data' => $map_data ], $settings );
+    cardmap_add_to_localized_data( $data_to_localize, $post_id );
 
     ob_start();
-    $animation_class = $data_to_localize['enable_animation'] ? ' cardmap-animate-connections' : '';
+    $animation_class = $settings['enable_animation'] ? ' cardmap-animate-connections' : '';
     ?>
     <div id="cardmap-frontend-<?php echo esc_attr( $post_id ); ?>" class="cardmap-frontend-wrapper<?php echo $animation_class; ?>" data-map-id="<?php echo esc_attr( $post_id ); ?>" style="width:100%;height:600px;border:1px solid #ddd;position:relative;overflow:hidden;">
         <div class="cardmap-viewport" style="width:100%;height:100%;position:absolute;top:0;left:0;">
             <div class="cardmap-pan-zoom-container" style="position:relative;width:1200px;height:1000px;">
-                <?php if (isset($map_data['nodes'])) : ?>
-                    <?php $hover_effect = get_option('cardmap_hover_effect', 'lift'); ?>
+                <?php if ( ! empty( $map_data['nodes'] ) ) : ?>
+                    <?php $hover_effect = $settings['hover_effect']; ?>
                     <?php foreach ( $map_data['nodes'] as $node ) : 
                         if (isset($node['is_rail']) && $node['is_rail']) {
                             $orientation_class = isset($node['orientation']) && $node['orientation'] === 'vertical' ? 'vertical' : 'horizontal';

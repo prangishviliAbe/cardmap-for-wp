@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.10.9
+Stable tag: 1.10.10
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,22 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 4.  Use the shortcode `[cardmap id="your_map_id"]` to display your map.
 
 == Changelog ==
+
+= 1.10.10 =
+*   ⚡ Performance: Comprehensive plugin optimization for improved speed and efficiency
+*   ⚡ Performance: Extracted default style constants to eliminate code duplication
+*   ⚡ Performance: Consolidated 10 separate get_option() calls into single batched array in shortcode
+*   ⚡ Performance: Cached filemtime() calls using static variables for faster asset loading
+*   ⚡ Performance: Created safeInt() helper function to replace repeated parseInt patterns
+*   ⚡ Performance: Created DASH_STYLES configuration object to eliminate duplicate definitions
+*   🔧 Code Quality: Consolidated migration functions into single efficient function
+*   🔧 Code Quality: Removed redundant cardmap_update_node_styles function
+*   🔧 Code Quality: Improved code readability with better structure and comments
+*   ✨ New Feature: Added initial zoom level setting (10%-200%) for frontend map display
+*   ✨ Enhancement: Maps can now start at custom zoom levels for better user experience
+*   🎯 Optimization: Fewer database queries through batched settings retrieval
+*   🎯 Optimization: Reduced filesystem calls with cached asset versioning
+*   📦 Codebase: Cleaner, more maintainable code with preserved functionality
 
 = 1.10.9 =
 *   🐛 Critical Fix: Connection animations now work correctly - animation type selection from settings is properly applied

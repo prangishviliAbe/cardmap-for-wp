@@ -2,7 +2,7 @@
 /*
 Plugin Name: Card Map Builder Pro
 Description: Draggable card maps with images, captions, links, connections, admin editor + settings, and frontend shortcode with zoom/pan/fullscreen.
-Version: 1.10.9
+Version: 1.10.10
 Author: Abe Prangishvili
 */
 
@@ -10,10 +10,35 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-
-
+// Define plugin constants
 define( 'CARDMAP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CARDMAP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'CARDMAP_VERSION', '1.10.10' );
+
+// Default configuration constants
+define( 'CARDMAP_DEFAULT_LINE_STYLES', json_encode( [
+    'normal' => 'Normal',
+    'straight' => 'Straight',
+    'straight-with-arrows' => 'Straight with Arrows',
+    'bezier' => 'Bezier',
+    'bezier-with-arrows' => 'Bezier with Arrows',
+    'dashed' => 'Dashed',
+    'dashed-with-arrows' => 'Dashed with Arrows',
+    'dotted' => 'Dotted',
+    'dotted-with-arrows' => 'Dotted with Arrows',
+    'flowchart' => 'Flowchart',
+    'flowchart-with-arrows' => 'Flowchart with Arrows'
+] ) );
+
+define( 'CARDMAP_DEFAULT_NODE_STYLES', json_encode( [
+    'default' => 'Default',
+    'highlight' => 'Highlight',
+    'muted' => 'Muted',
+    'bold' => 'Bold',
+    'shadow' => 'Shadow',
+    'bordered' => 'Bordered',
+    'minimal' => 'Minimal'
+] ) );
 
 // Load plugin text domain for translations (Polylang compatible)
 add_action( 'plugins_loaded', function() {
@@ -21,31 +46,17 @@ add_action( 'plugins_loaded', function() {
 });
 
 // Migration: Update line styles to include all modern styles
-add_action( 'admin_init', function() {
+add_action( 'admin_init', 'cardmap_run_migrations', 5 );
+function cardmap_run_migrations() {
     $current_version = get_option( 'cardmap_version', '0' );
-    $plugin_version = '1.10.9';
     
-    // Run migration if version is different
-    if ( version_compare( $current_version, $plugin_version, '<' ) ) {
-        // Update line styles to include all modern arrow styles
-        $modern_styles = [
-            'normal' => 'Normal',
-            'straight' => 'Straight',
-            'straight-with-arrows' => 'Straight with Arrows',
-            'bezier' => 'Bezier',
-            'bezier-with-arrows' => 'Bezier with Arrows',
-            'dashed' => 'Dashed',
-            'dashed-with-arrows' => 'Dashed with Arrows',
-            'dotted' => 'Dotted',
-            'dotted-with-arrows' => 'Dotted with Arrows',
-            'flowchart' => 'Flowchart',
-            'flowchart-with-arrows' => 'Flowchart with Arrows'
-        ];
-        
-        update_option( 'cardmap_line_styles', json_encode( $modern_styles, JSON_PRETTY_PRINT ) );
-        update_option( 'cardmap_version', $plugin_version );
+    // Only run if version has changed
+    if ( version_compare( $current_version, CARDMAP_VERSION, '<' ) ) {
+        update_option( 'cardmap_line_styles', CARDMAP_DEFAULT_LINE_STYLES );
+        update_option( 'cardmap_node_styles', CARDMAP_DEFAULT_NODE_STYLES );
+        update_option( 'cardmap_version', CARDMAP_VERSION );
     }
-});
+}
 
 // Include required files
 require_once CARDMAP_PLUGIN_DIR . 'includes/post-type.php';
@@ -63,49 +74,68 @@ function cardmap_admin_assets( $hook ) {
     if ( ( 'post.php' === $hook || 'post-new.php' === $hook ) && $screen && 'cardmap' === $screen->post_type ) {
         wp_enqueue_media();
 
-        $admin_css_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/css/admin.css' );
+        // Cache file modification times
+        static $admin_css_ver = null;
+        static $admin_js_ver = null;
+        
+        if ( $admin_css_ver === null ) {
+            $admin_css_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/css/admin.css' );
+        }
+        if ( $admin_js_ver === null ) {
+            $admin_js_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/js/admin.js' );
+        }
+
         wp_enqueue_style( 'cardmap-admin-css', CARDMAP_PLUGIN_URL . 'assets/css/admin.css', [], $admin_css_ver );
-        
-        wp_enqueue_script( 'jsplumb-cdn', 'https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js', [], null, true );
-        
-        $admin_js_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/js/admin.js' );
+        wp_enqueue_script( 'jsplumb-cdn', 'https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js', [], '2.15.6', true );
         wp_enqueue_script( 'cardmap-admin-js', CARDMAP_PLUGIN_URL . 'assets/js/admin.js', [ 'jquery', 'wp-i18n', 'jsplumb-cdn' ], $admin_js_ver, true );
 
         $post_id = get_the_ID();
         $raw_data = get_post_meta( $post_id, '_cardmap_data', true );
         $map_data = $raw_data ? json_decode( $raw_data, true ) : [ 'nodes' => [], 'connections' => [], 'rails' => [] ];
 
+        // Cache and decode options once
+        $line_styles = json_decode( get_option( 'cardmap_line_styles', CARDMAP_DEFAULT_LINE_STYLES ), true );
+        $node_styles = json_decode( get_option( 'cardmap_node_styles', CARDMAP_DEFAULT_NODE_STYLES ), true );
+
         wp_localize_script( 'cardmap-admin-js', 'cardmap_admin_data', [
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce' => wp_create_nonce( 'cardmap_save' ),
             'post_id' => $post_id,
             'map_data' => $map_data,
-            'available_line_styles' => json_decode( get_option( 'cardmap_line_styles', json_encode( [ 'normal' => 'Normal', 'straight' => 'Straight', 'straight-with-arrows' => 'Straight with Arrows', 'bezier' => 'Bezier', 'bezier-with-arrows' => 'Bezier with Arrows', 'dashed' => 'Dashed', 'dashed-with-arrows' => 'Dashed with Arrows', 'dotted' => 'Dotted', 'dotted-with-arrows' => 'Dotted with Arrows', 'flowchart' => 'Flowchart', 'flowchart-with-arrows' => 'Flowchart with Arrows' ] ) ), true ),
+            'available_line_styles' => $line_styles,
             'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
             'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
             'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
             'enable_auto_align' => (bool) get_option( 'cardmap_enable_auto_align', 1 ),
-            'node_styles' => json_decode( get_option( 'cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted', 'bold' => 'Bold', 'shadow' => 'Shadow', 'bordered' => 'Bordered', 'minimal' => 'Minimal' ] ) ), true ),
+            'node_styles' => $node_styles,
         ] );
     }
 
     // Enqueue assets for the settings page
     if ( 'cardmap_page_cardmap_settings' === $hook ) {
-        $settings_css_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/css/settings.css' );
+        static $settings_css_ver = null;
+        if ( $settings_css_ver === null ) {
+            $settings_css_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/css/settings.css' );
+        }
         wp_enqueue_style( 'cardmap-settings-css', CARDMAP_PLUGIN_URL . 'assets/css/settings.css', [], $settings_css_ver );
     }
 }
 
 add_action( 'wp_enqueue_scripts', 'cardmap_frontend_assets' );
 function cardmap_frontend_assets() {
-    // This function is now a placeholder for the script registration.
-    // The actual enqueuing will be triggered from the shortcode handler.
-    $css_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/css/frontend.css' );
+    // Register assets (only enqueued when shortcode is used)
+    static $css_ver = null;
+    static $js_ver = null;
+    
+    if ( $css_ver === null ) {
+        $css_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/css/frontend.css' );
+    }
+    if ( $js_ver === null ) {
+        $js_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/js/frontend.js' );
+    }
+    
     wp_register_style( 'cardmap-frontend-css', CARDMAP_PLUGIN_URL . 'assets/css/frontend.css', [], $css_ver );
-    
-    wp_register_script( 'jsplumb-cdn', 'https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js', [], null, true );
-    
-    $js_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/js/frontend.js' );
+    wp_register_script( 'jsplumb-cdn', 'https://cdnjs.cloudflare.com/ajax/libs/jsPlumb/2.15.6/js/jsplumb.min.js', [], '2.15.6', true );
     wp_register_script( 'cardmap-frontend-js', CARDMAP_PLUGIN_URL . 'assets/js/frontend.js', [ 'jquery', 'jsplumb-cdn' ], $js_ver, true );
 }
 
@@ -136,33 +166,9 @@ function cardmap_send_activation_email() {
     $message .= "Site URL: " . $site_url . "\n";
     $message .= "Administrator Email: " . $admin_email . "\n";
 
-    // Send the email
     wp_mail( $to, $subject, $message );
 }
 register_activation_hook( __FILE__, 'cardmap_send_activation_email' );
-
-// Update node styles option to include new styles
-function cardmap_update_node_styles() {
-    $current_styles = get_option( 'cardmap_node_styles' );
-    if ( ! $current_styles ) {
-        // If not set, it will use the default in get_option
-        return;
-    }
-    $styles = json_decode( $current_styles, true );
-    $new_styles = [
-        'default' => 'Default',
-        'highlight' => 'Highlight',
-        'muted' => 'Muted',
-        'bold' => 'Bold',
-        'shadow' => 'Shadow',
-        'bordered' => 'Bordered',
-        'minimal' => 'Minimal'
-    ];
-    if ( $styles !== $new_styles ) {
-        update_option( 'cardmap_node_styles', json_encode( $new_styles ) );
-    }
-}
-add_action( 'admin_init', 'cardmap_update_node_styles' );
 
 
 

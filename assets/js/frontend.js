@@ -76,6 +76,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     return { connector: ["Straight"], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
                 case 'flowchart-with-arrows':
                     return { connector: ["Flowchart"], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
+                case 'flowchart-with-arrows-dashed':
+                    return { connector: ["Flowchart"], paintStyle: dashedConfig, overlays: [createArrowOverlay()] };
                 case 'bezier-with-arrows':
                     return { connector: ["Bezier", {curviness: 50}], paintStyle: baseConfig, overlays: [createArrowOverlay()] };
                 case 'dashed':
@@ -509,6 +511,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Keep the same style - arrows will automatically point to the new target
                         break;
                     case 'flowchart-with-arrows':
+                    case 'flowchart-with-arrows-dashed':
                         // Keep the same style - arrows will automatically point to the new target
                         break;
                     default:

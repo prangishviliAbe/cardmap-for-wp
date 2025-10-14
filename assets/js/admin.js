@@ -3085,6 +3085,7 @@
                 'state-machine': { connector: ["StateMachine", { curviness: 20 }], overlays: [] },
                 'straight-with-arrows': { connector: ["Straight"], overlays: [createArrowOverlay()] },
                 'flowchart-with-arrows': { connector: ["Flowchart"], overlays: [createArrowOverlay()] },
+                'flowchart-with-arrows-dashed': { connector: ["Flowchart"], paintStyle: dashedConfig, overlays: [createArrowOverlay()] },
                 'bezier-with-arrows': { connector: ["Bezier", { curviness: 50 }], overlays: [createArrowOverlay()] },
                 'dashed': { connector: ["Straight"], paintStyle: dashedConfig, overlays: [] },
                 'dotted': { connector: ["Straight"], paintStyle: dottedConfig, overlays: [] },

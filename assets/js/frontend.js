@@ -1004,7 +1004,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // ignore DOM errors
         }
 
-        let scale = 1;
+        // Get initial zoom from settings (default 100%)
+        const initialZoom = parseInt(mapConfig.initial_zoom, 10) || 100;
+        let scale = initialZoom / 100;
         let panX = 0;
         let panY = 0;
         let isPanning = false;
@@ -1019,6 +1021,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 zoomDisplay.textContent = `${Math.round(scale * 100)}%`;
             }
         };
+
+        // Apply initial zoom
+        applyTransform();
 
         wrapper.querySelector('.zoom-in').addEventListener('click', () => {
             scale = Math.min(3, scale * 1.2);

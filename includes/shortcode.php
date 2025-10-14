@@ -52,6 +52,7 @@ add_shortcode( 'cardmap', function( $atts ) {
         'connection_animation_stagger' => (int) get_option( 'cardmap_connection_animation_stagger', 200 ),
     'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
         'hover_effect' => get_option( 'cardmap_hover_effect', 'lift' ),
+        'initial_zoom' => (int) get_option( 'cardmap_initial_zoom', 100 ),
     ];
     cardmap_add_to_localized_data($data_to_localize, $post_id);
 

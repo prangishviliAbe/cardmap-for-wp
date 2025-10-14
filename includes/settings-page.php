@@ -34,6 +34,7 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_show_rail_thickness', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_enable_frontend_view', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_hover_effect', [ 'type' => 'string', 'default' => 'lift' ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_initial_zoom', [ 'type' => 'integer', 'default' => 100 ] );
 });
 
 /**
@@ -61,7 +62,8 @@ function cardmap_export_settings() {
         'cardmap_connection_animation_stagger',
         'cardmap_show_rail_thickness',
         'cardmap_enable_frontend_view',
-        'cardmap_hover_effect'
+        'cardmap_hover_effect',
+        'cardmap_initial_zoom'
     ];
 
     $export_data = [];
@@ -119,7 +121,8 @@ function cardmap_import_settings() {
         'cardmap_connection_animation_stagger',
         'cardmap_show_rail_thickness',
         'cardmap_enable_frontend_view',
-        'cardmap_hover_effect'
+        'cardmap_hover_effect',
+        'cardmap_initial_zoom'
     ];
 
     foreach ($settings_to_import as $setting) {
@@ -195,6 +198,11 @@ function cardmap_settings_page() {
                                 <option value="border" <?php selected($current_effect, 'border'); ?>>Border Highlight</option>
                             </select>
                             <p class="description">Select the visual effect when a user hovers over a card on the frontend.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_initial_zoom" class="setting-title">Initial Zoom Level (%)</label>
+                            <input type="number" id="cardmap_initial_zoom" name="cardmap_initial_zoom" min="10" max="200" step="5" value="<?php echo esc_attr( get_option('cardmap_initial_zoom', 100) ); ?>">
+                            <p class="description">Set the initial zoom level for maps on the frontend (10% to 200%). Default: 100% (no zoom).</p>
                         </div>
                         <!-- Show Rail Thickness moved to Editor Settings -->
                     </div>

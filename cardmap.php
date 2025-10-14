@@ -2,7 +2,7 @@
 /*
 Plugin Name: Card Map Builder Pro
 Description: Draggable card maps with images, captions, links, connections, admin editor + settings, and frontend shortcode with zoom/pan/fullscreen.
-Version: 1.10.9
+Version: 2.0.0
 Author: Abe Prangishvili
 */
 
@@ -23,7 +23,7 @@ add_action( 'plugins_loaded', function() {
 // Migration: Update line styles to include all modern styles
 add_action( 'admin_init', function() {
     $current_version = get_option( 'cardmap_version', '0' );
-    $plugin_version = '1.10.9';
+    $plugin_version = '2.0.0';
     
     // Run migration if version is different
     if ( version_compare( $current_version, $plugin_version, '<' ) ) {

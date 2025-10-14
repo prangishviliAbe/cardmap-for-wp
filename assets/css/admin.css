@@ -543,3 +543,100 @@ svg .jtk-connector path {
 .connection-context-menu .cancel-connection-style:hover {
     background: #ccc;
 }
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+}
+
+/* Story mode button active state */
+#story-mode.button-primary {
+    background: #2196F3 !important;
+    border-color: #1976D2 !important;
+    color: white !important;
+}
+
+/* Enhanced Rail positioning indicators */
+.rail-anchor-preview {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border: 2px solid #A61832;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1000;
+    display: none;
+}
+
+.cardmap-rail:hover .rail-anchor-preview {
+    display: block !important;
+}
+
+/* Enhanced connection precision indicators */
+.connection-precision-indicator {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: #4CAF50;
+    border: 1px solid white;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1001;
+    display: none;
+}
+
+/* Rail splitting indicators */
+.rail-split-indicator {
+    position: absolute;
+    width: 3px;
+    height: 100%;
+    background: rgba(255, 193, 7, 0.8);
+    border: 1px solid #FF9800;
+    pointer-events: none;
+    z-index: 999;
+    display: none;
+}
+
+.rail-split-indicator.vertical {
+    width: 100%;
+    height: 3px;
+}
+
+/* Following rail segment (moves with node) */
+.cardmap-rail[data-follows-node] {
+    border: 2px dashed #4CAF50 !important;
+    background: rgba(76, 175, 80, 0.1) !important;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.4) !important;
+    z-index: 998 !important;
+}
+
+/* Visual indicator for dragging node with rail connection */
+.node-dragging-with-rail {
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.6) !important;
+    border: 2px solid #4CAF50 !important;
+}
+
+/* Connection line that follows node */
+.connection-following {
+    stroke: #4CAF50 !important;
+    stroke-width: 3 !important;
+    opacity: 0.8 !important;
+}

@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.10.9
+Stable tag: 2.0.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,20 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 4.  Use the shortcode `[cardmap id="your_map_id"]` to display your map.
 
 == Changelog ==
+
+= 2.0.0 =
+*   🚀 Major Feature: Dynamic Rail Connection System - connections now intelligently slide along rails as cards move
+*   ✨ New Feature: Real-time connection anchor updates during drag - smooth visual feedback while dragging
+*   ✨ New Feature: Smart anchor positioning on rails based on card position relative to rail
+*   ✨ New Feature: Automatic anchor recalculation on page load - connections display correctly without manual adjustment
+*   🎯 Improvement: Precise connection alignment to rail edges (left/right for vertical rails, top/bottom for horizontal rails)
+*   🎯 Improvement: Connection points maintain optimal position along rail length based on card position
+*   🔧 Fix: Proper jsPlumb v2.15.6 API usage with endpoints[].setAnchor() for dynamic updates
+*   🔧 Fix: Real-time position tracking during drag using current element position instead of stale data
+*   🔧 Fix: Immediate visual updates with connection.repaint() after anchor changes
+*   ⚡ Technical: Added updateAllRailAnchors() method for batch anchor recalculation
+*   ⚡ Technical: Improved coordinate system handling for accurate rail-node positioning
+*   🗑️ Removed: Story mode feature completely removed from plugin (editor, JavaScript, CSS)
 
 = 1.10.9 =
 *   🐛 Critical Fix: Connection animations now work correctly - animation type selection from settings is properly applied

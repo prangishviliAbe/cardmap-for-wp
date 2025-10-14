@@ -89,6 +89,14 @@
 
             // Show help tooltip for connection deletion
             this.showConnectionHelp();
+            
+            // Show help for rail splitting feature (only once)
+            if (!localStorage.getItem('cardmap_rail_split_help_shown')) {
+                setTimeout(() => {
+                    this.showRailSplitHelp();
+                    localStorage.setItem('cardmap_rail_split_help_shown', 'true');
+                }, 2000);
+            }
 
             // Add resize listener for fullscreen changes
             window.addEventListener('resize', this.handleWindowResize.bind(this));
@@ -492,42 +500,82 @@
             this.isUndoRedoOperation = true;
 
             try {
-                // Clear current elements
+                // Clear current elements and reset selected states
+                this.selectedNodes.clear();
+                this.selectedRail = null;
+                this.connectMode = false;
+                this.deleteMode = false;
+                this.deleteConnectionMode = false;
+                this.firstNode = null;
+                this.firstAnchor = null;
+
+                // Clear DOM elements
+                const existingNodes = this.editor.querySelectorAll('.cardmap-node');
+                existingNodes.forEach(el => el.remove());
+                
+                const existingRails = this.editor.querySelectorAll('.cardmap-rail');
+                existingRails.forEach(el => el.remove());
+
+                // Reset jsPlumb instance
                 this.instance.reset();
 
-                // Restore nodes
+                // Restore data structures
                 this.mapData.nodes = JSON.parse(JSON.stringify(state.nodes));
+                this.mapData.connections = JSON.parse(JSON.stringify(state.connections));
+                this.mapData.rails = JSON.parse(JSON.stringify(state.rails));
+
+                // Restore nodes first
                 state.nodes.forEach(node => this.renderNode(node));
 
                 // Restore rails
-                this.mapData.rails = JSON.parse(JSON.stringify(state.rails));
                 state.rails.forEach(rail => this.renderRail(rail));
 
-                // Restore connections
-                this.mapData.connections = JSON.parse(JSON.stringify(state.connections));
-                state.connections.forEach(conn => {
-                    if (!conn || !conn.source || !conn.target) return;
+                // Small delay to ensure DOM elements are rendered before creating connections
+                setTimeout(() => {
+                    // Restore connections with improved error handling
+                    state.connections.forEach(conn => {
+                        try {
+                            if (!conn || !conn.source || !conn.target) return;
 
-                    const sourceEl = document.getElementById(conn.source);
-                    const targetEl = document.getElementById(conn.target);
-                    if (!sourceEl || !targetEl) return;
+                            const sourceEl = document.getElementById(conn.source);
+                            const targetEl = document.getElementById(conn.target);
+                            if (!sourceEl || !targetEl) {
+                                console.warn(`Missing elements for connection: ${conn.source} -> ${conn.target}`);
+                                return;
+                            }
 
-                    const config = this.getConnectorConfig(conn.style || 'normal');
-                    const connection = this.instance.connect({
-                        source: conn.source,
-                        target: conn.target,
-                        anchors: conn.anchors || this.computeAnchorsBetweenElements(sourceEl, targetEl),
-                        ...config,
-                        cssClass: 'cardmap-connector'
+                            // Make sure elements are properly initialized as jsPlumb endpoints
+                            if (!this.instance.isSource(sourceEl)) {
+                                this.instance.makeSource(sourceEl, this.getSourceConfig());
+                            }
+                            if (!this.instance.isTarget(targetEl)) {
+                                this.instance.makeTarget(targetEl, this.getTargetConfig());
+                            }
+
+                            const config = this.getConnectorConfig(conn.style || 'normal');
+                            const connection = this.instance.connect({
+                                source: sourceEl,
+                                target: targetEl,
+                                anchors: conn.anchors || this.computeAnchorsBetweenElements(sourceEl, targetEl),
+                                ...config,
+                                cssClass: 'cardmap-connector'
+                            });
+
+                            if (connection) {
+                                connection._cardmap_id = conn.id || `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+                                this.addConnectionContextMenu(connection);
+                            }
+                        } catch (connError) {
+                            console.error('Error restoring connection:', connError);
+                        }
                     });
 
-                    if (connection) {
-                        connection._cardmap_id = conn.id || `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
-                        this.addConnectionContextMenu(connection);
-                    }
-                });
-
-                this.instance.repaintEverything();
+                    // Force repaint after everything is restored
+                    this.instance.repaintEverything();
+                    
+                    // Update UI states
+                    this.updateModeButtons();
+                }, 50);
 
             } catch (error) {
                 console.error('Error restoring from history:', error);
@@ -889,8 +937,11 @@
                         this.addConnectionContextMenu(conn);
                     }
                 });
+                
+                // Update all rail connection anchors to ensure proper alignment on load
+                this.updateAllRailAnchors();
             });
-            
+
             // Save initial state to history after loading
             setTimeout(() => {
                 this.saveToHistory('Initial state');
@@ -1114,25 +1165,196 @@
          * Handles the start of a node drag operation.
          */
         onNodeDragStart(params) {
+            const draggedNode = this.mapData.nodes.find(n => n.id === params.el.id);
             const connections = this.instance.getConnections({ source: params.el.id }).concat(this.instance.getConnections({ target: params.el.id }));
+            
+            // Store drag state including rail connections
+            this.nodeDragState = {
+                nodeId: params.el.id,
+                startX: params.pos[0],
+                startY: params.pos[1],
+                railConnections: [],
+                hasMovedSignificantly: false
+            };
+            
+            // Identify all connections to rails and store their precise anchor positions
             connections.forEach(conn => {
                 // Store original anchors at the start of any drag
-                // Store original anchors safely
                 try {
                     conn._originalAnchors = conn.getAnchors ? conn.getAnchors() : conn.anchors;
                 } catch (e) {
                     conn._originalAnchors = conn.anchors || ['Continuous', 'Continuous'];
                 }
+                
+                // Check if this connection involves a rail
+                const sourceEl = document.getElementById(conn.sourceId);
+                const targetEl = document.getElementById(conn.targetId);
+                const sourceIsRail = sourceEl && sourceEl.classList.contains('cardmap-rail');
+                const targetIsRail = targetEl && targetEl.classList.contains('cardmap-rail');
+                
+                if (sourceIsRail || targetIsRail) {
+                    const railEl = sourceIsRail ? sourceEl : targetEl;
+                    const railData = this.mapData.rails.find(r => r.id === railEl.id);
+                    const connData = this.mapData.connections.find(c => c.id === conn._cardmap_id);
+                    
+                    if (railData && connData) {
+                        // Store the connection information for potential rail splitting
+                        const anchors = conn._originalAnchors || conn.anchors;
+                        let anchorPosition = null;
+                        
+                        // Extract the anchor position on the rail
+                        if (Array.isArray(anchors)) {
+                            const railAnchor = sourceIsRail ? anchors[0] : anchors[1];
+                            if (Array.isArray(railAnchor) && railAnchor.length >= 2) {
+                                anchorPosition = {
+                                    relX: railAnchor[0],
+                                    relY: railAnchor[1]
+                                };
+                            }
+                        }
+                        
+                        this.nodeDragState.railConnections.push({
+                            connection: conn,
+                            connectionData: connData,
+                            railId: railEl.id,
+                            railData: railData,
+                            isSource: sourceIsRail,
+                            anchorPosition: anchorPosition,
+                            shouldSplit: false // Will be determined during drag
+                        });
+                    }
+                }
             });
+        }
+
+        /**
+         * Updates all rail connection anchors to their proper positions.
+         * Call this after loading connections to ensure correct alignment.
+         */
+        updateAllRailAnchors() {
+            const connections = this.instance.getAllConnections();
+            
+            connections.forEach(conn => {
+                try {
+                    const sourceEl = conn.source;
+                    const targetEl = conn.target;
+                    
+                    if (!sourceEl || !targetEl) return;
+                    
+                    const sourceIsRail = sourceEl.classList.contains('cardmap-rail');
+                    const targetIsRail = targetEl.classList.contains('cardmap-rail');
+                    
+                    // Only process connections involving rails
+                    if (!sourceIsRail && !targetIsRail) return;
+                    
+                    const railEl = sourceIsRail ? sourceEl : targetEl;
+                    const nodeEl = sourceIsRail ? targetEl : sourceEl;
+                    const railData = this.mapData.rails.find(r => r.id === railEl.id);
+                    
+                    if (!railData) return;
+                    
+                    // Get node position
+                    const nodeData = this.mapData.nodes.find(n => n.id === nodeEl.id);
+                    if (!nodeData) return;
+                    
+                    const nodeWidth = nodeEl.offsetWidth || 192;
+                    const nodeHeight = nodeEl.offsetHeight || 240;
+                    const nodeCenterX = nodeData.x + nodeWidth / 2;
+                    const nodeCenterY = nodeData.y + nodeHeight / 2;
+                    
+                    // Calculate rail dimensions
+                    const railWidth = railData.width || (railData.orientation === 'vertical' ? railData.size || 8 : 300);
+                    const railHeight = railData.height || (railData.orientation === 'horizontal' ? railData.size || 8 : 300);
+                    
+                    let railAnchor;
+                    let nodeAnchor;
+                    
+                    if (railData.orientation === 'vertical') {
+                        // For vertical rails, slide along Y axis
+                        let relativeY = (nodeCenterY - railData.y) / railHeight;
+                        relativeY = Math.max(0.05, Math.min(0.95, relativeY));
+                        
+                        const railCenterX = railData.x + railWidth / 2;
+                        const isNodeOnLeft = nodeCenterX < railCenterX;
+                        
+                        railAnchor = [isNodeOnLeft ? 0 : 1, relativeY, 0, 0];
+                        nodeAnchor = isNodeOnLeft ? "RightMiddle" : "LeftMiddle";
+                        
+                    } else if (railData.orientation === 'horizontal') {
+                        // For horizontal rails, slide along X axis
+                        let relativeX = (nodeCenterX - railData.x) / railWidth;
+                        relativeX = Math.max(0.05, Math.min(0.95, relativeX));
+                        
+                        const railCenterY = railData.y + railHeight / 2;
+                        const isNodeAbove = nodeCenterY < railCenterY;
+                        
+                        railAnchor = [relativeX, isNodeAbove ? 1 : 0, 0, 0];
+                        nodeAnchor = isNodeAbove ? "BottomCenter" : "TopCenter";
+                        
+                    } else {
+                        // Diagonal or other orientations - skip
+                        return;
+                    }
+                    
+                    // Apply the anchors
+                    if (sourceIsRail) {
+                        conn.endpoints[0].setAnchor(railAnchor);
+                        conn.endpoints[1].setAnchor(nodeAnchor);
+                    } else {
+                        conn.endpoints[0].setAnchor(nodeAnchor);
+                        conn.endpoints[1].setAnchor(railAnchor);
+                    }
+                    
+                } catch (error) {
+                    console.warn('Error updating rail anchor on load:', error);
+                }
+            });
+            
+            // Repaint all connections after updating anchors
+            this.instance.repaintEverything();
         }
 
         /**
          * Handles the dragging of a node, including rail snapping previews.
          */
         onNodeDrag(params) {
-            this.instance.repaintEverything();
             const node = params.el;
             const draggedNode = this.mapData.nodes.find(n => n.id === node.id);
+            
+            // Update following rail segments if any
+            if (draggedNode && draggedNode.followingRailSegments) {
+                this.updateFollowingRailSegments(node.id, params.pos[0], params.pos[1]);
+            }
+            
+            // Track if node has moved significantly (more than 30px from start)
+            if (this.nodeDragState && !this.nodeDragState.hasMovedSignificantly) {
+                const deltaX = Math.abs(params.pos[0] - this.nodeDragState.startX);
+                const deltaY = Math.abs(params.pos[1] - this.nodeDragState.startY);
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                
+                if (distance > 30) {
+                    this.nodeDragState.hasMovedSignificantly = true;
+                    
+                    // Mark rail connections for splitting
+                    if (this.nodeDragState.railConnections.length > 0) {
+                        node.classList.add('node-dragging-with-rail');
+                        
+                        // Mark each rail connection for splitting
+                        this.nodeDragState.railConnections.forEach(rc => {
+                            rc.shouldSplit = true;
+                            
+                            // Show visual feedback
+                            const railEl = document.getElementById(rc.railId);
+                            if (railEl) {
+                                railEl.style.boxShadow = '0 0 12px rgba(76, 175, 80, 0.8)';
+                                railEl.style.transition = 'box-shadow 0.3s ease';
+                            }
+                        });
+                        
+                        this.showToast('🔀 Rail will split and follow card', 2000);
+                    }
+                }
+            }
 
             // Update connections dynamically as the node moves
             const connections = this.instance.getConnections({ source: node.id }).concat(this.instance.getConnections({ target: node.id }));
@@ -1147,51 +1369,75 @@
                     const sourceIsRail = sourceEl.classList.contains('cardmap-rail');
                     const targetIsRail = targetEl.classList.contains('cardmap-rail');
                     
-                    // If connected to a rail, calculate dynamic anchor position on the rail
+                    // If connected to a rail, dynamically update the anchor position on the rail
                     if (sourceIsRail || targetIsRail) {
                         const railEl = sourceIsRail ? sourceEl : targetEl;
                         const nodeEl = sourceIsRail ? targetEl : sourceEl;
                         const railData = this.mapData.rails.find(r => r.id === railEl.id);
                         
                         if (railData) {
-                            // Calculate the best anchor point on the rail based on node position
-                            const nodeRect = nodeEl.getBoundingClientRect();
-                            const railRect = railEl.getBoundingClientRect();
-                            const editorRect = this.editor.getBoundingClientRect();
+                            // Get node CURRENT position during drag (not from mapData which is stale)
+                            const nodeWidth = nodeEl.offsetWidth || 192;
+                            const nodeHeight = nodeEl.offsetHeight || 240;
+                            const nodeX = parseFloat(nodeEl.style.left) || 0;
+                            const nodeY = parseFloat(nodeEl.style.top) || 0;
+                            const nodeCenterX = nodeX + nodeWidth / 2;
+                            const nodeCenterY = nodeY + nodeHeight / 2;
                             
-                            // Convert to editor coordinates
-                            const nodeCenterX = (nodeRect.left + nodeRect.right) / 2 - editorRect.left;
-                            const nodeCenterY = (nodeRect.top + nodeRect.bottom) / 2 - editorRect.top;
-                            const railLeft = railRect.left - editorRect.left;
-                            const railTop = railRect.top - editorRect.top;
+                            // Calculate rail dimensions
+                            const railWidth = railData.width || (railData.orientation === 'vertical' ? railData.size || 8 : 300);
+                            const railHeight = railData.height || (railData.orientation === 'horizontal' ? railData.size || 8 : 300);
                             
                             let railAnchor;
+                            let nodeAnchor;
                             
                             if (railData.orientation === 'vertical') {
-                                // For vertical rails, calculate Y position along the rail
-                                const relativeY = Math.max(0, Math.min(1, (nodeCenterY - railTop) / railRect.height));
-                                railAnchor = [0.5, relativeY, 0, 0]; // Center X, dynamic Y
+                                // For vertical rails, slide the connection point along the Y axis
+                                // Project node center onto the rail's Y range
+                                let relativeY = (nodeCenterY - railData.y) / railHeight;
+                                relativeY = Math.max(0.05, Math.min(0.95, relativeY)); // Keep away from edges
+                                
+                                // Determine which side of the rail to connect from
+                                const railCenterX = railData.x + railWidth / 2;
+                                const isNodeOnLeft = nodeCenterX < railCenterX;
+                                
+                                railAnchor = [isNodeOnLeft ? 0 : 1, relativeY, 0, 0];
+                                nodeAnchor = isNodeOnLeft ? "RightMiddle" : "LeftMiddle";
+                                
+                            } else if (railData.orientation === 'horizontal') {
+                                // For horizontal rails, slide the connection point along the X axis
+                                // Project node center onto the rail's X range
+                                let relativeX = (nodeCenterX - railData.x) / railWidth;
+                                relativeX = Math.max(0.05, Math.min(0.95, relativeX)); // Keep away from edges
+                                
+                                // Determine which side of the rail to connect from
+                                const railCenterY = railData.y + railHeight / 2;
+                                const isNodeAbove = nodeCenterY < railCenterY;
+                                
+                                railAnchor = [relativeX, isNodeAbove ? 1 : 0, 0, 0];
+                                nodeAnchor = isNodeAbove ? "BottomCenter" : "TopCenter";
+                                
                             } else {
-                                // For horizontal rails, calculate X position along the rail
-                                const relativeX = Math.max(0, Math.min(1, (nodeCenterX - railLeft) / railRect.width));
-                                railAnchor = [relativeX, 0.5, 0, 0]; // Dynamic X, center Y
+                                // Diagonal or other orientations - use default behavior
+                                return;
                             }
                             
-                            // Determine which anchor to update (source or target)
-                            if (sourceIsRail) {
-                                const targetAnchor = this.getDirectionalAnchors(targetEl, sourceEl)[0];
-                                conn.setAnchors([railAnchor, targetAnchor]);
-                            } else {
-                                const sourceAnchor = this.getDirectionalAnchors(sourceEl, targetEl)[0];
-                                conn.setAnchors([sourceAnchor, railAnchor]);
+                            // Update the connection anchors dynamically
+                            try {
+                                if (sourceIsRail) {
+                                    // Rail is source, node is target
+                                    conn.endpoints[0].setAnchor(railAnchor);
+                                    conn.endpoints[1].setAnchor(nodeAnchor);
+                                } else {
+                                    // Node is source, rail is target
+                                    conn.endpoints[0].setAnchor(nodeAnchor);
+                                    conn.endpoints[1].setAnchor(railAnchor);
+                                }
+                                // Force immediate repaint for real-time visual update
+                                conn.repaint();
+                            } catch (error) {
+                                console.warn('Error updating rail anchor during drag:', error);
                             }
-                        }
-                    } else if (draggedNode && draggedNode.attachedRail) {
-                        // If the node is on a rail, use simplified anchors
-                        const rail = this.mapData.rails.find(r => r.id === draggedNode.attachedRail);
-                        if (rail) {
-                            const simpleAnchors = rail.orientation === 'vertical' ? ["LeftMiddle", "RightMiddle"] : ["TopCenter", "BottomCenter"];
-                            conn.setAnchors(simpleAnchors);
                         }
                     }
                 } catch (e) {
@@ -1266,6 +1512,26 @@
             if (draggedNode) {
                 draggedNode.x = params.pos[0];
                 draggedNode.y = params.pos[1];
+                
+                // Process rail splitting if node was dragged significantly
+                if (this.nodeDragState && this.nodeDragState.hasMovedSignificantly && 
+                    this.nodeDragState.railConnections.length > 0) {
+                    
+                    this.nodeDragState.railConnections.forEach(rc => {
+                        if (rc.shouldSplit && rc.anchorPosition) {
+                            this.splitRailAndAttachToNode(
+                                rc.railId, 
+                                rc.railData, 
+                                rc.anchorPosition,
+                                params.el.id,
+                                rc.connection,
+                                rc.connectionData,
+                                rc.isSource
+                            );
+                        }
+                    });
+                }
+                
                 const rails = this.mapData.rails || [];
                 let snapped = null;
                 let bestDist = Infinity;
@@ -1369,6 +1635,23 @@
                 });
             }
 
+            // Clean up visual feedback
+            params.el.classList.remove('node-dragging-with-rail');
+            
+            // Clean up rail highlighting
+            if (this.nodeDragState && this.nodeDragState.railConnections) {
+                this.nodeDragState.railConnections.forEach(rc => {
+                    const railEl = document.getElementById(rc.railId);
+                    if (railEl) {
+                        railEl.style.boxShadow = '';
+                        railEl.style.transition = '';
+                    }
+                });
+            }
+            
+            // Clean up drag state
+            this.nodeDragState = null;
+
             this.instance.repaintEverything();
         }
 
@@ -1377,6 +1660,7 @@
          */
         onNodeClick(e, node) {
             if (e.target.closest('.node-tools') || e.target.closest('[contenteditable]')) return;
+            
             if (this.deleteConnectionMode) {
                 this.handleDeleteConnectionClick(e, node);
                 return;
@@ -1445,6 +1729,86 @@
             return { x: worldX, y: worldY };
         }
 
+        /**
+         * Enhanced screen to world coordinate conversion with better precision
+         */
+        screenToWorld(clientX, clientY) {
+            try {
+                if (!this.editorWrapper) {
+                    throw new Error('Editor wrapper not found');
+                }
+                
+                const wrapperRect = this.editorWrapper.getBoundingClientRect();
+                
+                // Convert screen coordinates to editor space
+                const editorX = clientX - wrapperRect.left;
+                const editorY = clientY - wrapperRect.top;
+                
+                // Apply inverse pan and zoom transformations
+                const worldX = (editorX - this.offsetX) / this.scale;
+                const worldY = (editorY - this.offsetY) / this.scale;
+                
+                return { x: worldX, y: worldY };
+            } catch (error) {
+                console.error('Error converting screen to world coordinates:', error);
+                return null;
+            }
+        }
+
+        /**
+         * Enhanced Rail anchor calculation with improved precision
+         */
+        getEnhancedRailAnchor(railEl, railData, clientX, clientY) {
+            try {
+                if (!railEl) {
+                    return [0.5, 0.5, 0, 0];
+                }
+
+                // Get element's screen position
+                const elRect = railEl.getBoundingClientRect();
+                
+                // Calculate click position relative to element
+                let relativeX = clientX - elRect.left;
+                let relativeY = clientY - elRect.top;
+                
+                // Normalize to [0, 1] range
+                let x = relativeX / elRect.width;
+                let y = relativeY / elRect.height;
+                
+                // Clamp to valid range
+                x = Math.max(0, Math.min(1, x));
+                y = Math.max(0, Math.min(1, y));
+                
+                console.log('getEnhancedRailAnchor:', {
+                    railId: railEl.id,
+                    orientation: railData.orientation,
+                    clickPos: { clientX, clientY },
+                    elRect: { left: elRect.left, top: elRect.top, width: elRect.width, height: elRect.height },
+                    relative: { x: relativeX, y: relativeY },
+                    normalized: { x, y }
+                });
+                
+                // Optimize anchor position based on rail orientation
+                if (railData.orientation === 'horizontal') {
+                    // For horizontal rails, snap to top/bottom edge but keep X position precise
+                    y = relativeY < elRect.height / 2 ? 0 : 1;
+                    // Keep x position precise along the rail length
+                } else if (railData.orientation === 'vertical') {
+                    // For vertical rails, snap to left/right edge but keep Y position precise
+                    x = relativeX < elRect.width / 2 ? 0 : 1;
+                    // Keep y position precise along the rail length
+                }
+                // For diagonal or other orientations, keep both x and y precise
+                
+                console.log('Enhanced rail anchor result:', [x, y, 0, 0]);
+                return [x, y, 0, 0];
+                
+            } catch (error) {
+                console.error('Error calculating enhanced rail anchor:', error);
+                return [0.5, 0.5, 0, 0];
+            }
+        }
+
         /** Handle clicks on rails (selection and connect mode) */
         onRailClick(e, railEl, railData) {
             // If delete-rail mode, remove the rail
@@ -1496,8 +1860,20 @@
                 if (!this.firstNode) {
                 // Use rail element as firstNode
                 this.firstNode = railEl;
-                // Use the same coordinate system as nodes for consistency
+                // Calculate precise anchor position for the rail
                 this.firstAnchor = this.getPreciseAnchorFromEvent(e, railEl);
+                
+                // Store the event for later use if we need more precise positioning
+                this.firstNodeEvent = { clientX: e.clientX, clientY: e.clientY };
+                
+                console.log('Rail clicked first:', {
+                    railId: railEl.id,
+                    clickX: e.clientX,
+                    clickY: e.clientY,
+                    anchor: this.firstAnchor,
+                    railData: railData
+                });
+                
                 railEl.style.boxShadow = '0 0 0 3px rgba(166,24,50,0.5)';
             } else if (this.firstNode !== railEl) {
                 const sourceId = this.firstNode.id;
@@ -1513,13 +1889,19 @@
                     return;
                 }
 
-                // prefer exact hover position if available (so connections anchor where cursor was)
+                // Use enhanced anchor positioning for better precision
                 let anchorA = null;
                 let anchorB = null;
-                const sourceEl = document.getElementById(sourceId);
-                const [a, b] = this.computeAnchorsBetweenElements(this.firstNode, railEl, null, e);
-                anchorA = this.firstAnchor || a;
-                anchorB = this.firstAnchor ? (b || this.getRailAnchorFromEvent(e, railEl, railData)) : b;
+                
+                if (this.firstAnchor) {
+                    anchorA = this.firstAnchor;
+                    // Use enhanced rail anchor calculation for the target
+                    anchorB = this.getEnhancedRailAnchor(railEl, railData, e.clientX, e.clientY);
+                } else {
+                    const [a, b] = this.computeAnchorsBetweenElements(this.firstNode, railEl, null, e);
+                    anchorA = a;
+                    anchorB = this.getEnhancedRailAnchor(railEl, railData, e.clientX, e.clientY);
+                }
 
                 // choose connection style: prefer source's connectionStyle then target's then global
                 const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
@@ -1785,6 +2167,15 @@
                     const [a, b] = this.computeAnchorsBetweenElements(this.firstNode, node, null, e);
                     anchorA = this.firstAnchor || a;
                     anchorB = b;
+                    
+                    console.log('Creating connection:', {
+                        from: sourceId,
+                        to: targetId,
+                        storedFirstAnchor: this.firstAnchor,
+                        computedA: a,
+                        finalAnchorA: anchorA,
+                        finalAnchorB: anchorB
+                    });
 
 
                     const sourceNodeData = this.mapData.nodes.find(n => n.id === sourceId) || {};
@@ -1793,25 +2184,48 @@
                     const targetRailData = this.mapData.rails.find(r => r.id === targetId) || {};
                     const connStyle = sourceNodeData.connectionStyle || sourceRailData.connectionStyle || targetNodeData.connectionStyle || targetRailData.connectionStyle || this.config.lineStyle;
 
-                    const conn = this.instance.connect({
-                        source: sourceId,
-                        target: targetId,
-                        anchors: [anchorA, anchorB],
-                        ...this.getConnectorConfig(connStyle),
-                        cssClass: 'cardmap-connector'
-                    });
+                    // Check if we should split a rail connection (Shift key held)
+                    const sourceEl = document.getElementById(sourceId);
+                    const targetEl = document.getElementById(targetId);
+                    const sourceIsRail = sourceEl && sourceEl.classList.contains('cardmap-rail');
+                    const targetIsRail = targetEl && targetEl.classList.contains('cardmap-rail');
+                    
+                    if ((sourceIsRail || targetIsRail) && e.shiftKey) {
+                        // Use the enhanced connection creation with rail splitting
+                        const result = this.createConnectionWithRailSplitting(sourceId, targetId, [anchorA, anchorB], connStyle, e);
+                        
+                        if (result && result.split) {
+                            this.showToast(`Rail split and connected to both segments. Hold Shift while connecting to split rails.`);
+                        } else if (result) {
+                            this.showToast(`Connected to rail. Hold Shift while connecting to split rails at connection point.`);
+                        }
+                    } else {
+                        // Standard connection creation
+                        const conn = this.instance.connect({
+                            source: sourceId,
+                            target: targetId,
+                            anchors: [anchorA, anchorB],
+                            ...this.getConnectorConfig(connStyle),
+                            cssClass: 'cardmap-connector'
+                        });
 
-                    const newId = `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
-                    if (conn) {
-                        conn._cardmap_id = newId;
-                        this.addConnectionContextMenu(conn);
-                        try { conn.setParameter && conn.setParameter('user-driven', true); } catch(e) {}
+                        const newId = `conn_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+                        if (conn) {
+                            conn._cardmap_id = newId;
+                            this.addConnectionContextMenu(conn);
+                            try { conn.setParameter && conn.setParameter('user-driven', true); } catch(e) {}
+                            
+                            const savedAnchors = [
+                                (Array.isArray(anchorA) ? { type: 'precise', value: anchorA } : anchorA),
+                                (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
+                            ];
+                            this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
+                        }
+                        
+                        if ((sourceIsRail || targetIsRail)) {
+                            this.showToast(`Connected to rail. Hold Shift while connecting to split rails at connection point.`);
+                        }
                     }
-                    const savedAnchors = [
-                        (Array.isArray(anchorA) ? { type: 'precise', value: anchorA } : anchorA),
-                        (Array.isArray(anchorB) ? { type: 'precise', value: anchorB } : anchorB)
-                    ];
-                    this.mapData.connections.push({ id: newId, source: sourceId, target: targetId, style: connStyle, anchors: savedAnchors });
 
                     // Save to history
                     this.saveToHistory(`Connected ${sourceId} to ${targetId}`);
@@ -1867,6 +2281,12 @@
                 railEl = document.createElement('div');
                 railEl.id = r.id;
                 railEl.className = 'cardmap-rail';
+                
+                // Mark rails that follow nodes
+                if (r.followsNode) {
+                    railEl.setAttribute('data-follows-node', r.followsNode);
+                }
+                
                 this.editor.appendChild(railEl);
 
                 const preview = document.createElement('div');
@@ -2707,8 +3127,8 @@
                     const connSel = el.querySelector('.card-connection-style');
                     if (connSel) {
                         nodeData.connectionStyle = connSel.value;
-                    } else {
                     }
+                    // Keep followingRailSegments data (it's already in nodeData)
                 }
             });
             
@@ -2721,6 +3141,7 @@
                     railData.height = parseInt(el.style.height, 10) || 0;
                     // preserve logical size property (thickness)
                     railData.size = railData.size || (railData.orientation === 'vertical' ? railData.width : (railData.height || this.RAIL_HEIGHT));
+                    // Keep followsNode and connectionAnchor data (already in railData)
                     // persist rail connection style if user set it
                     const railConnSel = el.querySelector('.rail-connection-style');
                     if (railConnSel) {
@@ -3182,26 +3603,46 @@
                     return "Continuous";
                 }
 
-                // For rails, keep precise positioning
+                // For rails, use element-relative positioning for jsPlumb compatibility
                 if (isRail) {
-                    let x = Math.max(0, Math.min(1, relativeX / elRect.width));
-                    let y = Math.max(0, Math.min(1, relativeY / elRect.height));
-                    
                     const railData = this.mapData.rails.find(r => r.id === el.id);
                     if (railData) {
+                        // Calculate position relative to the element's current screen position
+                        // This works correctly with jsPlumb since it uses the element's actual DOM position
+                        let x = relativeX / elRect.width;
+                        let y = relativeY / elRect.height;
+                        
+                        // Clamp to valid range [0, 1]
+                        x = Math.max(0, Math.min(1, x));
+                        y = Math.max(0, Math.min(1, y));
+                        
+                        console.log('Rail anchor calculation:', {
+                            railId: el.id,
+                            orientation: railData.orientation,
+                            clickPos: { clientX: e.clientX, clientY: e.clientY },
+                            elRect: { left: elRect.left, top: elRect.top, width: elRect.width, height: elRect.height },
+                            relative: { x: relativeX, y: relativeY },
+                            normalized: { x, y }
+                        });
+                        
+                        // Snap to appropriate edge based on orientation
                         if (railData.orientation === 'vertical') {
-                            // For vertical rails, connections should typically be on the sides
+                            // For vertical rails, connections should be on left/right edge
                             x = relativeX < elRect.width / 2 ? 0 : 1;
                             // Keep y position precise along the rail length
                         } else if (railData.orientation === 'horizontal') {
-                            // For horizontal rails, connections should typically be on top/bottom
+                            // For horizontal rails, connections should be on top/bottom edge
                             y = relativeY < elRect.height / 2 ? 0 : 1;
                             // Keep x position precise along the rail length
                         }
                         // For diagonal rails, keep both x and y precise
+                        
+                        console.log('Final rail anchor:', [x, y, 0, 0]);
+                        return [x, y, 0, 0];
                     }
                     
-                    return [x, y, 0, 0];
+                    // Fallback if no rail data found
+                    return [0.5, 0.5, 0, 0];
                 }
 
                 // For cards, snap to the nearest edge for consistent positioning
@@ -3296,13 +3737,28 @@
             let anchorB = null;
 
             if (sourceEvent) {
-                const a = this.getPreciseAnchorFromEvent(sourceEvent, sourceEl);
-                if (a && a !== 'Continuous') anchorA = a;
+                // Use enhanced positioning for rails, standard positioning for nodes
+                if (sourceEl && sourceEl.classList.contains('cardmap-rail')) {
+                    const railData = this.mapData.rails.find(r => r.id === sourceEl.id);
+                    if (railData) {
+                        anchorA = this.getEnhancedRailAnchor(sourceEl, railData, sourceEvent.clientX, sourceEvent.clientY);
+                    }
+                } else {
+                    const a = this.getPreciseAnchorFromEvent(sourceEvent, sourceEl);
+                    if (a && a !== 'Continuous') anchorA = a;
+                }
             }
             if (targetEvent) {
-                // Use precise anchor from event for all elements (nodes and rails)
-                const b = this.getPreciseAnchorFromEvent(targetEvent, targetEl);
-                if (b && b !== 'Continuous') anchorB = b;
+                // Use enhanced positioning for rails, standard positioning for nodes
+                if (targetEl && targetEl.classList.contains('cardmap-rail')) {
+                    const railData = this.mapData.rails.find(r => r.id === targetEl.id);
+                    if (railData) {
+                        anchorB = this.getEnhancedRailAnchor(targetEl, railData, targetEvent.clientX, targetEvent.clientY);
+                    }
+                } else {
+                    const b = this.getPreciseAnchorFromEvent(targetEvent, targetEl);
+                    if (b && b !== 'Continuous') anchorB = b;
+                }
             }
 
             // fallback to directional anchors if any side is missing
@@ -3548,6 +4004,617 @@
             } catch (error) {
                 console.error('Error applying connection style:', error);
                 this.showToast('Error applying connection style');
+            }
+        }
+
+        // --- Rail Connection Splitting Functionality ---
+
+        /**
+         * Splits a rail at a specific connection point when a card is connected to it
+         */
+        splitRailAtConnectionPoint(railId, connectionX, connectionY, connectedNodeId) {
+            const railData = this.mapData.rails.find(r => r.id === railId);
+            if (!railData) return null;
+
+            const railEl = document.getElementById(railId);
+            if (!railEl) return null;
+
+            let splitPosition;
+            
+            if (railData.orientation === 'horizontal') {
+                // For horizontal rails, split based on X position
+                const relativeX = Math.max(0, Math.min(1, (connectionX - railData.x) / railData.width));
+                const splitX = railData.x + (railData.width * relativeX);
+                
+                // Don't split if too close to edges (less than 20px)
+                if (splitX - railData.x < 20 || railData.x + railData.width - splitX < 20) {
+                    return null;
+                }
+                
+                splitPosition = { x: splitX, relativePosition: relativeX };
+            } else if (railData.orientation === 'vertical') {
+                // For vertical rails, split based on Y position
+                const relativeY = Math.max(0, Math.min(1, (connectionY - railData.y) / railData.height));
+                const splitY = railData.y + (railData.height * relativeY);
+                
+                // Don't split if too close to edges
+                if (splitY - railData.y < 20 || railData.y + railData.height - splitY < 20) {
+                    return null;
+                }
+                
+                splitPosition = { y: splitY, relativePosition: relativeY };
+            } else {
+                return null; // Don't split diagonal rails for now
+            }
+
+            // Create the split
+            const newRailIds = this.performRailSplit(railData, splitPosition, connectedNodeId);
+            
+            if (newRailIds && newRailIds.length === 2) {
+                this.saveToHistory(`Split rail ${railId} at connection point`);
+                this.showToast(`Rail split into two segments at connection point`);
+                return newRailIds;
+            }
+            
+            return null;
+        }
+
+        /**
+         * Performs the actual rail split operation
+         */
+        performRailSplit(originalRail, splitPosition, connectedNodeId) {
+            try {
+                // Generate new IDs for the split rails
+                const rail1Id = `rail_${Date.now()}_1_${Math.floor(Math.random() * 1000)}`;
+                const rail2Id = `rail_${Date.now()}_2_${Math.floor(Math.random() * 1000)}`;
+
+                let rail1Data, rail2Data;
+
+                if (originalRail.orientation === 'horizontal') {
+                    // Split horizontal rail
+                    const splitX = splitPosition.x;
+                    
+                    rail1Data = {
+                        ...originalRail,
+                        id: rail1Id,
+                        width: splitX - originalRail.x,
+                    };
+                    
+                    rail2Data = {
+                        ...originalRail,
+                        id: rail2Id,
+                        x: splitX,
+                        width: (originalRail.x + originalRail.width) - splitX,
+                    };
+                } else if (originalRail.orientation === 'vertical') {
+                    // Split vertical rail
+                    const splitY = splitPosition.y;
+                    
+                    rail1Data = {
+                        ...originalRail,
+                        id: rail1Id,
+                        height: splitY - originalRail.y,
+                    };
+                    
+                    rail2Data = {
+                        ...originalRail,
+                        id: rail2Id,
+                        y: splitY,
+                        height: (originalRail.y + originalRail.height) - splitY,
+                    };
+                }
+
+                // Remove the original rail
+                this.removeRailFromDOM(originalRail.id);
+                const originalIndex = this.mapData.rails.findIndex(r => r.id === originalRail.id);
+                if (originalIndex !== -1) {
+                    this.mapData.rails.splice(originalIndex, 1);
+                }
+
+                // Add the new rails
+                this.mapData.rails.push(rail1Data, rail2Data);
+                this.renderRail(rail1Data);
+                this.renderRail(rail2Data);
+
+                // Update connections that were attached to the original rail
+                this.updateConnectionsForSplitRail(originalRail.id, rail1Id, rail2Id, splitPosition, connectedNodeId);
+
+                // Update any nodes that were attached to the original rail
+                this.updateNodesForSplitRail(originalRail.id, rail1Id, rail2Id, splitPosition);
+
+                this.instance.repaintEverything();
+                
+                return [rail1Id, rail2Id];
+            } catch (error) {
+                console.error('Error splitting rail:', error);
+                this.showToast('Error splitting rail');
+                return null;
+            }
+        }
+
+        /**
+         * Updates connections when a rail is split
+         */
+        updateConnectionsForSplitRail(originalRailId, rail1Id, rail2Id, splitPosition, connectedNodeId) {
+            // Update existing connections that were connected to the original rail
+            this.mapData.connections.forEach(conn => {
+                if (conn.source === originalRailId || conn.target === originalRailId) {
+                    // Determine which segment this connection should attach to
+                    // For now, keep them on the first segment unless it's the newly connected node
+                    if (conn.source === connectedNodeId || conn.target === connectedNodeId) {
+                        // This is the connection that caused the split - it should connect to the junction point
+                        // We'll create a small junction rail segment later if needed
+                        return;
+                    }
+                    
+                    // For other connections, attach to the appropriate segment based on position
+                    const newRailId = rail1Id; // Default to first segment for simplicity
+                    
+                    if (conn.source === originalRailId) {
+                        conn.source = newRailId;
+                    }
+                    if (conn.target === originalRailId) {
+                        conn.target = newRailId;
+                    }
+                }
+            });
+
+            // Update jsPlumb connections
+            const jsConnections = this.instance.getAllConnections();
+            jsConnections.forEach(jsConn => {
+                const sourceId = jsConn.sourceId || (jsConn.source && jsConn.source.id);
+                const targetId = jsConn.targetId || (jsConn.target && jsConn.target.id);
+                
+                if (sourceId === originalRailId || targetId === originalRailId) {
+                    try {
+                        if (sourceId === originalRailId) {
+                            const newSourceEl = document.getElementById(rail1Id);
+                            if (newSourceEl) jsConn.setSource(newSourceEl);
+                        }
+                        if (targetId === originalRailId) {
+                            const newTargetEl = document.getElementById(rail1Id);
+                            if (newTargetEl) jsConn.setTarget(newTargetEl);
+                        }
+                    } catch (error) {
+                        console.error('Error updating jsPlumb connection:', error);
+                    }
+                }
+            });
+        }
+
+        /**
+         * Updates nodes when a rail is split
+         */
+        updateNodesForSplitRail(originalRailId, rail1Id, rail2Id, splitPosition) {
+            this.mapData.nodes.forEach(node => {
+                if (node.attachedRail === originalRailId) {
+                    // Determine which rail segment this node should attach to
+                    const rail1Data = this.mapData.rails.find(r => r.id === rail1Id);
+                    const rail2Data = this.mapData.rails.find(r => r.id === rail2Id);
+                    
+                    if (rail1Data && rail2Data) {
+                        // Check which segment the node is closer to
+                        let attachToRail1 = true;
+                        
+                        if (rail1Data.orientation === 'horizontal') {
+                            const nodeCenterX = node.x + 96; // Approximate node width / 2
+                            attachToRail1 = nodeCenterX <= splitPosition.x;
+                        } else if (rail1Data.orientation === 'vertical') {
+                            const nodeCenterY = node.y + 120; // Approximate node height / 2
+                            attachToRail1 = nodeCenterY <= splitPosition.y;
+                        }
+                        
+                        node.attachedRail = attachToRail1 ? rail1Id : rail2Id;
+                    }
+                }
+            });
+        }
+
+        /**
+         * Removes a rail element from the DOM
+         */
+        removeRailFromDOM(railId) {
+            const railEl = document.getElementById(railId);
+            if (railEl) {
+                // Remove from jsPlumb first
+                try {
+                    this.instance.removeAllEndpoints(railEl);
+                } catch (error) {
+                    console.warn('Error removing rail endpoints:', error);
+                }
+                
+                // Remove from DOM
+                railEl.remove();
+            }
+        }
+
+        /**
+         * Enhanced connection creation that checks for rail splitting
+         */
+        createConnectionWithRailSplitting(sourceId, targetId, anchors, style, event) {
+            const sourceEl = document.getElementById(sourceId);
+            const targetEl = document.getElementById(targetId);
+            
+            if (!sourceEl || !targetEl) return null;
+
+            const sourceIsRail = sourceEl.classList.contains('cardmap-rail');
+            const targetIsRail = targetEl.classList.contains('cardmap-rail');
+            
+            // If connecting to a rail and user wants splitting (Shift key held)
+            if ((sourceIsRail || targetIsRail) && event && event.shiftKey) {
+                const railEl = sourceIsRail ? sourceEl : targetEl;
+                const nodeEl = sourceIsRail ? targetEl : sourceEl;
+                const railId = railEl.id;
+                const nodeId = nodeEl.id;
+                
+                // Get the connection point in world coordinates
+                const worldCoords = this.getWorldCoordsFromEvent(event);
+                
+                // Split the rail at the connection point
+                const newRailIds = this.splitRailAtConnectionPoint(railId, worldCoords.x, worldCoords.y, nodeId);
+                
+                if (newRailIds) {
+                    // Connect to both rail segments if split was successful
+                    const [rail1Id, rail2Id] = newRailIds;
+                    
+                    // Create connections to both segments
+                    this.createStandardConnection(nodeId, rail1Id, anchors, style);
+                    this.createStandardConnection(nodeId, rail2Id, anchors, style);
+                    
+                    return { split: true, railIds: newRailIds };
+                }
+            }
+            
+            // Standard connection creation
+            return this.createStandardConnection(sourceId, targetId, anchors, style);
+        }
+
+        /**
+         * Shows help tooltip for rail splitting when dragging connected cards
+         */
+        showRailSplitHelp() {
+            const helpText = `
+                <strong>🚂 Rail Splitting Feature:</strong><br>
+                <br>
+                When you drag a card that's connected to a rail:<br>
+                • The rail will automatically split at the connection point<br>
+                • A small rail segment will follow your card<br>
+                • The connection stays intact as you move<br>
+                • Original rail structure is preserved<br>
+                <br>
+                <strong>💡 Tips:</strong><br>
+                • Drag at least 30px to trigger split<br>
+                • Green highlight shows rail is splitting<br>
+                • Perfect for repositioning connected cards!
+            `;
+            
+            const helpTooltip = document.createElement('div');
+            helpTooltip.style.cssText = `
+                position: fixed;
+                bottom: 60px;
+                right: 20px;
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                color: white;
+                padding: 20px;
+                border-radius: 12px;
+                font-size: 13px;
+                z-index: 10000;
+                max-width: 350px;
+                border: 2px solid #4CAF50;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+                animation: slideInRight 0.5s ease-out;
+            `;
+            
+            helpTooltip.innerHTML = helpText + `
+                <div style="margin-top: 15px; text-align: right;">
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            style="background: #4CAF50; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        Got it! ✓
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(helpTooltip);
+            
+            // Auto-hide after 15 seconds
+            setTimeout(() => {
+                if (helpTooltip && helpTooltip.parentNode) {
+                    helpTooltip.style.animation = 'slideOutRight 0.5s ease-out';
+                    setTimeout(() => helpTooltip.remove(), 500);
+                }
+            }, 15000);
+        }
+
+        /**
+         * Shows help tooltip for story mode
+         */
+        /**
+         * Creates a standard connection without rail splitting
+         */
+        createStandardConnection(sourceId, targetId, anchors, style) {
+            try {
+                const config = this.getConnectorConfig(style || 'normal');
+                const connection = this.instance.connect({
+                    source: sourceId,
+                    target: targetId,
+                    anchors: anchors,
+                    ...config,
+                    cssClass: 'cardmap-connector'
+                });
+                
+                if (connection) {
+                    const connId = `conn_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+                    connection._cardmap_id = connId;
+                    this.addConnectionContextMenu(connection);
+                    
+                    // Store in mapData
+                    this.mapData.connections.push({
+                        id: connId,
+                        source: sourceId,
+                        target: targetId,
+                        style: style,
+                        anchors: anchors
+                    });
+                    
+                    return connection;
+                }
+            } catch (error) {
+                console.error('Error creating connection:', error);
+            }
+            
+            return null;
+        }
+
+        /**
+         * Splits a rail at the connection point and creates a new rail segment that follows the dragged node
+         */
+        splitRailAndAttachToNode(railId, railData, anchorPosition, nodeId, jsConnection, connectionData, isRailSource) {
+            try {
+                // Calculate the exact split position on the rail using the anchor position
+                let splitX, splitY;
+                
+                if (railData.orientation === 'horizontal') {
+                    splitX = railData.x + (railData.width * anchorPosition.relX);
+                    splitY = railData.y;
+                    
+                    // Don't split if too close to edges (less than 20px)
+                    if (splitX - railData.x < 20 || railData.x + railData.width - splitX < 20) {
+                        return; // Don't split, just maintain connection
+                    }
+                } else if (railData.orientation === 'vertical') {
+                    splitX = railData.x;
+                    splitY = railData.y + (railData.height * anchorPosition.relY);
+                    
+                    // Don't split if too close to edges
+                    if (splitY - railData.y < 20 || railData.y + railData.height - splitY < 20) {
+                        return; // Don't split, just maintain connection
+                    }
+                } else {
+                    return; // Don't handle diagonal rails for now
+                }
+                
+                // Create three rail segments:
+                // 1. Original rail (before split point)
+                // 2. Connection segment (small segment at split point that moves with node)
+                // 3. Remaining rail (after split point)
+                
+                const connectionSegmentSize = 40; // Small segment that will follow the node
+                const rail1Id = `rail_${Date.now()}_1_${Math.floor(Math.random() * 1000)}`;
+                const connectionSegmentId = `rail_${Date.now()}_conn_${Math.floor(Math.random() * 1000)}`;
+                const rail2Id = `rail_${Date.now()}_2_${Math.floor(Math.random() * 1000)}`;
+                
+                let rail1Data, connectionSegmentData, rail2Data;
+                
+                if (railData.orientation === 'horizontal') {
+                    // Horizontal split
+                    rail1Data = {
+                        ...railData,
+                        id: rail1Id,
+                        width: splitX - railData.x,
+                    };
+                    
+                    connectionSegmentData = {
+                        ...railData,
+                        id: connectionSegmentId,
+                        x: splitX,
+                        width: connectionSegmentSize,
+                        followsNode: nodeId, // Mark this segment to follow the node
+                        connectionAnchor: anchorPosition
+                    };
+                    
+                    rail2Data = {
+                        ...railData,
+                        id: rail2Id,
+                        x: splitX + connectionSegmentSize,
+                        width: (railData.x + railData.width) - (splitX + connectionSegmentSize),
+                    };
+                } else if (railData.orientation === 'vertical') {
+                    // Vertical split
+                    rail1Data = {
+                        ...railData,
+                        id: rail1Id,
+                        height: splitY - railData.y,
+                    };
+                    
+                    connectionSegmentData = {
+                        ...railData,
+                        id: connectionSegmentId,
+                        y: splitY,
+                        height: connectionSegmentSize,
+                        followsNode: nodeId,
+                        connectionAnchor: anchorPosition
+                    };
+                    
+                    rail2Data = {
+                        ...railData,
+                        id: rail2Id,
+                        y: splitY + connectionSegmentSize,
+                        height: (railData.y + railData.height) - (splitY + connectionSegmentSize),
+                    };
+                }
+                
+                // Remove the original rail
+                this.removeRailFromDOM(railId);
+                const originalIndex = this.mapData.rails.findIndex(r => r.id === railId);
+                if (originalIndex !== -1) {
+                    this.mapData.rails.splice(originalIndex, 1);
+                }
+                
+                // Add the new rail segments
+                this.mapData.rails.push(rail1Data);
+                this.mapData.rails.push(connectionSegmentData);
+                this.mapData.rails.push(rail2Data);
+                
+                // Render the new rails
+                this.renderRail(rail1Data);
+                this.renderRail(connectionSegmentData);
+                this.renderRail(rail2Data);
+                
+                // Update the connection to point to the connection segment
+                if (connectionData) {
+                    if (isRailSource) {
+                        connectionData.source = connectionSegmentId;
+                    } else {
+                        connectionData.target = connectionSegmentId;
+                    }
+                }
+                
+                // Update the jsPlumb connection
+                if (jsConnection) {
+                    try {
+                        const newRailEl = document.getElementById(connectionSegmentId);
+                        if (newRailEl) {
+                            if (isRailSource) {
+                                jsConnection.setSource(newRailEl);
+                            } else {
+                                jsConnection.setTarget(newRailEl);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error updating jsPlumb connection:', error);
+                    }
+                }
+                
+                // Update other connections that were attached to the original rail
+                this.redistributeConnectionsAfterRailSplit(railId, rail1Id, connectionSegmentId, rail2Id, railData, splitX, splitY);
+                
+                // Store the relationship so the connection segment follows the node
+                const nodeData = this.mapData.nodes.find(n => n.id === nodeId);
+                if (nodeData) {
+                    if (!nodeData.followingRailSegments) {
+                        nodeData.followingRailSegments = [];
+                    }
+                    nodeData.followingRailSegments.push({
+                        segmentId: connectionSegmentId,
+                        offsetX: connectionSegmentData.x - nodeData.x,
+                        offsetY: connectionSegmentData.y - nodeData.y
+                    });
+                }
+                
+                this.showToast('Rail split at connection point - segment will follow card');
+                this.saveToHistory(`Split rail ${railId} at node connection`);
+                
+            } catch (error) {
+                console.error('Error in splitRailAndAttachToNode:', error);
+                this.showToast('Error splitting rail at connection point');
+            }
+        }
+
+        /**
+         * Redistributes connections after a rail has been split
+         */
+        redistributeConnectionsAfterRailSplit(originalRailId, rail1Id, connectionSegmentId, rail2Id, railData, splitX, splitY) {
+            // Update other connections that were connected to the original rail
+            this.mapData.connections.forEach(conn => {
+                if (conn.source === originalRailId || conn.target === originalRailId) {
+                    // Determine which segment this connection should attach to based on its anchor position
+                    let targetSegmentId = rail1Id; // Default to first segment
+                    
+                    // Try to get the anchor position from the connection
+                    const jsConn = this.instance.getAllConnections().find(c => c._cardmap_id === conn.id);
+                    if (jsConn) {
+                        try {
+                            const anchors = jsConn.getAnchors ? jsConn.getAnchors() : jsConn.anchors;
+                            if (anchors && Array.isArray(anchors)) {
+                                const railAnchorIndex = conn.source === originalRailId ? 0 : 1;
+                                const railAnchor = anchors[railAnchorIndex];
+                                
+                                if (Array.isArray(railAnchor) && railAnchor.length >= 2) {
+                                    // Calculate which segment this anchor falls on
+                                    if (railData.orientation === 'horizontal') {
+                                        const anchorX = railData.x + (railData.width * railAnchor[0]);
+                                        
+                                        if (anchorX < splitX) {
+                                            targetSegmentId = rail1Id;
+                                        } else if (anchorX >= splitX && anchorX < splitX + 40) {
+                                            targetSegmentId = connectionSegmentId;
+                                        } else {
+                                            targetSegmentId = rail2Id;
+                                        }
+                                    } else if (railData.orientation === 'vertical') {
+                                        const anchorY = railData.y + (railData.height * railAnchor[1]);
+                                        
+                                        if (anchorY < splitY) {
+                                            targetSegmentId = rail1Id;
+                                        } else if (anchorY >= splitY && anchorY < splitY + 40) {
+                                            targetSegmentId = connectionSegmentId;
+                                        } else {
+                                            targetSegmentId = rail2Id;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.warn('Error determining anchor position:', error);
+                        }
+                    }
+                    
+                    // Update the connection data
+                    if (conn.source === originalRailId) {
+                        conn.source = targetSegmentId;
+                    }
+                    if (conn.target === originalRailId) {
+                        conn.target = targetSegmentId;
+                    }
+                    
+                    // Update jsPlumb connection
+                    if (jsConn) {
+                        try {
+                            const newEl = document.getElementById(targetSegmentId);
+                            if (newEl) {
+                                if (conn.source === targetSegmentId) {
+                                    jsConn.setSource(newEl);
+                                }
+                                if (conn.target === targetSegmentId) {
+                                    jsConn.setTarget(newEl);
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error updating connection element:', error);
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Updates following rail segments when their parent node moves
+         */
+        updateFollowingRailSegments(nodeId, newX, newY) {
+            const nodeData = this.mapData.nodes.find(n => n.id === nodeId);
+            if (nodeData && nodeData.followingRailSegments) {
+                nodeData.followingRailSegments.forEach(following => {
+                    const segmentData = this.mapData.rails.find(r => r.id === following.segmentId);
+                    const segmentEl = document.getElementById(following.segmentId);
+                    
+                    if (segmentData && segmentEl) {
+                        // Update segment position to follow the node
+                        segmentData.x = newX + following.offsetX;
+                        segmentData.y = newY + following.offsetY;
+                        segmentEl.style.left = `${segmentData.x}px`;
+                        segmentEl.style.top = `${segmentData.y}px`;
+                    }
+                });
             }
         }
     }

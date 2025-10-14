@@ -38,6 +38,21 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v2.0.0 (2025-10-14)
+
+- **🚀 Major Feature:** Dynamic Rail Connection System - connections now intelligently slide along rails as cards move
+- **✨ New Feature:** Real-time connection anchor updates during drag - smooth visual feedback while dragging
+- **✨ New Feature:** Smart anchor positioning on rails based on card position relative to rail
+- **✨ New Feature:** Automatic anchor recalculation on page load - connections display correctly without manual adjustment
+- **🎯 Improvement:** Precise connection alignment to rail edges (left/right for vertical rails, top/bottom for horizontal rails)
+- **🎯 Improvement:** Connection points maintain optimal position along rail length based on card position
+- **🔧 Fix:** Proper jsPlumb v2.15.6 API usage with endpoints[].setAnchor() for dynamic updates
+- **🔧 Fix:** Real-time position tracking during drag using current element position instead of stale data
+- **🔧 Fix:** Immediate visual updates with connection.repaint() after anchor changes
+- **⚡ Technical:** Added updateAllRailAnchors() method for batch anchor recalculation
+- **⚡ Technical:** Improved coordinate system handling for accurate rail-node positioning
+- **🗑️ Removed:** Story mode feature completely removed from plugin (editor, JavaScript, CSS)
+
 ### v1.10.8 (2025-10-13)
 
 - **🔧 Critical Fix:** Arrow overlays now properly visible on all arrow-styled connections (straight, flowchart, dashed, dotted)

@@ -383,6 +383,175 @@
     background-image: none !important;
 }
 
+/* ========================================
+   RAIL ANIMATIONS
+   ======================================== */
+
+/* Pulse Animation */
+@keyframes railPulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+    }
+}
+
+.cardmap-rail.rail-animate-pulse .rail-bar {
+    animation: railPulse 2s ease-in-out infinite;
+}
+
+/* Glow Animation */
+@keyframes railGlow {
+    0%, 100% {
+        box-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
+    }
+    50% {
+        box-shadow: 0 0 15px currentColor, 0 0 25px currentColor, 0 0 35px currentColor;
+    }
+}
+
+.cardmap-rail.rail-animate-glow .rail-bar {
+    animation: railGlow 2.5s ease-in-out infinite;
+}
+
+/* Flow Animation - Gradient moving along rail */
+@keyframes railFlow {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 200% 50%;
+    }
+}
+
+.cardmap-rail.rail-animate-flow .rail-bar {
+    background: linear-gradient(90deg, 
+        var(--rail-color, #A61832) 0%, 
+        var(--rail-color, #A61832) 40%, 
+        rgba(255, 255, 255, 0.6) 50%, 
+        var(--rail-color, #A61832) 60%, 
+        var(--rail-color, #A61832) 100%);
+    background-size: 200% 100%;
+    animation: railFlow 3s linear infinite;
+}
+
+/* Shimmer Animation */
+@keyframes railShimmer {
+    0% {
+        background-position: -100% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.cardmap-rail.rail-animate-shimmer .rail-bar {
+    position: relative;
+    overflow: hidden;
+}
+
+.cardmap-rail.rail-animate-shimmer .rail-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.4) 50%, 
+        transparent 100%);
+    background-size: 200% 100%;
+    animation: railShimmer 2s ease-in-out infinite;
+}
+
+/* Breathe Animation */
+@keyframes railBreathe {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+.cardmap-rail.rail-animate-breathe .rail-bar {
+    animation: railBreathe 3s ease-in-out infinite;
+}
+
+/* Slide Animation - Dashed line moving */
+@keyframes railSlide {
+    0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: 40px 0;
+    }
+}
+
+.cardmap-rail.rail-animate-slide .rail-bar {
+    background-image: repeating-linear-gradient(
+        90deg,
+        var(--rail-color, #A61832) 0px,
+        var(--rail-color, #A61832) 20px,
+        rgba(255, 255, 255, 0.3) 20px,
+        rgba(255, 255, 255, 0.3) 40px
+    );
+    background-size: 40px 100%;
+    animation: railSlide 2s linear infinite;
+}
+
+/* Vertical rail adjustments for flow and slide */
+.cardmap-rail.vertical.rail-animate-flow .rail-bar {
+    background: linear-gradient(180deg, 
+        var(--rail-color, #A61832) 0%, 
+        var(--rail-color, #A61832) 40%, 
+        rgba(255, 255, 255, 0.6) 50%, 
+        var(--rail-color, #A61832) 60%, 
+        var(--rail-color, #A61832) 100%);
+    background-size: 100% 200%;
+}
+
+@keyframes railFlowVertical {
+    0% {
+        background-position: 50% 0%;
+    }
+    100% {
+        background-position: 50% 200%;
+    }
+}
+
+.cardmap-rail.vertical.rail-animate-flow .rail-bar {
+    animation: railFlowVertical 3s linear infinite;
+}
+
+.cardmap-rail.vertical.rail-animate-slide .rail-bar {
+    background-image: repeating-linear-gradient(
+        180deg,
+        var(--rail-color, #A61832) 0px,
+        var(--rail-color, #A61832) 20px,
+        rgba(255, 255, 255, 0.3) 20px,
+        rgba(255, 255, 255, 0.3) 40px
+    );
+    background-size: 100% 40px;
+}
+
+@keyframes railSlideVertical {
+    0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: 0 40px;
+    }
+}
+
+.cardmap-rail.vertical.rail-animate-slide .rail-bar {
+    animation: railSlideVertical 2s linear infinite;
+}
+
 /* Fullscreen */
 .cardmap-frontend-wrapper:fullscreen {
     width: 100vw;

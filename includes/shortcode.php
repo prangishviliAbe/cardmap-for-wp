@@ -45,14 +45,21 @@ add_shortcode( 'cardmap', function( $atts ) {
     $settings = [
         'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
         'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
+        'default_rail_thickness' => (int) get_option( 'cardmap_default_rail_thickness', 8 ),
         'enable_drag' => (bool) get_option( 'cardmap_enable_drag', 1 ),
         'enable_animation' => (bool) get_option( 'cardmap_enable_connection_animation', 0 ),
         'connection_animation_type' => get_option( 'cardmap_connection_animation_type', 'draw' ),
+        'enable_captions' => (bool) get_option( 'cardmap_enable_captions', 1 ),
         'connection_animation_duration' => (int) get_option( 'cardmap_connection_animation_duration', 1200 ),
         'connection_animation_stagger' => (int) get_option( 'cardmap_connection_animation_stagger', 200 ),
         'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
         'hover_effect' => get_option( 'cardmap_hover_effect', 'lift' ),
         'initial_zoom' => (int) get_option( 'cardmap_initial_zoom', 100 ),
+        'enable_rail_animation' => (bool) get_option( 'cardmap_enable_rail_animation', 0 ),
+        'rail_animation_style' => get_option( 'cardmap_rail_animation_style', 'pulse' ),
+        'background_image' => get_option( 'cardmap_background_image', '' ),
+        'background_size' => get_option( 'cardmap_background_size', 'auto' ),
+        'background_repeat' => get_option( 'cardmap_background_repeat', 'repeat' ),
     ];
 
     // Prepare data for localization
@@ -61,8 +68,19 @@ add_shortcode( 'cardmap', function( $atts ) {
 
     ob_start();
     $animation_class = $settings['enable_animation'] ? ' cardmap-animate-connections' : '';
+    
+    // Build background styles
+    $background_styles = '';
+    if ( !empty($settings['background_image']) ) {
+        $background_styles = sprintf(
+            'background-image: url(%s); background-size: %s; background-repeat: %s; background-position: center;',
+            esc_url($settings['background_image']),
+            esc_attr($settings['background_size']),
+            esc_attr($settings['background_repeat'])
+        );
+    }
     ?>
-    <div id="cardmap-frontend-<?php echo esc_attr( $post_id ); ?>" class="cardmap-frontend-wrapper<?php echo $animation_class; ?>" data-map-id="<?php echo esc_attr( $post_id ); ?>" style="width:100%;height:600px;border:1px solid #ddd;position:relative;overflow:hidden;">
+    <div id="cardmap-frontend-<?php echo esc_attr( $post_id ); ?>" class="cardmap-frontend-wrapper<?php echo $animation_class; ?>" data-map-id="<?php echo esc_attr( $post_id ); ?>" style="width:100%;height:600px;border:1px solid #ddd;position:relative;overflow:hidden;<?php echo $background_styles; ?>">
         <div class="cardmap-viewport" style="width:100%;height:100%;position:absolute;top:0;left:0;">
             <div class="cardmap-pan-zoom-container" style="position:relative;width:1200px;height:1000px;">
                 <?php if ( ! empty( $map_data['nodes'] ) ) : ?>
@@ -88,7 +106,12 @@ add_shortcode( 'cardmap', function( $atts ) {
                             echo '<div id="' . esc_attr( $node['id'] ) . '" class="cardmap-rail ' . $orientation_class . '" data-rail-style="' . esc_attr($rail_style) . '" data-rail-color="' . esc_attr($rail_color) . '" data-rail-size="' . esc_attr($rail_size) . '" style="left:' . esc_attr( $node['x'] ) . 'px;top:' . esc_attr( $node['y'] ) . 'px; width: ' . esc_attr($node['width']) . 'px; height: ' . esc_attr($node['height']) . 'px;"></div>';
                         } else {
                     ?>
-                        <div id="<?php echo esc_attr( $node['id'] ); ?>" class="cardmap-node hover-<?php echo esc_attr($hover_effect); ?> <?php echo isset($node['style']) ? 'style-'.esc_attr($node['style']) : 'style-default'; ?>" style="left:<?php echo esc_attr( $node['x'] ); ?>px;top:<?php echo esc_attr( $node['y'] ); ?>px;">
+                        <?php
+                            $card_style = 'left:' . esc_attr( $node['x'] ) . 'px;top:' . esc_attr( $node['y'] ) . 'px;';
+                            if ( isset($node['cardWidth']) ) $card_style .= 'width:' . esc_attr($node['cardWidth']) . 'px;';
+                            if ( isset($node['cardHeight']) ) $card_style .= 'height:' . esc_attr($node['cardHeight']) . 'px;';
+                        ?>
+                        <div id="<?php echo esc_attr( $node['id'] ); ?>" class="cardmap-node hover-<?php echo esc_attr($hover_effect); ?> <?php echo isset($node['style']) ? 'style-'.esc_attr($node['style']) : 'style-default'; ?>" style="<?php echo $card_style; ?>">
                             <?php if ( ! empty( $node['link'] ) ) : ?>
                                 <a href="<?php echo esc_url( $node['link'] ); ?>" target="<?php echo esc_attr( $node['target'] ?? '_self' ); ?>">
                             <?php endif; ?>
@@ -97,11 +120,11 @@ add_shortcode( 'cardmap', function( $atts ) {
                                 <?php if ( ! empty( $node['image'] ) ) : ?>
                                     <div class="node-image"><img src="<?php echo esc_url( $node['image'] ); ?>" alt="<?php echo esc_attr( $node['caption'] ?? '' ); ?>"></div>
                                 <?php endif; ?>
-                                <?php if ( ! empty( $node['caption'] ) ) : ?>
-                                    <div class="card-caption"><?php echo esc_html( $node['caption'] ); ?></div>
+                                <?php if ( $settings['enable_captions'] && ! empty( $node['caption'] ) ) : ?>
+                                    <div class="card-caption" style="<?php echo isset($node['fontSize']) ? 'font-size:' . esc_attr($node['fontSize']) . 'px;' : ''; ?>"><?php echo esc_html( $node['caption'] ); ?></div>
                                 <?php endif; ?>
                             </div>
-                            <div class="card-title"><?php echo esc_html( $node['text'] ); ?></div>
+                            <div class="card-title" style="<?php echo isset($node['fontSize']) ? 'font-size:' . esc_attr($node['fontSize']) . 'px;' : ''; ?>"><?php echo esc_html( $node['text'] ); ?></div>
 
                             <?php if ( ! empty( $node['link'] ) ) : ?>
                                 </a>

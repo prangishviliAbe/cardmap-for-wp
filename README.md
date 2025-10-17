@@ -38,6 +38,16 @@ A WordPress plugin for creating interactive, node-based maps with connections. B
 
 ## Changelog
 
+### v2.1.0 (2025-10-17)
+
+- **✨ New Feature:** Custom background image support for frontend maps
+- **✨ New Feature:** Background size control (Auto, Cover, Contain, Stretch)
+- **✨ New Feature:** Background repeat options (Repeat, No-repeat, Repeat-x, Repeat-y)
+- **🎨 Improvement:** WordPress Media Library integration for easy image selection
+- **🎨 Improvement:** Live image preview in settings page
+- **📦 Improvement:** Background settings included in export/import functionality
+- **🔧 Enhancement:** Backward compatible - existing maps work without modification
+
 ### v2.0.0 (2025-10-14)
 
 - **🚀 Major Feature:** Dynamic Rail Connection System - connections now intelligently slide along rails as cards move

@@ -20,6 +20,7 @@
                 availableLineStyles: this.parseJson(cardmap_admin_data.available_line_styles, {}),
                 lineColor: cardmap_admin_data.line_color,
                 lineThickness: cardmap_admin_data.line_thickness,
+                defaultRailThickness: cardmap_admin_data.default_rail_thickness || 8,
                 showRailThickness: !!cardmap_admin_data.show_rail_thickness,
                 nodeStyles: this.parseJson(cardmap_admin_data.node_styles, {})
             };
@@ -67,7 +68,7 @@
             this.panStartCoords = { x: 0, y: 0 };
 
             // Constants
-            this.RAIL_HEIGHT = 8;
+            this.RAIL_HEIGHT = this.config.defaultRailThickness || cardmap_admin_data.default_rail_thickness || 8;
             this.RAIL_SNAP_OFFSET = 12;
             this.RAIL_SNAP_THRESHOLD = 40;
             this.RAIL_SNAP_OFFSET_VERTICAL = 12;
@@ -966,6 +967,10 @@
             node.dataset.target = n.target || '_self';
             node.dataset.style = n.style || 'default';
             
+            // Apply custom sizing if specified
+            if (n.cardWidth) node.style.width = `${n.cardWidth}px`;
+            if (n.cardHeight) node.style.height = `${n.cardHeight}px`;
+            
             const styleOptions = Object.keys(this.config.nodeStyles).map(k => `<option value="${k}" ${ k === (n.style || 'default') ? 'selected' : '' }>${this.config.nodeStyles[k]}</option>`).join('');
 
             node.innerHTML = `
@@ -995,10 +1000,25 @@
                     <select class="card-connection-style">
                         ${ Object.keys(this.config.availableLineStyles).map(k => `<option value="${k}">${this.config.availableLineStyles[k]}</option>` ).join('') }
                     </select>
+                    <hr style="margin: 12px 0; border: none; border-top: 1px solid #ddd;">
+                    <label>Font Size (px)</label>
+                    <input type="number" class="card-font-size" placeholder="14" min="8" max="32" value="${ n.fontSize || 14 }" />
+                    <label>Card Width (px)</label>
+                    <input type="number" class="card-custom-width" placeholder="192" min="100" max="500" value="${ n.cardWidth || 192 }" />
+                    <label>Card Height (px)</label>
+                    <input type="number" class="card-custom-height" placeholder="240" min="100" max="600" value="${ n.cardHeight || 240 }" />
                 </div>
             `;
 
             this.editor.appendChild(node);
+            
+            // Apply custom font size if specified
+            if (n.fontSize) {
+                const caption = node.querySelector('.card-caption');
+                const title = node.querySelector('.card-title');
+                if (caption) caption.style.fontSize = `${n.fontSize}px`;
+                if (title) title.style.fontSize = `${n.fontSize}px`;
+            }
 
             // Make node draggable
             this.instance.draggable(node, {
@@ -1046,6 +1066,41 @@
 
             node.querySelector('.card-link-input').addEventListener('input', function(){ node.dataset.link = this.value.trim(); });
             node.querySelector('.card-link-target').addEventListener('change', function(){ node.dataset.target = this.value; });
+            
+            // Font size control
+            const fontSizeInput = node.querySelector('.card-font-size');
+            if (fontSizeInput) {
+                fontSizeInput.addEventListener('input', () => {
+                    const fontSize = parseInt(fontSizeInput.value) || 14;
+                    nodeData.fontSize = fontSize;
+                    node.querySelector('.card-caption').style.fontSize = fontSize + 'px';
+                    node.querySelector('.card-title').style.fontSize = fontSize + 'px';
+                });
+            }
+            
+            // Card width control
+            const widthInput = node.querySelector('.card-custom-width');
+            if (widthInput) {
+                widthInput.addEventListener('input', () => {
+                    const width = parseInt(widthInput.value) || 192;
+                    nodeData.cardWidth = width;
+                    node.style.width = width + 'px';
+                    this.instance.revalidate(node.id);
+                    this.instance.repaint(node.id);
+                });
+            }
+            
+            // Card height control
+            const heightInput = node.querySelector('.card-custom-height');
+            if (heightInput) {
+                heightInput.addEventListener('input', () => {
+                    const height = parseInt(heightInput.value) || 240;
+                    nodeData.cardHeight = height;
+                    node.style.height = height + 'px';
+                    this.instance.revalidate(node.id);
+                    this.instance.repaint(node.id);
+                });
+            }
             
             const styleSelect = node.querySelector('.card-node-style');
             if (styleSelect) {
@@ -1272,7 +1327,7 @@
                     if (railData.orientation === 'vertical') {
                         // For vertical rails, slide along Y axis
                         let relativeY = (nodeCenterY - railData.y) / railHeight;
-                        relativeY = Math.max(0.05, Math.min(0.95, relativeY));
+                        relativeY = Math.max(0, Math.min(1, relativeY));
                         
                         const railCenterX = railData.x + railWidth / 2;
                         const isNodeOnLeft = nodeCenterX < railCenterX;
@@ -1283,7 +1338,7 @@
                     } else if (railData.orientation === 'horizontal') {
                         // For horizontal rails, slide along X axis
                         let relativeX = (nodeCenterX - railData.x) / railWidth;
-                        relativeX = Math.max(0.05, Math.min(0.95, relativeX));
+                        relativeX = Math.max(0, Math.min(1, relativeX));
                         
                         const railCenterY = railData.y + railHeight / 2;
                         const isNodeAbove = nodeCenterY < railCenterY;
@@ -1395,7 +1450,7 @@
                                 // For vertical rails, slide the connection point along the Y axis
                                 // Project node center onto the rail's Y range
                                 let relativeY = (nodeCenterY - railData.y) / railHeight;
-                                relativeY = Math.max(0.05, Math.min(0.95, relativeY)); // Keep away from edges
+                                relativeY = Math.max(0, Math.min(1, relativeY));
                                 
                                 // Determine which side of the rail to connect from
                                 const railCenterX = railData.x + railWidth / 2;
@@ -1408,7 +1463,7 @@
                                 // For horizontal rails, slide the connection point along the X axis
                                 // Project node center onto the rail's X range
                                 let relativeX = (nodeCenterX - railData.x) / railWidth;
-                                relativeX = Math.max(0.05, Math.min(0.95, relativeX)); // Keep away from edges
+                                relativeX = Math.max(0, Math.min(1, relativeX));
                                 
                                 // Determine which side of the rail to connect from
                                 const railCenterY = railData.y + railHeight / 2;
@@ -2265,7 +2320,7 @@
          */
         addNode() {
             const id = `node_${Date.now()}`;
-            const newNode = { id, x: 100, y: 100, text: 'New Card', caption: 'Caption', image: '', link: '', target: '_self', style: 'default' };
+            const newNode = { id, x: 100, y: 100, text: 'New Card', caption: 'Caption', image: '', link: '', target: '_self', style: 'default', fontSize: 14, cardWidth: 192, cardHeight: 240 };
             this.mapData.nodes.push(newNode);
             this.renderNode(newNode);
             this.saveToHistory('Added node');
@@ -2767,7 +2822,7 @@
          */
         addRail() {
             const orientation = document.getElementById('add-rail-orientation').value;
-            const size = this.railSizeInput ? (parseInt(this.railSizeInput.value, 10) || 10) : 10;
+            const size = this.railSizeInput ? (parseInt(this.railSizeInput.value, 10) || this.RAIL_HEIGHT) : this.RAIL_HEIGHT;
             const rail = {
                 id: `rail_${Date.now()}`,
                 x: this.editor.scrollLeft + 100,
@@ -2832,10 +2887,11 @@
 
             if (rs.orientation === 'horizontal') {
                 if (state.side === 'right') {
-                    const newWidth = mapX - state.startLeft;
+                    const deltaX = mapX - state.startMapX;
+                    const newWidth = state.startWidth + deltaX;
                     rs.width = Math.max(40, newWidth);
                 } else { // left
-                    const deltaX = mapX - state.startLeft;
+                    const deltaX = mapX - state.startMapX;
                     const newWidth = state.startWidth - deltaX;
                     if (newWidth > 40) {
                         rs.x = state.startLeft + deltaX;
@@ -2856,10 +2912,11 @@
                 dom.style.transform = `rotate(${rs.angle}deg)`;
             } else { // vertical
                  if (state.side === 'bottom') {
-                    const newHeight = mapY - state.startTop;
+                    const deltaY = mapY - state.startMapY;
+                    const newHeight = state.startHeight + deltaY;
                     rs.height = Math.max(40, newHeight);
                 } else { // top
-                    const deltaY = mapY - state.startTop;
+                    const deltaY = mapY - state.startMapY;
                     const newHeight = state.startHeight - deltaY;
                     if (newHeight > 40) {
                         rs.y = state.startTop + deltaY;
@@ -3128,6 +3185,13 @@
                     if (connSel) {
                         nodeData.connectionStyle = connSel.value;
                     }
+                    // Persist custom sizing and font size
+                    const fontSizeInput = el.querySelector('.card-font-size');
+                    const widthInput = el.querySelector('.card-custom-width');
+                    const heightInput = el.querySelector('.card-custom-height');
+                    if (fontSizeInput) nodeData.fontSize = parseInt(fontSizeInput.value) || 14;
+                    if (widthInput) nodeData.cardWidth = parseInt(widthInput.value) || 192;
+                    if (heightInput) nodeData.cardHeight = parseInt(heightInput.value) || 240;
                     // Keep followingRailSegments data (it's already in nodeData)
                 }
             });

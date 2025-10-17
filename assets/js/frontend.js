@@ -34,7 +34,9 @@ document.addEventListener('DOMContentLoaded', function() {
         function getConnectorConfig(style, color, thickness, rail_size) {
             // Default rail thickness when not provided should be 3px
             const railSize = safeInt(rail_size, 3);
-            const baseConfig = { stroke: color, strokeWidth: thickness };
+            // Ensure thickness has a valid value (default to 2 if not provided or invalid)
+            const validThickness = (thickness && thickness > 0) ? thickness : 2;
+            const baseConfig = { stroke: color, strokeWidth: validThickness };
             // Create arrow overlay with proper styling
             const createArrowOverlay = () => ["Arrow", { 
                 width: 12, 
@@ -45,8 +47,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 stroke: color,
                 strokeWidth: 1
             }];
-            const dashedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "4 2", strokeDasharray: "4 2" };
-            const dottedConfig = { stroke: color, strokeWidth: thickness, dashstyle: "1 4", strokeDasharray: "1 4" };
+            const dashedConfig = { stroke: color, strokeWidth: validThickness, dashstyle: "4 2", strokeDasharray: "4 2" };
+            const dottedConfig = { stroke: color, strokeWidth: validThickness, dashstyle: "1 4", strokeDasharray: "1 4" };
 
             // Normalize old style names
             let normalizedStyle = style;
@@ -563,6 +565,93 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        /**
+         * Updates all rail connection anchors to their proper positions on the frontend.
+         * Call this after loading connections to ensure correct alignment.
+         */
+        function updateAllRailAnchors() {
+            const connections = instance.getAllConnections();
+            
+            connections.forEach(conn => {
+                try {
+                    const sourceEl = conn.source;
+                    const targetEl = conn.target;
+                    
+                    if (!sourceEl || !targetEl) return;
+                    
+                    const sourceIsRail = sourceEl.classList.contains('cardmap-rail');
+                    const targetIsRail = targetEl.classList.contains('cardmap-rail');
+                    
+                    // Only process connections involving rails
+                    if (!sourceIsRail && !targetIsRail) return;
+                    
+                    const railEl = sourceIsRail ? sourceEl : targetEl;
+                    const nodeEl = sourceIsRail ? targetEl : sourceEl;
+                    const railData = mapData.rails.find(r => r.id === railEl.id);
+                    
+                    if (!railData) return;
+                    
+                    // Get node position
+                    const nodeData = mapData.nodes.find(n => n.id === nodeEl.id);
+                    if (!nodeData) return;
+                    
+                    const nodeWidth = nodeEl.offsetWidth || 192;
+                    const nodeHeight = nodeEl.offsetHeight || 240;
+                    const nodeCenterX = nodeData.x + nodeWidth / 2;
+                    const nodeCenterY = nodeData.y + nodeHeight / 2;
+                    
+                    // Calculate rail dimensions
+                    const railWidth = railData.width || (railData.orientation === 'vertical' ? railData.size || 8 : 300);
+                    const railHeight = railData.height || (railData.orientation === 'horizontal' ? railData.size || 8 : 300);
+                    
+                    let railAnchor;
+                    let nodeAnchor;
+                    
+                    if (railData.orientation === 'vertical') {
+                        // For vertical rails, slide along Y axis
+                        let relativeY = (nodeCenterY - railData.y) / railHeight;
+                        relativeY = Math.max(0, Math.min(1, relativeY));
+                        
+                        const railCenterX = railData.x + railWidth / 2;
+                        const isNodeOnLeft = nodeCenterX < railCenterX;
+                        
+                        railAnchor = [isNodeOnLeft ? 0 : 1, relativeY, 0, 0];
+                        nodeAnchor = isNodeOnLeft ? "RightMiddle" : "LeftMiddle";
+                        
+                    } else if (railData.orientation === 'horizontal') {
+                        // For horizontal rails, slide along X axis
+                        let relativeX = (nodeCenterX - railData.x) / railWidth;
+                        relativeX = Math.max(0, Math.min(1, relativeX));
+                        
+                        const railCenterY = railData.y + railHeight / 2;
+                        const isNodeAbove = nodeCenterY < railCenterY;
+                        
+                        railAnchor = [relativeX, isNodeAbove ? 1 : 0, 0, 0];
+                        nodeAnchor = isNodeAbove ? "BottomCenter" : "TopCenter";
+                        
+                    } else {
+                        // Diagonal or other orientations - skip
+                        return;
+                    }
+                    
+                    // Apply the anchors
+                    if (sourceIsRail) {
+                        conn.endpoints[0].setAnchor(railAnchor);
+                        conn.endpoints[1].setAnchor(nodeAnchor);
+                    } else {
+                        conn.endpoints[0].setAnchor(nodeAnchor);
+                        conn.endpoints[1].setAnchor(railAnchor);
+                    }
+                    
+                } catch (error) {
+                    // Silently handle errors
+                }
+            });
+            
+            // Repaint all connections after updating anchors
+            instance.repaintEverything();
+        }
+
         // Create connections after a short delay to ensure rails are fully initialized
         setTimeout(() => {
             instance.batch(() => {
@@ -770,10 +859,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     const nodes = wrapper.querySelectorAll('.cardmap-node');
                     instance.draggable(nodes);
                 }
+                
+                // Update all rail connection anchors to ensure proper alignment on frontend
+                updateAllRailAnchors();
             });
 
             // Execute animations after a brief delay to ensure connections are ready
             setTimeout(() => {
+                // Note: updateAllRailAnchors already calls repaintEverything, but we call it again
+                // here to ensure everything is rendered before animations start
                 instance.repaintEverything();
 
                 setTimeout(() => {
@@ -861,7 +955,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     const railStyle = railEl.dataset.railStyle || 'solid';
                     const railColor = railEl.dataset.railColor || mapConfig.line_color || '#A61832';
                     const railSizeAttr = parseInt(railEl.dataset.railSize, 10);
-                    const defaultSize = 3;
+                    // Use global default rail thickness from settings, fallback to line_thickness if not set
+                    const defaultSize = mapConfig.default_rail_thickness || mapConfig.line_thickness || 3;
                     const railSize = !isNaN(railSizeAttr) && railSizeAttr > 0 ? railSizeAttr : defaultSize;
 
                     // Apply thickness for the inner bar
@@ -913,7 +1008,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const existingRailStyle = railEl.dataset.railStyle || 'solid';
                     const existingRailColor = railEl.dataset.railColor || mapConfig.line_color || '#A61832';
                     const existingRailSizeAttr = parseInt(railEl.dataset.railSize, 10);
-                    const existingRailSize = !isNaN(existingRailSizeAttr) && existingRailSizeAttr > 0 ? existingRailSizeAttr : 3;
+                    // Use global default rail thickness from settings, fallback to line_thickness if not set
+                    const globalDefaultSize = mapConfig.default_rail_thickness || mapConfig.line_thickness || 3;
+                    const existingRailSize = !isNaN(existingRailSizeAttr) && existingRailSizeAttr > 0 ? existingRailSizeAttr : globalDefaultSize;
 
                     if (railEl.classList.contains('vertical')) {
                         bar.style.width = (existingRailSize) + 'px';
@@ -949,6 +1046,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     railEl.classList.add('rail-thickness-hidden');
                 } else {
                     railEl.classList.remove('rail-thickness-hidden');
+                }
+
+                // Apply rail animation if enabled
+                if (mapConfig.enable_rail_animation && mapConfig.rail_animation_style) {
+                    const animationClass = 'rail-animate-' + mapConfig.rail_animation_style;
+                    railEl.classList.add(animationClass);
+                    
+                    // Set CSS custom property for rail color if available
+                    const railColor = railEl.dataset.railColor || railEl.getAttribute('data-rail-color');
+                    if (railColor) {
+                        railEl.style.setProperty('--rail-color', railColor);
+                    }
+                } else {
+                    // Remove any existing animation classes
+                    railEl.classList.remove('rail-animate-pulse', 'rail-animate-glow', 'rail-animate-flow', 
+                                          'rail-animate-shimmer', 'rail-animate-breathe', 'rail-animate-slide');
                 }
 
                 // Ensure rail has proper positioning and is visible in the container

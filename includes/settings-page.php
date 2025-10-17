@@ -35,6 +35,13 @@ add_action( 'admin_init', function(){
     register_setting( 'cardmap_settings_group', 'cardmap_enable_frontend_view', [ 'type' => 'boolean', 'default' => true ] );
     register_setting( 'cardmap_settings_group', 'cardmap_hover_effect', [ 'type' => 'string', 'default' => 'lift' ] );
     register_setting( 'cardmap_settings_group', 'cardmap_initial_zoom', [ 'type' => 'integer', 'default' => 100 ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_enable_captions', [ 'type' => 'boolean', 'default' => true ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_enable_rail_animation', [ 'type' => 'boolean', 'default' => false ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_rail_animation_style', [ 'type' => 'string', 'default' => 'pulse' ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_default_rail_thickness', [ 'type' => 'integer', 'default' => 8 ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_background_image', [ 'type' => 'string', 'default' => '' ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_background_size', [ 'type' => 'string', 'default' => 'auto' ] );
+    register_setting( 'cardmap_settings_group', 'cardmap_background_repeat', [ 'type' => 'string', 'default' => 'repeat' ] );
 });
 
 /**
@@ -63,7 +70,14 @@ function cardmap_export_settings() {
         'cardmap_show_rail_thickness',
         'cardmap_enable_frontend_view',
         'cardmap_hover_effect',
-        'cardmap_initial_zoom'
+        'cardmap_initial_zoom',
+        'cardmap_enable_captions',
+        'cardmap_enable_rail_animation',
+        'cardmap_rail_animation_style',
+        'cardmap_default_rail_thickness',
+        'cardmap_background_image',
+        'cardmap_background_size',
+        'cardmap_background_repeat'
     ];
 
     $export_data = [];
@@ -122,7 +136,10 @@ function cardmap_import_settings() {
         'cardmap_show_rail_thickness',
         'cardmap_enable_frontend_view',
         'cardmap_hover_effect',
-        'cardmap_initial_zoom'
+        'cardmap_initial_zoom',
+        'cardmap_background_image',
+        'cardmap_background_size',
+        'cardmap_background_repeat'
     ];
 
     foreach ($settings_to_import as $setting) {
@@ -180,6 +197,16 @@ function cardmap_settings_page() {
                             </div>
                             <p class="description">Globally enable or disable the display of all card maps on the frontend.</p>
                         </div>
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <label for="cardmap_enable_captions" class="setting-title">Show Card Captions</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_enable_captions" name="cardmap_enable_captions" value="1" <?php checked(1, get_option('cardmap_enable_captions', 1) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Display captions on cards in the frontend. When disabled, captions and their backgrounds will be hidden.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -187,6 +214,50 @@ function cardmap_settings_page() {
                 <div class="settings-card">
                     <h2><span class="dashicons dashicons-admin-appearance"></span> Appearance</h2>
                     <div class="card-content">
+                        <div class="setting-item">
+                            <label for="cardmap_background_image" class="setting-title">Map Background Image</label>
+                            <div class="image-upload-field">
+                                <input type="text" id="cardmap_background_image" name="cardmap_background_image" value="<?php echo esc_attr( get_option('cardmap_background_image', '') ); ?>" placeholder="No image selected" style="width: 70%; margin-right: 5px;">
+                                <button type="button" id="cardmap_upload_bg_image" class="button button-secondary">
+                                    <span class="dashicons dashicons-format-image"></span> Select Image
+                                </button>
+                                <button type="button" id="cardmap_remove_bg_image" class="button button-secondary" style="<?php echo empty(get_option('cardmap_background_image', '')) ? 'display:none;' : ''; ?>">
+                                    <span class="dashicons dashicons-no"></span> Remove
+                                </button>
+                            </div>
+                            <?php if ( !empty(get_option('cardmap_background_image', '')) ) : ?>
+                                <div id="cardmap_bg_preview" style="margin-top: 10px;">
+                                    <img src="<?php echo esc_url(get_option('cardmap_background_image', '')); ?>" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                            <?php else: ?>
+                                <div id="cardmap_bg_preview" style="margin-top: 10px; display: none;">
+                                    <img src="" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                            <?php endif; ?>
+                            <p class="description">Upload a background image for the map display on the frontend.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_background_size" class="setting-title">Background Size</label>
+                            <select id="cardmap_background_size" name="cardmap_background_size">
+                                <?php $current_bg_size = get_option('cardmap_background_size', 'auto'); ?>
+                                <option value="auto" <?php selected($current_bg_size, 'auto'); ?>>Auto</option>
+                                <option value="cover" <?php selected($current_bg_size, 'cover'); ?>>Cover</option>
+                                <option value="contain" <?php selected($current_bg_size, 'contain'); ?>>Contain</option>
+                                <option value="100% 100%" <?php selected($current_bg_size, '100% 100%'); ?>>Stretch (100% 100%)</option>
+                            </select>
+                            <p class="description">Control how the background image is sized. <strong>Auto:</strong> Original size, <strong>Cover:</strong> Fill container, <strong>Contain:</strong> Fit within container, <strong>Stretch:</strong> Fill entire area.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_background_repeat" class="setting-title">Background Repeat</label>
+                            <select id="cardmap_background_repeat" name="cardmap_background_repeat">
+                                <?php $current_bg_repeat = get_option('cardmap_background_repeat', 'repeat'); ?>
+                                <option value="repeat" <?php selected($current_bg_repeat, 'repeat'); ?>>Repeat</option>
+                                <option value="no-repeat" <?php selected($current_bg_repeat, 'no-repeat'); ?>>No Repeat</option>
+                                <option value="repeat-x" <?php selected($current_bg_repeat, 'repeat-x'); ?>>Repeat Horizontally</option>
+                                <option value="repeat-y" <?php selected($current_bg_repeat, 'repeat-y'); ?>>Repeat Vertically</option>
+                            </select>
+                            <p class="description">Control how the background image repeats.</p>
+                        </div>
                         <div class="setting-item">
                             <label for="cardmap_hover_effect" class="setting-title">Card Hover Effect</label>
                             <select id="cardmap_hover_effect" name="cardmap_hover_effect">
@@ -203,6 +274,29 @@ function cardmap_settings_page() {
                             <label for="cardmap_initial_zoom" class="setting-title">Initial Zoom Level (%)</label>
                             <input type="number" id="cardmap_initial_zoom" name="cardmap_initial_zoom" min="10" max="200" step="5" value="<?php echo esc_attr( get_option('cardmap_initial_zoom', 100) ); ?>">
                             <p class="description">Set the initial zoom level for maps on the frontend (10% to 200%). Default: 100% (no zoom).</p>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-header">
+                                <label for="cardmap_enable_rail_animation" class="setting-title">Enable Rail Animation</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="cardmap_enable_rail_animation" name="cardmap_enable_rail_animation" value="1" <?php checked(1, get_option('cardmap_enable_rail_animation', 0) ); ?>>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <p class="description">Enable visual animations for rails on the frontend.</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_rail_animation_style" class="setting-title">Rail Animation Style</label>
+                            <select id="cardmap_rail_animation_style" name="cardmap_rail_animation_style">
+                                <?php $current_rail_animation = get_option('cardmap_rail_animation_style', 'pulse'); ?>
+                                <option value="pulse" <?php selected($current_rail_animation, 'pulse'); ?>>Pulse</option>
+                                <option value="glow" <?php selected($current_rail_animation, 'glow'); ?>>Glow</option>
+                                <option value="flow" <?php selected($current_rail_animation, 'flow'); ?>>Flow</option>
+                                <option value="shimmer" <?php selected($current_rail_animation, 'shimmer'); ?>>Shimmer</option>
+                                <option value="breathe" <?php selected($current_rail_animation, 'breathe'); ?>>Breathe</option>
+                                <option value="slide" <?php selected($current_rail_animation, 'slide'); ?>>Slide</option>
+                            </select>
+                            <p class="description">Choose the animation style for rails when animation is enabled.</p>
                         </div>
                         <!-- Show Rail Thickness moved to Editor Settings -->
                     </div>
@@ -263,7 +357,12 @@ function cardmap_settings_page() {
                         <div class="setting-item">
                             <label for="cardmap_line_thickness" class="setting-title">Connection Line Thickness (px)</label>
                             <input type="number" id="cardmap_line_thickness" name="cardmap_line_thickness" min="1" max="20" value="<?php echo esc_attr( get_option('cardmap_line_thickness', 2) ); ?>">
-                            <p class="description">Default thickness for the connection lines.</p>
+                            <p class="description">Default thickness for the connection lines (applies to frontend and editor).</p>
+                        </div>
+                        <div class="setting-item">
+                            <label for="cardmap_default_rail_thickness" class="setting-title">Default Rail Thickness (px)</label>
+                            <input type="number" id="cardmap_default_rail_thickness" name="cardmap_default_rail_thickness" min="1" max="50" value="<?php echo esc_attr( get_option('cardmap_default_rail_thickness', 8) ); ?>">
+                            <p class="description">Default thickness for new rails created in the editor.</p>
                         </div>
                     </div>
                 </div>
@@ -460,6 +559,58 @@ function cardmap_settings_page() {
                 setTimeout(() => {
                     importStatus.style.display = 'none';
                 }, 5000);
+            }
+
+            // WordPress Media Uploader for Background Image
+            const uploadBtn = document.getElementById('cardmap_upload_bg_image');
+            const removeBtn = document.getElementById('cardmap_remove_bg_image');
+            const imageInput = document.getElementById('cardmap_background_image');
+            const imagePreview = document.getElementById('cardmap_bg_preview');
+
+            if (uploadBtn) {
+                uploadBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+
+                    // Create WordPress media uploader
+                    const mediaUploader = wp.media({
+                        title: 'Select Background Image',
+                        button: {
+                            text: 'Use this image'
+                        },
+                        multiple: false,
+                        library: {
+                            type: 'image'
+                        }
+                    });
+
+                    // When an image is selected
+                    mediaUploader.on('select', function() {
+                        const attachment = mediaUploader.state().get('selection').first().toJSON();
+                        imageInput.value = attachment.url;
+                        
+                        // Update preview
+                        const img = imagePreview.querySelector('img');
+                        if (img) {
+                            img.src = attachment.url;
+                            imagePreview.style.display = 'block';
+                        }
+                        
+                        // Show remove button
+                        removeBtn.style.display = 'inline-block';
+                    });
+
+                    // Open the media uploader
+                    mediaUploader.open();
+                });
+            }
+
+            if (removeBtn) {
+                removeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    imageInput.value = '';
+                    imagePreview.style.display = 'none';
+                    removeBtn.style.display = 'none';
+                });
             }
         });
         </script>

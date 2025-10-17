@@ -3,7 +3,7 @@ Contributors: prangishviliAbe
 Tags: map, builder, diagram, flowchart, mind map, jsplumb
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 2.0.0
+Stable tag: 2.1.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,6 +30,15 @@ Card Map Builder Pro allows you to create dynamic, interactive maps of cards. It
 4.  Use the shortcode `[cardmap id="your_map_id"]` to display your map.
 
 == Changelog ==
+
+= 2.1.0 =
+*   ✨ New Feature: Custom background image support for frontend maps
+*   ✨ New Feature: Background size control (Auto, Cover, Contain, Stretch)
+*   ✨ New Feature: Background repeat options (Repeat, No-repeat, Repeat-x, Repeat-y)
+*   🎨 Improvement: WordPress Media Library integration for easy image selection
+*   🎨 Improvement: Live image preview in settings page
+*   📦 Improvement: Background settings included in export/import functionality
+*   🔧 Enhancement: Backward compatible - existing maps work without modification
 
 = 2.0.0 =
 *   🚀 Major Feature: Dynamic Rail Connection System - connections now intelligently slide along rails as cards move

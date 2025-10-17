@@ -2,7 +2,7 @@
 /*
 Plugin Name: Card Map Builder Pro
 Description: Draggable card maps with images, captions, links, connections, admin editor + settings, and frontend shortcode with zoom/pan/fullscreen.
-Version: 2.0.0
+Version: 2.1.0
 Author: Abe Prangishvili
 */
 
@@ -23,7 +23,7 @@ add_action( 'plugins_loaded', function() {
 // Migration: Update line styles to include all modern styles
 add_action( 'admin_init', function() {
     $current_version = get_option( 'cardmap_version', '0' );
-    $plugin_version = '2.0.0';
+    $plugin_version = '2.1.0';
     
     // Run migration if version is different
     if ( version_compare( $current_version, $plugin_version, '<' ) ) {
@@ -83,6 +83,7 @@ function cardmap_admin_assets( $hook ) {
             'available_line_styles' => json_decode( get_option( 'cardmap_line_styles', json_encode( [ 'normal' => 'Normal', 'straight' => 'Straight', 'straight-with-arrows' => 'Straight with Arrows', 'bezier' => 'Bezier', 'bezier-with-arrows' => 'Bezier with Arrows', 'dashed' => 'Dashed', 'dashed-with-arrows' => 'Dashed with Arrows', 'dotted' => 'Dotted', 'dotted-with-arrows' => 'Dotted with Arrows', 'flowchart' => 'Flowchart', 'flowchart-with-arrows' => 'Flowchart with Arrows' ] ) ), true ),
             'line_color' => get_option( 'cardmap_line_color', '#A61832' ),
             'line_thickness' => get_option( 'cardmap_line_thickness', 2 ),
+            'default_rail_thickness' => get_option( 'cardmap_default_rail_thickness', 8 ),
             'show_rail_thickness' => (bool) get_option( 'cardmap_show_rail_thickness', 1 ),
             'enable_auto_align' => (bool) get_option( 'cardmap_enable_auto_align', 1 ),
             'node_styles' => json_decode( get_option( 'cardmap_node_styles', json_encode( [ 'default' => 'Default', 'highlight' => 'Highlight', 'muted' => 'Muted', 'bold' => 'Bold', 'shadow' => 'Shadow', 'bordered' => 'Bordered', 'minimal' => 'Minimal' ] ) ), true ),
@@ -91,6 +92,7 @@ function cardmap_admin_assets( $hook ) {
 
     // Enqueue assets for the settings page
     if ( 'cardmap_page_cardmap_settings' === $hook ) {
+        wp_enqueue_media(); // Enqueue WordPress media library for background image upload
         $settings_css_ver = filemtime( CARDMAP_PLUGIN_DIR . 'assets/css/settings.css' );
         wp_enqueue_style( 'cardmap-settings-css', CARDMAP_PLUGIN_URL . 'assets/css/settings.css', [], $settings_css_ver );
     }
@@ -183,3 +185,4 @@ $myUpdateChecker->getVcsApi()->enableReleaseAssets();
 
 //Set the branch that contains the stable release.
 $myUpdateChecker->setBranch('main');
+
